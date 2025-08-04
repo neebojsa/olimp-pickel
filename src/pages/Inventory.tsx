@@ -18,7 +18,8 @@ const mockInventoryItems = [
     unitOfMeasure: "pieces",
     unitCost: 45.50,
     supplier: "Metal Supply Co",
-    location: "Rack A-1"
+    location: "Rack A-1",
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop&crop=center"
   },
   {
     id: "2",
@@ -30,7 +31,8 @@ const mockInventoryItems = [
     unitOfMeasure: "pieces",
     unitCost: 12.99,
     supplier: "Tool World",
-    location: "Tool Cabinet B"
+    location: "Tool Cabinet B",
+    image: "https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=400&h=300&fit=crop&crop=center"
   },
   {
     id: "3",
@@ -42,7 +44,8 @@ const mockInventoryItems = [
     unitOfMeasure: "pieces",
     unitCost: 85.00,
     supplier: "Steel Direct",
-    location: "Rack C-2"
+    location: "Rack C-2",
+    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=300&fit=crop&crop=center"
   }
 ];
 
@@ -60,7 +63,8 @@ const mockFinishedProducts = [
     customer: "AutoCorp Industries",
     leadTime: "3-5 days",
     location: "Finished Goods A-1",
-    status: "active"
+    status: "active",
+    image: "https://images.unsplash.com/photo-1487887235947-a955ef187fcc?w=400&h=300&fit=crop&crop=center"
   },
   {
     id: "fp2",
@@ -75,7 +79,8 @@ const mockFinishedProducts = [
     customer: "MechTech Solutions",
     leadTime: "2-4 days",
     location: "Finished Goods B-2",
-    status: "active"
+    status: "active",
+    image: "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop&crop=center"
   },
   {
     id: "fp3",
@@ -90,7 +95,8 @@ const mockFinishedProducts = [
     customer: "ElectroMax Corp",
     leadTime: "1-3 days",
     location: "Finished Goods C-1",
-    status: "low_stock"
+    status: "low_stock",
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop&crop=center"
   },
   {
     id: "fp4",
@@ -105,7 +111,8 @@ const mockFinishedProducts = [
     customer: "Industrial Motors Inc",
     leadTime: "2-3 days",
     location: "Finished Goods A-3",
-    status: "active"
+    status: "active",
+    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=300&fit=crop&crop=center"
   }
 ];
 
@@ -238,7 +245,14 @@ export default function Inventory() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {mockInventoryItems.map((item) => (
               <Card key={item.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
+                <CardHeader className="space-y-2">
+                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                    <img 
+                      src={item.image} 
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-lg">{item.name}</CardTitle>
@@ -303,7 +317,14 @@ export default function Inventory() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {mockFinishedProducts.map((product) => (
               <Card key={product.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
+                <CardHeader className="space-y-2">
+                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                    <img 
+                      src={product.image} 
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-lg">{product.name}</CardTitle>
