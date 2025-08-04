@@ -7,7 +7,11 @@ import {
   Calculator,
   Settings,
   LogOut,
-  Menu
+  Menu,
+  Tag,
+  TrendingUp,
+  Users,
+  FolderOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -17,6 +21,10 @@ const navigation = [
   { name: "Work Orders", href: "/work-orders", icon: ClipboardList },
   { name: "Invoicing", href: "/invoicing", icon: FileText },
   { name: "Accounting", href: "/accounting", icon: Calculator },
+  { name: "Labels", href: "/labels", icon: Tag },
+  { name: "Sales", href: "/sales", icon: TrendingUp },
+  { name: "Customers", href: "/customers", icon: Users },
+  { name: "Other docs", href: "/other-docs", icon: FolderOpen },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
