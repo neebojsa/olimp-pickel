@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Search, Package, AlertTriangle } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, FileText, Clock, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Mock data for demonstration
 const mockInventoryItems = [
@@ -64,7 +65,16 @@ const mockFinishedProducts = [
     leadTime: "3-5 days",
     location: "Finished Goods A-1",
     status: "active",
-    image: "https://images.unsplash.com/photo-1487887235947-a955ef187fcc?w=400&h=300&fit=crop&crop=center"
+    image: "https://images.unsplash.com/photo-1487887235947-a955ef187fcc?w=400&h=300&fit=crop&crop=center",
+    drawingFiles: ["BRK-001-A_Drawing.pdf", "BRK-001-A_Assembly.dwg"],
+    materialsUsed: ["Aluminum 6061 Bar", "M6x12 Socket Cap Screws"],
+    workOrder: "WO-2024-001",
+    productionTime: "2.5 hours",
+    notes: "Customer requires tight tolerances on mounting holes. Use fixture #A-12.",
+    history: [
+      { date: "2024-01-15", action: "Production run completed", quantity: 10 },
+      { date: "2024-01-10", action: "Work order created", quantity: 10 }
+    ]
   },
   {
     id: "fp2",
@@ -80,7 +90,16 @@ const mockFinishedProducts = [
     leadTime: "2-4 days",
     location: "Finished Goods B-2",
     status: "active",
-    image: "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop&crop=center"
+    image: "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop&crop=center",
+    drawingFiles: ["SHF-205-B_Drawing.pdf", "SHF-205-B_Specs.pdf"],
+    materialsUsed: ["Steel 1018 Plate", "Cutting Oil"],
+    workOrder: "WO-2024-005",
+    productionTime: "4.0 hours",
+    notes: "Surface finish Ra 32. Use diamond turning insert for final pass.",
+    history: [
+      { date: "2024-01-20", action: "Quality inspection passed", quantity: 15 },
+      { date: "2024-01-18", action: "Production completed", quantity: 15 }
+    ]
   },
   {
     id: "fp3",
@@ -96,7 +115,16 @@ const mockFinishedProducts = [
     leadTime: "1-3 days",
     location: "Finished Goods C-1",
     status: "low_stock",
-    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop&crop=center"
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop&crop=center",
+    drawingFiles: ["HSK-301-C_Drawing.pdf"],
+    materialsUsed: ["Aluminum 6061 Bar", "1/4\" End Mill"],
+    workOrder: "WO-2024-003",
+    productionTime: "1.5 hours",
+    notes: "Anodize finish required. Check thermal specifications.",
+    history: [
+      { date: "2024-01-12", action: "Production run", quantity: 20 },
+      { date: "2024-01-08", action: "Material ordered", quantity: 0 }
+    ]
   },
   {
     id: "fp4",
@@ -112,7 +140,16 @@ const mockFinishedProducts = [
     leadTime: "2-3 days",
     location: "Finished Goods A-3",
     status: "active",
-    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=300&fit=crop&crop=center"
+    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=300&fit=crop&crop=center",
+    drawingFiles: ["MMP-150-D_Drawing.pdf", "MMP-150-D_Drill_Pattern.pdf"],
+    materialsUsed: ["Steel 1018 Plate", "M8 Threaded Inserts"],
+    workOrder: "WO-2024-007",
+    productionTime: "3.0 hours",
+    notes: "Customer requires zinc plating. Use jig #M-25 for drilling pattern.",
+    history: [
+      { date: "2024-01-25", action: "Production completed", quantity: 20 },
+      { date: "2024-01-22", action: "Material prep", quantity: 0 }
+    ]
   }
 ];
 
@@ -126,6 +163,8 @@ const mockCategories = [
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
 
   const lowStockItems = mockInventoryItems.filter(
     item => item.currentQuantity <= item.minimumQuantity
@@ -222,7 +261,7 @@ export default function Inventory() {
       <Tabs defaultValue="items" className="space-y-4">
         <TabsList>
           <TabsTrigger value="items">Raw Materials</TabsTrigger>
-          <TabsTrigger value="finished-products">Finished Products</TabsTrigger>
+          <TabsTrigger value="finished-products">Products</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="low-stock">Low Stock</TabsTrigger>
         </TabsList>
@@ -318,7 +357,13 @@ export default function Inventory() {
             {mockFinishedProducts.map((product) => (
               <Card key={product.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="space-y-2">
-                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                  <div 
+                    className="aspect-video w-full bg-muted rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setIsProductDialogOpen(true);
+                    }}
+                  >
                     <img 
                       src={product.image} 
                       alt={product.name}
@@ -327,7 +372,15 @@ export default function Inventory() {
                   </div>
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg">{product.name}</CardTitle>
+                      <CardTitle 
+                        className="text-lg cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => {
+                          setSelectedProduct(product);
+                          setIsProductDialogOpen(true);
+                        }}
+                      >
+                        {product.name}
+                      </CardTitle>
                       <p className="text-sm text-muted-foreground">Part #: {product.partNumber}</p>
                       <p className="text-xs text-muted-foreground mt-1">{product.description}</p>
                     </div>
@@ -511,6 +564,200 @@ export default function Inventory() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Product Details Dialog */}
+      <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">{selectedProduct?.name}</DialogTitle>
+          </DialogHeader>
+          
+          {selectedProduct && (
+            <div className="space-y-6">
+              {/* Product Image and Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <img 
+                    src={selectedProduct.image} 
+                    alt={selectedProduct.name}
+                    className="w-full aspect-video object-cover rounded-lg"
+                  />
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-lg">Basic Information</h3>
+                    <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                      <div><span className="font-medium">Part Number:</span> {selectedProduct.partNumber}</div>
+                      <div><span className="font-medium">Customer:</span> {selectedProduct.customer}</div>
+                      <div><span className="font-medium">Location:</span> {selectedProduct.location}</div>
+                      <div><span className="font-medium">Lead Time:</span> {selectedProduct.leadTime}</div>
+                      <div><span className="font-medium">In Stock:</span> {selectedProduct.currentQuantity} {selectedProduct.unitOfMeasure}</div>
+                      <div><span className="font-medium">Min Stock:</span> {selectedProduct.minimumQuantity} {selectedProduct.unitOfMeasure}</div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold">Description</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{selectedProduct.description}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pricing Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    Pricing & Costs
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground">Manufacturing Cost</p>
+                      <p className="text-lg font-bold">${selectedProduct.manufacturingCost}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground">Selling Price</p>
+                      <p className="text-lg font-bold text-green-600">${selectedProduct.sellingPrice}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground">Profit Margin</p>
+                      <p className="text-lg font-bold text-green-600">
+                        ${(selectedProduct.sellingPrice - selectedProduct.manufacturingCost).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground">Margin %</p>
+                      <p className="text-lg font-bold text-green-600">
+                        {(((selectedProduct.sellingPrice - selectedProduct.manufacturingCost) / selectedProduct.sellingPrice) * 100).toFixed(0)}%
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Drawing Files */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Drawing Files
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {selectedProduct.drawingFiles?.map((file, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 border rounded">
+                        <FileText className="w-4 h-4" />
+                        <span className="text-sm">{file}</span>
+                        <Button size="sm" variant="ghost" className="ml-auto">
+                          Download
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Materials Used */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    Materials Used
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProduct.materialsUsed?.map((material, index) => (
+                      <Badge key={index} variant="secondary">
+                        {material}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Production Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="w-5 h-5" />
+                      Work Order
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Work Order:</span>
+                        <span className="font-medium">{selectedProduct.workOrder}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Production Time:</span>
+                        <span className="font-medium">{selectedProduct.productionTime}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="w-5 h-5" />
+                      Production Notes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">{selectedProduct.notes}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {selectedProduct.history?.map((entry, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded">
+                        <div>
+                          <p className="font-medium">{entry.action}</p>
+                          <p className="text-sm text-muted-foreground">{entry.date}</p>
+                        </div>
+                        {entry.quantity > 0 && (
+                          <Badge variant="outline">
+                            Qty: {entry.quantity}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4">
+                <Button className="flex-1">
+                  Add to Invoice
+                </Button>
+                <Button variant="outline" className="flex-1">
+                  Edit Product
+                </Button>
+                <Button variant="outline" className="flex-1">
+                  Create Work Order
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
