@@ -64,6 +64,78 @@ const mockProducts = [
       { action: "Quality Check Passed", date: "2024-01-12", quantity: 0 },
       { action: "Production Completed", date: "2024-01-09", quantity: 40 }
     ]
+  },
+  {
+    id: "P-003",
+    name: "Precision Shaft",
+    partNumber: "PR-003",
+    customer: "TechCorp Solutions",
+    location: "Warehouse C-1",
+    description: "High-precision machined shaft with tight tolerances",
+    currentQuantity: 8,
+    minimumQuantity: 12,
+    unitOfMeasure: "pcs",
+    leadTime: "4-6 days",
+    sellingPrice: 185.00,
+    manufacturingCost: 125.75,
+    image: "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=300&h=200&fit=crop",
+    drawingFiles: ["PR-003-Drawing.pdf", "PR-003-Tolerance.dwg"],
+    materialsUsed: ["4140 Steel Rod", "Precision Cutting Tools"],
+    workOrder: "WO-2024-003",
+    productionTime: "5.5 hours",
+    notes: "Critical tolerances +/- 0.001 inch. Use coordinate measuring machine for inspection.",
+    history: [
+      { action: "Work Order Created", date: "2024-01-20", quantity: 0 },
+      { action: "Material Ordered", date: "2024-01-18", quantity: 0 }
+    ]
+  },
+  {
+    id: "P-004",
+    name: "Custom Gear Housing",
+    partNumber: "GH-004",
+    customer: "MechSystems Ltd",
+    location: "Warehouse D-1",
+    description: "Custom aluminum gear housing with internal bearing seats",
+    currentQuantity: 12,
+    minimumQuantity: 8,
+    unitOfMeasure: "pcs",
+    leadTime: "6-8 days",
+    sellingPrice: 245.00,
+    manufacturingCost: 165.80,
+    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=300&h=200&fit=crop",
+    drawingFiles: ["GH-004-Assembly.pdf", "GH-004-Machining.dwg", "GH-004-Bearing-Seats.dwg"],
+    materialsUsed: ["6061-T6 Aluminum Block", "Sealed Bearings", "O-Ring Seals"],
+    workOrder: "WO-2024-004",
+    productionTime: "8.0 hours",
+    notes: "Complex internal geometry. Multiple setups required. Final inspection with go/no-go gauges.",
+    history: [
+      { action: "Production Started", date: "2024-01-15", quantity: 0 },
+      { action: "Material Prepared", date: "2024-01-12", quantity: 15 }
+    ]
+  },
+  {
+    id: "P-005",
+    name: "Bearing Support Block",
+    partNumber: "BS-005",
+    customer: "Industrial Partners",
+    location: "Warehouse E-2",
+    description: "Cast iron bearing support block with precision bore",
+    currentQuantity: 6,
+    minimumQuantity: 10,
+    unitOfMeasure: "pcs",
+    leadTime: "7-10 days",
+    sellingPrice: 156.25,
+    manufacturingCost: 98.40,
+    image: "https://images.unsplash.com/photo-1487887235947-a955ef187fcc?w=300&h=200&fit=crop",
+    drawingFiles: ["BS-005-Block.pdf", "BS-005-Bore.dwg"],
+    materialsUsed: ["Cast Iron Block", "Boring Tools", "Surface Grinder"],
+    workOrder: "WO-2024-005",
+    productionTime: "6.5 hours",
+    notes: "Cast iron requires carbide tooling. Surface finish critical for bearing fit.",
+    history: [
+      { action: "Production On Hold", date: "2024-01-18", quantity: 0 },
+      { action: "Customer Change Request", date: "2024-01-16", quantity: 0 }
+    ]
   }
 ];
 

@@ -261,7 +261,7 @@ export default function Inventory() {
       <Tabs defaultValue="items" className="space-y-4">
         <TabsList>
           <TabsTrigger value="items">Raw Materials</TabsTrigger>
-          <TabsTrigger value="finished-products">Products</TabsTrigger>
+          <TabsTrigger value="finished-products">Parts</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="low-stock">Low Stock</TabsTrigger>
         </TabsList>
