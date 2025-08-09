@@ -9,14 +9,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Link } from "react-router-dom";
 
 // Mock work orders data
 const mockWorkOrders = [
   {
     id: "WO-001",
     workOrderNumber: "WO-2024-001",
-    name: "Aluminum Bracket Assembly",
-    drawingNumber: "DWG-AL-001",
+    partName: "Aluminum Bracket Assembly",
+    partNumber: "AL-001",
     buyer: "ABC Manufacturing",
     status: "In Progress",
     priority: "High",
@@ -25,8 +26,8 @@ const mockWorkOrders = [
   {
     id: "WO-002", 
     workOrderNumber: "WO-2024-002",
-    name: "Steel Mounting Plate",
-    drawingNumber: "DWG-ST-002",
+    partName: "Steel Mounting Plate",
+    partNumber: "ST-002",
     buyer: "XYZ Industries",
     status: "Completed",
     priority: "Medium",
@@ -35,8 +36,8 @@ const mockWorkOrders = [
   {
     id: "WO-003",
     workOrderNumber: "WO-2024-003", 
-    name: "Precision Shaft",
-    drawingNumber: "DWG-PR-003",
+    partName: "Precision Shaft",
+    partNumber: "PR-003",
     buyer: "TechCorp Solutions",
     status: "Not Started",
     priority: "Low",
@@ -45,8 +46,8 @@ const mockWorkOrders = [
   {
     id: "WO-004",
     workOrderNumber: "WO-2024-004",
-    name: "Custom Gear Housing", 
-    drawingNumber: "DWG-GH-004",
+    partName: "Custom Gear Housing", 
+    partNumber: "GH-004",
     buyer: "MechSystems Ltd",
     status: "In Progress",
     priority: "High",
@@ -55,8 +56,8 @@ const mockWorkOrders = [
   {
     id: "WO-005",
     workOrderNumber: "WO-2024-005",
-    name: "Bearing Support Block",
-    drawingNumber: "DWG-BS-005", 
+    partName: "Bearing Support Block",
+    partNumber: "BS-005", 
     buyer: "Industrial Partners",
     status: "On Hold",
     priority: "Medium",
@@ -109,8 +110,8 @@ export default function WorkOrders() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Work Order Number</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Drawing Number</TableHead>
+                  <TableHead>Part Name</TableHead>
+                  <TableHead>Part Number</TableHead>
                   <TableHead>Buyer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
@@ -123,9 +124,16 @@ export default function WorkOrders() {
                     <TableCell className="font-medium">
                       {workOrder.workOrderNumber}
                     </TableCell>
-                    <TableCell>{workOrder.name}</TableCell>
+                    <TableCell>
+                      <Link 
+                        to="/inventory" 
+                        className="text-primary hover:underline font-medium"
+                      >
+                        {workOrder.partName}
+                      </Link>
+                    </TableCell>
                     <TableCell className="font-mono text-sm">
-                      {workOrder.drawingNumber}
+                      {workOrder.partNumber}
                     </TableCell>
                     <TableCell>{workOrder.buyer}</TableCell>
                     <TableCell>
