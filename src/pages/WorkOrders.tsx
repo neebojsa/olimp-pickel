@@ -13,13 +13,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Package, FileText, Wrench, Clock } from "lucide-react";
 import { useState } from "react";
+import { mockCustomers } from "./Customers";
 
-// Mock product data (matching inventory finished products)
-const mockProducts = [
+// Shared parts data that will be imported by inventory
+export const mockParts = [
   {
     id: "P-001",
     name: "Aluminum Bracket Assembly",
     partNumber: "AL-001",
+    customerId: "C-001",
     customer: "ABC Manufacturing",
     location: "Warehouse A-1",
     description: "High-strength aluminum bracket assembly for industrial mounting applications",
@@ -45,6 +47,7 @@ const mockProducts = [
     id: "P-002",
     name: "Steel Mounting Plate",
     partNumber: "ST-002",
+    customerId: "C-002",
     customer: "XYZ Industries",
     location: "Warehouse B-2",
     description: "Heavy-duty steel mounting plate with precision drilled holes",
@@ -69,6 +72,7 @@ const mockProducts = [
     id: "P-003",
     name: "Precision Shaft",
     partNumber: "PR-003",
+    customerId: "C-003",
     customer: "TechCorp Solutions",
     location: "Warehouse C-1",
     description: "High-precision machined shaft with tight tolerances",
@@ -93,6 +97,7 @@ const mockProducts = [
     id: "P-004",
     name: "Custom Gear Housing",
     partNumber: "GH-004",
+    customerId: "C-004",
     customer: "MechSystems Ltd",
     location: "Warehouse D-1",
     description: "Custom aluminum gear housing with internal bearing seats",
@@ -117,6 +122,7 @@ const mockProducts = [
     id: "P-005",
     name: "Bearing Support Block",
     partNumber: "BS-005",
+    customerId: "C-005",
     customer: "Industrial Partners",
     location: "Warehouse E-2",
     description: "Cast iron bearing support block with precision bore",
@@ -139,57 +145,92 @@ const mockProducts = [
   }
 ];
 
-// Mock work orders data
+// Mock work orders data - synchronized with parts and customers
 const mockWorkOrders = [
   {
     id: "WO-001",
     workOrderNumber: "WO-2024-001",
     partName: "Aluminum Bracket Assembly",
     partNumber: "AL-001",
-    buyer: "ABC Manufacturing",
+    partId: "P-001",
+    customerId: "C-001",
+    customer: "ABC Manufacturing",
     status: "In Progress",
     priority: "High",
     percentageCompletion: 75,
+    orderDate: "2024-01-15",
+    dueDate: "2024-01-25",
+    quantity: 25,
+    unitPrice: 125.50,
+    totalValue: 3137.50
   },
   {
     id: "WO-002", 
     workOrderNumber: "WO-2024-002",
     partName: "Steel Mounting Plate",
     partNumber: "ST-002",
-    buyer: "XYZ Industries",
+    partId: "P-002",
+    customerId: "C-002",
+    customer: "XYZ Industries",
     status: "Completed",
     priority: "Medium",
     percentageCompletion: 100,
+    orderDate: "2024-01-12",
+    dueDate: "2024-01-20",
+    quantity: 40,
+    unitPrice: 89.75,
+    totalValue: 3590.00
   },
   {
     id: "WO-003",
     workOrderNumber: "WO-2024-003", 
     partName: "Precision Shaft",
     partNumber: "PR-003",
-    buyer: "TechCorp Solutions",
+    partId: "P-003",
+    customerId: "C-003",
+    customer: "TechCorp Solutions",
     status: "Not Started",
     priority: "Low",
     percentageCompletion: 0,
+    orderDate: "2024-01-20",
+    dueDate: "2024-01-30",
+    quantity: 15,
+    unitPrice: 185.00,
+    totalValue: 2775.00
   },
   {
     id: "WO-004",
     workOrderNumber: "WO-2024-004",
     partName: "Custom Gear Housing", 
     partNumber: "GH-004",
-    buyer: "MechSystems Ltd",
+    partId: "P-004",
+    customerId: "C-004",
+    customer: "MechSystems Ltd",
     status: "In Progress",
     priority: "High",
     percentageCompletion: 45,
+    orderDate: "2024-01-18",
+    dueDate: "2024-02-01",
+    quantity: 8,
+    unitPrice: 245.00,
+    totalValue: 1960.00
   },
   {
     id: "WO-005",
     workOrderNumber: "WO-2024-005",
     partName: "Bearing Support Block",
-    partNumber: "BS-005", 
-    buyer: "Industrial Partners",
+    partNumber: "BS-005",
+    partId: "P-005",
+    customerId: "C-005",
+    customer: "Industrial Partners",
     status: "On Hold",
     priority: "Medium",
     percentageCompletion: 20,
+    orderDate: "2024-01-10",
+    dueDate: "2024-01-28",
+    quantity: 12,
+    unitPrice: 156.25,
+    totalValue: 1875.00
   },
 ];
 
@@ -226,9 +267,9 @@ export default function WorkOrders() {
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
 
   const handlePartNameClick = (partNumber: string) => {
-    const product = mockProducts.find(p => p.partNumber === partNumber);
-    if (product) {
-      setSelectedProduct(product);
+    const part = mockParts.find(p => p.partNumber === partNumber);
+    if (part) {
+      setSelectedProduct(part);
       setIsProductDialogOpen(true);
     }
   };
@@ -251,7 +292,7 @@ export default function WorkOrders() {
                   <TableHead>Work Order Number</TableHead>
                   <TableHead>Part Name</TableHead>
                   <TableHead>Part Number</TableHead>
-                  <TableHead>Buyer</TableHead>
+                  <TableHead>Customer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Completion</TableHead>
@@ -274,7 +315,7 @@ export default function WorkOrders() {
                     <TableCell className="font-mono text-sm">
                       {workOrder.partNumber}
                     </TableCell>
-                    <TableCell>{workOrder.buyer}</TableCell>
+                    <TableCell>{workOrder.customer}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"

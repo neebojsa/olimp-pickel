@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { mockParts } from "./WorkOrders";
+import { mockCustomers } from "./Customers";
 
 // Mock data for demonstration
 const mockInventoryItems = [
@@ -156,7 +158,7 @@ const mockFinishedProducts = [
 const mockCategories = [
   { name: "Raw Materials", count: 25, value: 12500 },
   { name: "Cutting Tools", count: 45, value: 8900 },
-  { name: "Finished Products", count: mockFinishedProducts.length, value: mockFinishedProducts.reduce((total, item) => total + (item.currentQuantity * item.sellingPrice), 0) },
+  { name: "Parts", count: mockParts.length, value: mockParts.reduce((total, item) => total + (item.currentQuantity * item.sellingPrice), 0) },
   { name: "Consumables", count: 18, value: 850 }
 ];
 
@@ -170,7 +172,7 @@ export default function Inventory() {
     item => item.currentQuantity <= item.minimumQuantity
   );
 
-  const lowStockFinishedProducts = mockFinishedProducts.filter(
+  const lowStockFinishedProducts = mockParts.filter(
     item => item.currentQuantity <= item.minimumQuantity
   );
 
@@ -178,7 +180,7 @@ export default function Inventory() {
     (total, item) => total + (item.currentQuantity * item.unitCost), 0
   );
 
-  const finishedProductsValue = mockFinishedProducts.reduce(
+  const finishedProductsValue = mockParts.reduce(
     (total, item) => total + (item.currentQuantity * item.sellingPrice), 0
   );
 
@@ -217,11 +219,11 @@ export default function Inventory() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Finished Products</CardTitle>
+            <CardTitle className="text-sm font-medium">Parts</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockFinishedProducts.length}</div>
+            <div className="text-2xl font-bold">{mockParts.length}</div>
             <p className="text-xs text-muted-foreground">
               ${finishedProductsValue.toLocaleString()} value
             </p>
@@ -343,18 +345,18 @@ export default function Inventory() {
           <div className="flex items-center space-x-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search finished products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <Input
+              placeholder="Search parts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
             </div>
           </div>
 
-          {/* Finished Products Grid */}
+          {/* Parts Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockFinishedProducts.map((product) => (
+            {mockParts.map((product) => (
               <Card key={product.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="space-y-2">
                   <div 
@@ -510,10 +512,10 @@ export default function Inventory() {
                 </div>
               )}
 
-              {/* Finished Products Low Stock */}
+              {/* Parts Low Stock */}
               {lowStockFinishedProducts.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Finished Products</h3>
+                  <h3 className="text-lg font-semibold mb-3">Parts</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {lowStockFinishedProducts.map((product) => (
                       <Card key={product.id} className="border-destructive">
