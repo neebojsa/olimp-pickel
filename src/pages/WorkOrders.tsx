@@ -11,9 +11,14 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Package, FileText, Wrench, Clock } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Package, FileText, Wrench, Clock, Plus, Edit, Printer, Calendar } from "lucide-react";
 import { useState } from "react";
 import { mockCustomers } from "./Customers";
+import { useToast } from "@/hooks/use-toast";
 
 // Shared parts data that will be imported by inventory
 export const mockParts = [
@@ -263,8 +268,13 @@ const getPriorityColor = (priority: string) => {
 };
 
 export default function WorkOrders() {
+  const { toast } = useToast();
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
+  const [isWorkOrderDetailsOpen, setIsWorkOrderDetailsOpen] = useState(false);
+  const [isAddWorkOrderOpen, setIsAddWorkOrderOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const handlePartNameClick = (partNumber: string) => {
     const part = mockParts.find(p => p.partNumber === partNumber);
@@ -274,10 +284,44 @@ export default function WorkOrders() {
     }
   };
 
+  const handleWorkOrderClick = (workOrder: any) => {
+    setSelectedWorkOrder(workOrder);
+    setIsWorkOrderDetailsOpen(true);
+    setIsEditMode(false);
+  };
+
+  const handleEditWorkOrder = () => {
+    setIsEditMode(true);
+  };
+
+  const handleSaveWorkOrder = () => {
+    setIsEditMode(false);
+    toast({
+      title: "Work Order Updated",
+      description: "The work order has been successfully updated.",
+    });
+  };
+
+  const handleAddWorkOrder = () => {
+    setIsAddWorkOrderOpen(true);
+  };
+
+  const handleCreateWorkOrder = () => {
+    setIsAddWorkOrderOpen(false);
+    toast({
+      title: "Work Order Created",
+      description: "New work order has been successfully created.",
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Work Orders</h1>
+        <Button onClick={handleAddWorkOrder} className="flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          Add Work Order
+        </Button>
       </div>
 
       <Card>
@@ -300,9 +344,11 @@ export default function WorkOrders() {
               </TableHeader>
               <TableBody>
                 {mockWorkOrders.map((workOrder) => (
-                  <TableRow key={workOrder.id}>
+                  <TableRow key={workOrder.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleWorkOrderClick(workOrder)}>
                     <TableCell className="font-medium">
-                      {workOrder.workOrderNumber}
+                      <button className="text-primary hover:underline font-medium">
+                        {workOrder.workOrderNumber}
+                      </button>
                     </TableCell>
                     <TableCell>
                       <button 
@@ -542,6 +588,361 @@ export default function WorkOrders() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Work Order Details Dialog - A4 Format */}
+      <Dialog open={isWorkOrderDetailsOpen} onOpenChange={setIsWorkOrderDetailsOpen}>
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+          {selectedWorkOrder && (
+            <div className="space-y-6 p-6 bg-white" style={{ width: '210mm', minHeight: '297mm' }}>
+              {/* Header */}
+              <div className="flex justify-between items-start border-b pb-4">
+                <div>
+                  <h1 className="text-3xl font-bold">Work Order</h1>
+                  <p className="text-xl text-muted-foreground">{selectedWorkOrder.workOrderNumber}</p>
+                </div>
+                <div className="flex gap-2">
+                  {!isEditMode ? (
+                    <>
+                      <Button onClick={handleEditWorkOrder} variant="outline" size="sm">
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Printer className="w-4 h-4 mr-1" />
+                        Print
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button onClick={handleSaveWorkOrder} size="sm">
+                        Save Changes
+                      </Button>
+                      <Button onClick={() => setIsEditMode(false)} variant="outline" size="sm">
+                        Cancel
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Work Order Information */}
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg border-b pb-2">Work Order Details</h3>
+                  {isEditMode ? (
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Work Order Number</Label>
+                        <Input defaultValue={selectedWorkOrder.workOrderNumber} />
+                      </div>
+                      <div>
+                        <Label>Status</Label>
+                        <Select defaultValue={selectedWorkOrder.status}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Not Started">Not Started</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="On Hold">On Hold</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Priority</Label>
+                        <Select defaultValue={selectedWorkOrder.priority}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Low">Low</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="High">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Order Date:</span>
+                        <span className="font-medium">{selectedWorkOrder.orderDate}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Due Date:</span>
+                        <span className="font-medium">{selectedWorkOrder.dueDate}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Status:</span>
+                        <Badge className={getStatusColor(selectedWorkOrder.status)}>
+                          {selectedWorkOrder.status}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Priority:</span>
+                        <Badge className={getPriorityColor(selectedWorkOrder.priority)}>
+                          {selectedWorkOrder.priority}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Completion:</span>
+                        <div className="flex items-center gap-2">
+                          <Progress value={selectedWorkOrder.percentageCompletion} className="w-16" />
+                          <span>{selectedWorkOrder.percentageCompletion}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg border-b pb-2">Customer Information</h3>
+                  {isEditMode ? (
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Customer</Label>
+                        <Select defaultValue={selectedWorkOrder.customerId}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {mockCustomers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Customer:</span>
+                        <span className="font-medium">{selectedWorkOrder.customer}</span>
+                      </div>
+                      {mockCustomers.find(c => c.id === selectedWorkOrder.customerId) && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Email:</span>
+                            <span className="font-medium">{mockCustomers.find(c => c.id === selectedWorkOrder.customerId)?.email}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Phone:</span>
+                            <span className="font-medium">{mockCustomers.find(c => c.id === selectedWorkOrder.customerId)?.phone}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Country:</span>
+                            <span className="font-medium">{mockCustomers.find(c => c.id === selectedWorkOrder.customerId)?.country}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Part Information */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Part Information</h3>
+                {isEditMode ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Part Name</Label>
+                      <Input defaultValue={selectedWorkOrder.partName} />
+                    </div>
+                    <div>
+                      <Label>Part Number</Label>
+                      <Input defaultValue={selectedWorkOrder.partNumber} />
+                    </div>
+                    <div>
+                      <Label>Quantity</Label>
+                      <Input type="number" defaultValue={selectedWorkOrder.quantity} />
+                    </div>
+                    <div>
+                      <Label>Unit Price</Label>
+                      <Input type="number" step="0.01" defaultValue={selectedWorkOrder.unitPrice} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Part Name:</span>
+                        <span className="font-medium">{selectedWorkOrder.partName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Part Number:</span>
+                        <span className="font-medium font-mono">{selectedWorkOrder.partNumber}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Quantity:</span>
+                        <span className="font-medium">{selectedWorkOrder.quantity} pcs</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Unit Price:</span>
+                        <span className="font-medium">${selectedWorkOrder.unitPrice}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Value:</span>
+                        <span className="font-bold text-lg">${selectedWorkOrder.totalValue}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Part Details from Inventory */}
+              {(() => {
+                const part = mockParts.find(p => p.partNumber === selectedWorkOrder.partNumber);
+                return part ? (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg border-b pb-2">Part Specifications</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Description:</span>
+                          <span className="font-medium text-right max-w-[250px]">{part.description}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Manufacturing Cost:</span>
+                          <span className="font-medium">${part.manufacturingCost}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Production Time:</span>
+                          <span className="font-medium">{part.productionTime}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Materials:</span>
+                          <div className="flex flex-wrap gap-1 max-w-[250px]">
+                            {part.materialsUsed?.slice(0, 2).map((material, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {material}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Lead Time:</span>
+                          <span className="font-medium">{part.leadTime}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Current Stock:</span>
+                          <span className="font-medium">{part.currentQuantity} {part.unitOfMeasure}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {part.notes && (
+                      <div className="mt-4">
+                        <span className="text-muted-foreground">Production Notes:</span>
+                        <p className="text-sm mt-1 p-3 bg-muted rounded">{part.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Footer */}
+              <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
+                Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Work Order Dialog */}
+      <Dialog open={isAddWorkOrderOpen} onOpenChange={setIsAddWorkOrderOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Work Order</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="workOrderNumber">Work Order Number</Label>
+                <Input id="workOrderNumber" placeholder="WO-2024-XXX" />
+              </div>
+              <div>
+                <Label htmlFor="customer">Customer</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockCustomers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="partName">Part Name</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select part" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockParts.map((part) => (
+                      <SelectItem key={part.id} value={part.id}>
+                        {part.name} ({part.partNumber})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input id="quantity" type="number" placeholder="0" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="priority">Priority</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input id="dueDate" type="date" />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea id="notes" placeholder="Additional notes or requirements..." rows={3} />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsAddWorkOrderOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateWorkOrder}>
+                Create Work Order
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
