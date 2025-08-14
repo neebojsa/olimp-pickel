@@ -150,7 +150,7 @@ export const mockParts = [
   }
 ];
 
-// Mock work orders data - synchronized with parts and customers
+// Mock work orders data
 const mockWorkOrders = [
   {
     id: "WO-001",
@@ -158,16 +158,15 @@ const mockWorkOrders = [
     partName: "Aluminum Bracket Assembly",
     partNumber: "AL-001",
     partId: "P-001",
-    customerId: "C-001",
-    customer: "ABC Manufacturing",
     status: "In Progress",
     priority: "High",
     percentageCompletion: 75,
     orderDate: "2024-01-15",
     dueDate: "2024-01-25",
     quantity: 25,
-    unitPrice: 125.50,
-    totalValue: 3137.50
+    description: "High-strength aluminum bracket assembly for industrial mounting applications",
+    productionTime: "3.5 hours",
+    productionNotes: "Requires precision machining and anodized finish"
   },
   {
     id: "WO-002", 
@@ -175,16 +174,15 @@ const mockWorkOrders = [
     partName: "Steel Mounting Plate",
     partNumber: "ST-002",
     partId: "P-002",
-    customerId: "C-002",
-    customer: "XYZ Industries",
     status: "Completed",
     priority: "Medium",
     percentageCompletion: 100,
     orderDate: "2024-01-12",
     dueDate: "2024-01-20",
     quantity: 40,
-    unitPrice: 89.75,
-    totalValue: 3590.00
+    description: "Heavy-duty steel mounting plate with precision drilled holes",
+    productionTime: "2.2 hours",
+    productionNotes: "Requires heat treatment and coating application"
   },
   {
     id: "WO-003",
@@ -192,16 +190,15 @@ const mockWorkOrders = [
     partName: "Precision Shaft",
     partNumber: "PR-003",
     partId: "P-003",
-    customerId: "C-003",
-    customer: "TechCorp Solutions",
     status: "Not Started",
     priority: "Low",
     percentageCompletion: 0,
     orderDate: "2024-01-20",
     dueDate: "2024-01-30",
     quantity: 15,
-    unitPrice: 185.00,
-    totalValue: 2775.00
+    description: "High-precision machined shaft with tight tolerances",
+    productionTime: "5.5 hours",
+    productionNotes: "Critical tolerances +/- 0.001 inch. Use coordinate measuring machine for inspection."
   },
   {
     id: "WO-004",
@@ -209,16 +206,15 @@ const mockWorkOrders = [
     partName: "Custom Gear Housing", 
     partNumber: "GH-004",
     partId: "P-004",
-    customerId: "C-004",
-    customer: "MechSystems Ltd",
     status: "In Progress",
     priority: "High",
     percentageCompletion: 45,
     orderDate: "2024-01-18",
     dueDate: "2024-02-01",
     quantity: 8,
-    unitPrice: 245.00,
-    totalValue: 1960.00
+    description: "Custom aluminum gear housing with internal bearing seats",
+    productionTime: "8.0 hours",
+    productionNotes: "Complex internal geometry. Multiple setups required. Final inspection with go/no-go gauges."
   },
   {
     id: "WO-005",
@@ -226,16 +222,15 @@ const mockWorkOrders = [
     partName: "Bearing Support Block",
     partNumber: "BS-005",
     partId: "P-005",
-    customerId: "C-005",
-    customer: "Industrial Partners",
     status: "On Hold",
     priority: "Medium",
     percentageCompletion: 20,
     orderDate: "2024-01-10",
     dueDate: "2024-01-28",
     quantity: 12,
-    unitPrice: 156.25,
-    totalValue: 1875.00
+    description: "Cast iron bearing support block with precision bore",
+    productionTime: "6.5 hours",
+    productionNotes: "Cast iron requires carbide tooling. Surface finish critical for bearing fit."
   },
 ];
 
@@ -336,10 +331,10 @@ export default function WorkOrders() {
                   <TableHead>Work Order Number</TableHead>
                   <TableHead>Part Name</TableHead>
                   <TableHead>Part Number</TableHead>
-                  <TableHead>Customer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Completion</TableHead>
+                  <TableHead>Production Time</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -361,7 +356,6 @@ export default function WorkOrders() {
                     <TableCell className="font-mono text-sm">
                       {workOrder.partNumber}
                     </TableCell>
-                    <TableCell>{workOrder.customer}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
@@ -389,6 +383,7 @@ export default function WorkOrders() {
                         </span>
                       </div>
                     </TableCell>
+                    <TableCell>{workOrder.productionTime}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -628,11 +623,11 @@ export default function WorkOrders() {
               </div>
 
               {/* Work Order Information */}
-              <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-6">
                 <div className="space-y-4">
                   <h3 className="font-semibold text-lg border-b pb-2">Work Order Details</h3>
                   {isEditMode ? (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label>Work Order Number</Label>
                         <Input defaultValue={selectedWorkOrder.workOrderNumber} />
@@ -664,82 +659,48 @@ export default function WorkOrders() {
                           </SelectContent>
                         </Select>
                       </div>
+                      <div>
+                        <Label>Production Time</Label>
+                        <Input defaultValue={selectedWorkOrder.productionTime} />
+                      </div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Order Date:</span>
-                        <span className="font-medium">{selectedWorkOrder.orderDate}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Due Date:</span>
-                        <span className="font-medium">{selectedWorkOrder.dueDate}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge className={getStatusColor(selectedWorkOrder.status)}>
-                          {selectedWorkOrder.status}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Priority:</span>
-                        <Badge className={getPriorityColor(selectedWorkOrder.priority)}>
-                          {selectedWorkOrder.priority}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Completion:</span>
-                        <div className="flex items-center gap-2">
-                          <Progress value={selectedWorkOrder.percentageCompletion} className="w-16" />
-                          <span>{selectedWorkOrder.percentageCompletion}%</span>
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Order Date:</span>
+                          <span className="font-medium">{selectedWorkOrder.orderDate}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Due Date:</span>
+                          <span className="font-medium">{selectedWorkOrder.dueDate}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Status:</span>
+                          <Badge className={getStatusColor(selectedWorkOrder.status)}>
+                            {selectedWorkOrder.status}
+                          </Badge>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg border-b pb-2">Customer Information</h3>
-                  {isEditMode ? (
-                    <div className="space-y-3">
-                      <div>
-                        <Label>Customer</Label>
-                        <Select defaultValue={selectedWorkOrder.customerId}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {mockCustomers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Priority:</span>
+                          <Badge className={getPriorityColor(selectedWorkOrder.priority)}>
+                            {selectedWorkOrder.priority}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Production Time:</span>
+                          <span className="font-medium">{selectedWorkOrder.productionTime}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Completion:</span>
+                          <div className="flex items-center gap-2">
+                            <Progress value={selectedWorkOrder.percentageCompletion} className="w-16" />
+                            <span>{selectedWorkOrder.percentageCompletion}%</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Customer:</span>
-                        <span className="font-medium">{selectedWorkOrder.customer}</span>
-                      </div>
-                      {mockCustomers.find(c => c.id === selectedWorkOrder.customerId) && (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Email:</span>
-                            <span className="font-medium">{mockCustomers.find(c => c.id === selectedWorkOrder.customerId)?.email}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Phone:</span>
-                            <span className="font-medium">{mockCustomers.find(c => c.id === selectedWorkOrder.customerId)?.phone}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Country:</span>
-                            <span className="font-medium">{mockCustomers.find(c => c.id === selectedWorkOrder.customerId)?.country}</span>
-                          </div>
-                        </>
-                      )}
                     </div>
                   )}
                 </div>
@@ -762,92 +723,53 @@ export default function WorkOrders() {
                       <Label>Quantity</Label>
                       <Input type="number" defaultValue={selectedWorkOrder.quantity} />
                     </div>
-                    <div>
-                      <Label>Unit Price</Label>
-                      <Input type="number" step="0.01" defaultValue={selectedWorkOrder.unitPrice} />
+                    <div className="col-span-2">
+                      <Label>Description</Label>
+                      <Textarea defaultValue={selectedWorkOrder.description} rows={3} />
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Part Name:</span>
-                        <span className="font-medium">{selectedWorkOrder.partName}</span>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Part Name:</span>
+                          <span className="font-medium">{selectedWorkOrder.partName}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Part Number:</span>
+                          <span className="font-medium font-mono">{selectedWorkOrder.partNumber}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Part Number:</span>
-                        <span className="font-medium font-mono">{selectedWorkOrder.partNumber}</span>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Quantity:</span>
+                          <span className="font-medium">{selectedWorkOrder.quantity} pcs</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Quantity:</span>
-                        <span className="font-medium">{selectedWorkOrder.quantity} pcs</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Unit Price:</span>
-                        <span className="font-medium">${selectedWorkOrder.unitPrice}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Value:</span>
-                        <span className="font-bold text-lg">${selectedWorkOrder.totalValue}</span>
-                      </div>
+                    <div className="mt-4">
+                      <span className="text-muted-foreground">Description:</span>
+                      <p className="text-sm mt-1 p-3 bg-muted rounded">{selectedWorkOrder.description}</p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Part Details from Inventory */}
-              {(() => {
-                const part = mockParts.find(p => p.partNumber === selectedWorkOrder.partNumber);
-                return part ? (
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg border-b pb-2">Part Specifications</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Description:</span>
-                          <span className="font-medium text-right max-w-[250px]">{part.description}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Manufacturing Cost:</span>
-                          <span className="font-medium">${part.manufacturingCost}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Production Time:</span>
-                          <span className="font-medium">{part.productionTime}</span>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Materials:</span>
-                          <div className="flex flex-wrap gap-1 max-w-[250px]">
-                            {part.materialsUsed?.slice(0, 2).map((material, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {material}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Lead Time:</span>
-                          <span className="font-medium">{part.leadTime}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Current Stock:</span>
-                          <span className="font-medium">{part.currentQuantity} {part.unitOfMeasure}</span>
-                        </div>
-                      </div>
-                    </div>
-                    {part.notes && (
-                      <div className="mt-4">
-                        <span className="text-muted-foreground">Production Notes:</span>
-                        <p className="text-sm mt-1 p-3 bg-muted rounded">{part.notes}</p>
-                      </div>
-                    )}
+              {/* Production Notes */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Production Notes</h3>
+                {isEditMode ? (
+                  <div>
+                    <Label>Production Notes</Label>
+                    <Textarea defaultValue={selectedWorkOrder.productionNotes} rows={4} />
                   </div>
-                ) : null;
-              })()}
+                ) : (
+                  <div className="mt-4">
+                    <p className="text-sm p-3 bg-muted rounded">{selectedWorkOrder.productionNotes}</p>
+                  </div>
+                )}
+              </div>
 
               {/* Footer */}
               <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
@@ -871,24 +793,6 @@ export default function WorkOrders() {
                 <Input id="workOrderNumber" placeholder="WO-2024-XXX" />
               </div>
               <div>
-                <Label htmlFor="customer">Customer</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockCustomers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
                 <Label htmlFor="partName">Part Name</Label>
                 <Select>
                   <SelectTrigger>
@@ -903,13 +807,13 @@ export default function WorkOrders() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="quantity">Quantity</Label>
                 <Input id="quantity" type="number" placeholder="0" />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="priority">Priority</Label>
                 <Select>
@@ -923,6 +827,13 @@ export default function WorkOrders() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="productionTime">Production Time</Label>
+                <Input id="productionTime" placeholder="e.g. 3.5 hours" />
+              </div>
               <div>
                 <Label htmlFor="dueDate">Due Date</Label>
                 <Input id="dueDate" type="date" />
@@ -930,8 +841,13 @@ export default function WorkOrders() {
             </div>
 
             <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" placeholder="Additional notes or requirements..." rows={3} />
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" placeholder="Part description..." rows={3} />
+            </div>
+
+            <div>
+              <Label htmlFor="productionNotes">Production Notes</Label>
+              <Textarea id="productionNotes" placeholder="Production notes and requirements..." rows={3} />
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
