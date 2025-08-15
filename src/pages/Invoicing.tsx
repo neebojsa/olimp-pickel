@@ -37,6 +37,12 @@ export default function Invoicing() {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isAddInvoiceOpen, setIsAddInvoiceOpen] = useState(false);
+  const [newInvoice, setNewInvoice] = useState({
+    customerId: '',
+    dueDate: '',
+    notes: '',
+    items: [{ description: '', quantity: 1, unitPrice: 0, total: 0 }]
+  });
 
   useEffect(() => {
     fetchInvoices();
@@ -84,6 +90,53 @@ export default function Invoicing() {
     }
   };
 
+  const handleCreateInvoice = async () => {
+    if (!newInvoice.customerId) {
+      toast({
+        title: "Error", 
+        description: "Please select a customer",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const invoiceNumber = `INV-${Date.now()}`;
+    const amount = newInvoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .insert([{
+        invoice_number: invoiceNumber,
+        customer_id: newInvoice.customerId,
+        amount: amount,
+        due_date: newInvoice.dueDate || null,
+        notes: newInvoice.notes,
+        status: 'draft'
+      }])
+      .select();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create invoice",
+        variant: "destructive"
+      });
+    } else {
+      await fetchInvoices();
+      setIsAddInvoiceOpen(false);
+      setNewInvoice({
+        customerId: '',
+        dueDate: '',
+        notes: '',
+        items: [{ description: '', quantity: 1, unitPrice: 0, total: 0 }]
+      });
+      toast({
+        title: "Success",
+        description: "Invoice created successfully"
+      });
+    }
+  };
+
   const handleViewInvoice = (invoice: any) => {
     setSelectedInvoice(invoice);
     setIsInvoiceDialogOpen(true);
@@ -125,7 +178,7 @@ export default function Invoicing() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Customer</Label>
-                <Select>
+                <Select value={newInvoice.customerId} onValueChange={(value) => setNewInvoice({...newInvoice, customerId: value})}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select customer" />
                   </SelectTrigger>
@@ -140,7 +193,11 @@ export default function Invoicing() {
               </div>
               <div>
                 <Label>Due Date</Label>
-                <Input type="date" />
+                <Input 
+                  type="date" 
+                  value={newInvoice.dueDate}
+                  onChange={(e) => setNewInvoice({...newInvoice, dueDate: e.target.value})}
+                />
               </div>
               <div className="col-span-2">
                 <Label>Invoice Items</Label>
@@ -161,11 +218,15 @@ export default function Invoicing() {
               </div>
               <div className="col-span-2">
                 <Label>Notes</Label>
-                <Textarea placeholder="Additional notes..." />
+                <Textarea 
+                  placeholder="Additional notes..." 
+                  value={newInvoice.notes}
+                  onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
+                />
               </div>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button className="flex-1">Create Invoice</Button>
+              <Button className="flex-1" onClick={handleCreateInvoice}>Create Invoice</Button>
               <Button variant="outline" onClick={() => setIsAddInvoiceOpen(false)}>
                 Cancel
               </Button>

@@ -37,6 +37,17 @@ export default function Customers() {
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    address: '',
+    industry: '',
+    country: '',
+    webpage: '',
+    notes: ''
+  });
 
   useEffect(() => {
     fetchCustomers();
@@ -77,6 +88,53 @@ export default function Customers() {
     }
   };
 
+  const handleSaveCustomer = async () => {
+    if (!newCustomer.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Company name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('customers')
+      .insert([{
+        name: newCustomer.name,
+        email: newCustomer.email,
+        phone: newCustomer.phone,
+        address: newCustomer.address
+      }])
+      .select();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save customer",
+        variant: "destructive"
+      });
+    } else {
+      await fetchCustomers();
+      setIsAddCustomerOpen(false);
+      setNewCustomer({
+        name: '',
+        contactPerson: '',
+        email: '',
+        phone: '',
+        address: '',
+        industry: '',
+        country: '',
+        webpage: '',
+        notes: ''
+      });
+      toast({
+        title: "Success",
+        description: "Customer saved successfully"
+      });
+    }
+  };
+
   const handleCustomerClick = (customer: any) => {
     setSelectedCustomer(customer);
     setIsCustomerDialogOpen(true);
@@ -100,43 +158,80 @@ export default function Customers() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Company Name</Label>
-                <Input placeholder="Enter company name" />
+                <Input 
+                  placeholder="Enter company name" 
+                  value={newCustomer.name}
+                  onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
+                />
               </div>
               <div>
                 <Label>Contact Person</Label>
-                <Input placeholder="Enter contact person" />
+                <Input 
+                  placeholder="Enter contact person" 
+                  value={newCustomer.contactPerson}
+                  onChange={(e) => setNewCustomer({...newCustomer, contactPerson: e.target.value})}
+                />
               </div>
               <div>
                 <Label>Email</Label>
-                <Input type="email" placeholder="Enter email" />
+                <Input 
+                  type="email" 
+                  placeholder="Enter email" 
+                  value={newCustomer.email}
+                  onChange={(e) => setNewCustomer({...newCustomer, email: e.target.value})}
+                />
               </div>
               <div>
                 <Label>Phone</Label>
-                <Input placeholder="Enter phone number" />
+                <Input 
+                  placeholder="Enter phone number" 
+                  value={newCustomer.phone}
+                  onChange={(e) => setNewCustomer({...newCustomer, phone: e.target.value})}
+                />
               </div>
               <div>
                 <Label>Country</Label>
-                <Input placeholder="Enter country" />
+                <Input 
+                  placeholder="Enter country" 
+                  value={newCustomer.country}
+                  onChange={(e) => setNewCustomer({...newCustomer, country: e.target.value})}
+                />
               </div>
               <div>
                 <Label>Industry</Label>
-                <Input placeholder="Enter industry" />
+                <Input 
+                  placeholder="Enter industry" 
+                  value={newCustomer.industry}
+                  onChange={(e) => setNewCustomer({...newCustomer, industry: e.target.value})}
+                />
               </div>
               <div className="col-span-2">
                 <Label>Address</Label>
-                <Input placeholder="Enter full address" />
+                <Input 
+                  placeholder="Enter full address" 
+                  value={newCustomer.address}
+                  onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
+                />
               </div>
               <div className="col-span-2">
                 <Label>Website</Label>
-                <Input placeholder="Enter website URL" />
+                <Input 
+                  placeholder="Enter website URL" 
+                  value={newCustomer.webpage}
+                  onChange={(e) => setNewCustomer({...newCustomer, webpage: e.target.value})}
+                />
               </div>
               <div className="col-span-2">
                 <Label>Notes</Label>
-                <Input placeholder="Enter any notes" />
+                <Input 
+                  placeholder="Enter any notes" 
+                  value={newCustomer.notes}
+                  onChange={(e) => setNewCustomer({...newCustomer, notes: e.target.value})}
+                />
               </div>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button className="flex-1">Save Customer</Button>
+              <Button className="flex-1" onClick={handleSaveCustomer}>Save Customer</Button>
               <Button variant="outline" onClick={() => setIsAddCustomerOpen(false)}>
                 Cancel
               </Button>

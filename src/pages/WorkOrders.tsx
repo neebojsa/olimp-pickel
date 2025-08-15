@@ -400,12 +400,49 @@ export default function WorkOrders() {
     setIsAddWorkOrderOpen(true);
   };
 
-  const handleCreateWorkOrder = () => {
-    setIsAddWorkOrderOpen(false);
-    toast({
-      title: "Work Order Created",
-      description: "New work order has been successfully created.",
-    });
+  const handleCreateWorkOrder = async () => {
+    // Get form values
+    const workOrderNumber = (document.getElementById('workOrderNumber') as HTMLInputElement)?.value;
+    const quantity = (document.getElementById('quantity') as HTMLInputElement)?.value;
+    const productionTime = (document.getElementById('productionTime') as HTMLInputElement)?.value;
+    const dueDate = (document.getElementById('dueDate') as HTMLInputElement)?.value;
+    const description = (document.getElementById('description') as HTMLTextAreaElement)?.value;
+
+    if (!workOrderNumber || !description) {
+      toast({
+        title: "Error",
+        description: "Please fill in required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('work_orders')
+      .insert([{
+        title: workOrderNumber,
+        description: description,
+        estimated_hours: productionTime ? parseFloat(productionTime) : null,
+        due_date: dueDate || null,
+        priority: 'medium',
+        status: 'pending'
+      }])
+      .select();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create work order",
+        variant: "destructive"
+      });
+    } else {
+      await fetchWorkOrders();
+      setIsAddWorkOrderOpen(false);
+      toast({
+        title: "Work Order Created",
+        description: "New work order has been successfully created.",
+      });
+    }
   };
 
   return (

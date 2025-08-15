@@ -121,6 +121,14 @@ export default function Accounting() {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [newTransaction, setNewTransaction] = useState({
+    date: new Date().toISOString().split('T')[0],
+    type: '',
+    description: '',
+    category: '',
+    amount: '',
+    reference: ''
+  });
 
   useEffect(() => {
     fetchTransactions();
@@ -136,6 +144,52 @@ export default function Accounting() {
         reference: entry.reference || `TXN-${entry.id}`
       }));
       setTransactions(formattedTransactions);
+    }
+  };
+
+  const handleSaveTransaction = async () => {
+    if (!newTransaction.type || !newTransaction.description || !newTransaction.amount) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('accounting_entries')
+      .insert([{
+        date: newTransaction.date,
+        type: newTransaction.type,
+        description: newTransaction.description,
+        category: newTransaction.category,
+        amount: parseFloat(newTransaction.amount),
+        reference: newTransaction.reference
+      }])
+      .select();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save transaction",
+        variant: "destructive"
+      });
+    } else {
+      await fetchTransactions();
+      setIsAddTransactionOpen(false);
+      setNewTransaction({
+        date: new Date().toISOString().split('T')[0],
+        type: '',
+        description: '',
+        category: '',
+        amount: '',
+        reference: ''
+      });
+      toast({
+        title: "Success",
+        description: "Transaction saved successfully"
+      });
     }
   };
 
@@ -193,11 +247,15 @@ export default function Accounting() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Date</Label>
-                  <Input type="date" />
+                  <Input 
+                    type="date" 
+                    value={newTransaction.date}
+                    onChange={(e) => setNewTransaction({...newTransaction, date: e.target.value})}
+                  />
                 </div>
                 <div>
                   <Label>Type</Label>
-                  <Select>
+                  <Select value={newTransaction.type} onValueChange={(value) => setNewTransaction({...newTransaction, type: value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -209,11 +267,15 @@ export default function Accounting() {
                 </div>
                 <div className="col-span-2">
                   <Label>Description</Label>
-                  <Input placeholder="Transaction description" />
+                  <Input 
+                    placeholder="Transaction description" 
+                    value={newTransaction.description}
+                    onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
+                  />
                 </div>
                 <div>
                   <Label>Category</Label>
-                  <Select>
+                  <Select value={newTransaction.category} onValueChange={(value) => setNewTransaction({...newTransaction, category: value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
@@ -228,19 +290,24 @@ export default function Accounting() {
                 </div>
                 <div>
                   <Label>Amount</Label>
-                  <Input type="number" placeholder="0.00" />
-                </div>
-                <div>
-                  <Label>Account</Label>
-                  <Input placeholder="Account name" />
+                  <Input 
+                    type="number" 
+                    placeholder="0.00" 
+                    value={newTransaction.amount}
+                    onChange={(e) => setNewTransaction({...newTransaction, amount: e.target.value})}
+                  />
                 </div>
                 <div>
                   <Label>Reference</Label>
-                  <Input placeholder="Reference number" />
+                  <Input 
+                    placeholder="Reference number" 
+                    value={newTransaction.reference}
+                    onChange={(e) => setNewTransaction({...newTransaction, reference: e.target.value})}
+                  />
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1">Add Transaction</Button>
+                <Button className="flex-1" onClick={handleSaveTransaction}>Add Transaction</Button>
                 <Button variant="outline" onClick={() => setIsAddTransactionOpen(false)}>
                   Cancel
                 </Button>
