@@ -19,6 +19,7 @@ import { Package, FileText, Wrench, Clock, Plus, Edit, Printer, Calendar, Settin
 import { useState } from "react";
 import { mockCustomers } from "./Customers";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // Shared parts data that will be imported by inventory
 export const mockParts = [
@@ -329,6 +330,15 @@ export default function WorkOrders() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [tools, setTools] = useState([{ name: "", quantity: "" }]);
   const [operatorsAndMachines, setOperatorsAndMachines] = useState([{ name: "", type: "operator" }]);
+  const [workOrders, setWorkOrders] = useState(mockWorkOrders);
+
+  const handleDeleteWorkOrder = (workOrderId: string) => {
+    setWorkOrders(prev => prev.filter(wo => wo.id !== workOrderId));
+    toast({
+      title: "Work Order Deleted",
+      description: "The work order has been successfully deleted.",
+    });
+  };
 
   const handlePartNameClick = (partNumber: string) => {
     const part = mockParts.find(p => p.partNumber === partNumber);
@@ -396,10 +406,11 @@ export default function WorkOrders() {
                   <TableHead>Priority</TableHead>
                   <TableHead>Completion</TableHead>
                   <TableHead>Production Time</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockWorkOrders.map((workOrder) => (
+                {workOrders.map((workOrder) => (
                   <TableRow key={workOrder.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleWorkOrderClick(workOrder)}>
                     <TableCell className="font-medium">
                       <button className="text-primary hover:underline font-medium">
@@ -445,6 +456,33 @@ export default function WorkOrders() {
                       </div>
                     </TableCell>
                     <TableCell>{workOrder.productionTime}</TableCell>
+                    <TableCell>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Work Order</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete work order "{workOrder.workOrderNumber}"? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteWorkOrder(workOrder.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

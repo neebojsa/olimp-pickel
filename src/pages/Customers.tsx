@@ -12,8 +12,9 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Globe, MapPin, Phone, Plus } from "lucide-react";
+import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // Customer data structure that will be shared across the app
 export const mockCustomers = [
@@ -121,6 +122,11 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+  const [customers, setCustomers] = useState(mockCustomers);
+
+  const handleDeleteCustomer = (customerId: string) => {
+    setCustomers(prev => prev.filter(customer => customer.id !== customerId));
+  };
 
   const handleCustomerClick = (customer: any) => {
     setSelectedCustomer(customer);
@@ -208,10 +214,11 @@ export default function Customers() {
                   <TableHead>Status</TableHead>
                   <TableHead>Total Orders</TableHead>
                   <TableHead>Total Value</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockCustomers.map((customer) => (
+                {customers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell>
                       <button 
@@ -241,6 +248,29 @@ export default function Customers() {
                     <TableCell>{customer.totalOrders}</TableCell>
                     <TableCell className="font-medium">
                       ${customer.totalValue.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{customer.name}"? This action cannot be undone and will remove all associated data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteCustomer(customer.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))}

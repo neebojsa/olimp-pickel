@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Plus, Search, Package, AlertTriangle, FileText, Clock, Wrench } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, FileText, Clock, Wrench, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { mockParts } from "./WorkOrders";
 import { mockCustomers } from "./Customers";
 
@@ -167,20 +168,30 @@ export default function Inventory() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState(mockInventoryItems);
+  const [parts, setParts] = useState(mockParts);
 
-  const lowStockItems = mockInventoryItems.filter(
+  const handleDeleteInventoryItem = (itemId: string) => {
+    setInventoryItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
+  const handleDeletePart = (partId: string) => {
+    setParts(prev => prev.filter(part => part.id !== partId));
+  };
+
+  const lowStockItems = inventoryItems.filter(
     item => item.currentQuantity <= item.minimumQuantity
   );
 
-  const lowStockFinishedProducts = mockParts.filter(
+  const lowStockFinishedProducts = parts.filter(
     item => item.currentQuantity <= item.minimumQuantity
   );
 
-  const totalValue = mockInventoryItems.reduce(
+  const totalValue = inventoryItems.reduce(
     (total, item) => total + (item.currentQuantity * item.unitCost), 0
   );
 
-  const finishedProductsValue = mockParts.reduce(
+  const finishedProductsValue = parts.reduce(
     (total, item) => total + (item.currentQuantity * item.sellingPrice), 0
   );
 
@@ -210,7 +221,7 @@ export default function Inventory() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockInventoryItems.length}</div>
+            <div className="text-2xl font-bold">{inventoryItems.length}</div>
             <p className="text-xs text-muted-foreground">
               ${totalValue.toLocaleString()} value
             </p>
@@ -223,7 +234,7 @@ export default function Inventory() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockParts.length}</div>
+            <div className="text-2xl font-bold">{parts.length}</div>
             <p className="text-xs text-muted-foreground">
               ${finishedProductsValue.toLocaleString()} value
             </p>
@@ -284,15 +295,40 @@ export default function Inventory() {
 
           {/* Items Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockInventoryItems.map((item) => (
+            {inventoryItems.map((item) => (
               <Card key={item.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="space-y-2">
-                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden relative">
                     <img 
                       src={item.image} 
                       alt={item.name}
                       className="w-full h-full object-cover"
                     />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                   <div className="flex items-start justify-between">
                     <div>
@@ -356,11 +392,11 @@ export default function Inventory() {
 
           {/* Parts Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockParts.map((product) => (
+            {parts.map((product) => (
               <Card key={product.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="space-y-2">
                   <div 
-                    className="aspect-video w-full bg-muted rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                    className="aspect-video w-full bg-muted rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity relative"
                     onClick={() => {
                       setSelectedProduct(product);
                       setIsProductDialogOpen(true);
@@ -371,6 +407,32 @@ export default function Inventory() {
                       alt={product.name}
                       className="w-full h-full object-cover"
                     />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 h-8 w-8"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Part</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{product.name}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeletePart(product.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                   <div className="flex items-start justify-between">
                     <div>
