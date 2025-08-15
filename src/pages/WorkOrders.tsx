@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, FileText, Wrench, Clock, Plus, Edit, Printer, Calendar } from "lucide-react";
+import { Package, FileText, Wrench, Clock, Plus, Edit, Printer, Calendar, Settings, Users, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { mockCustomers } from "./Customers";
 import { useToast } from "@/hooks/use-toast";
@@ -166,7 +166,17 @@ const mockWorkOrders = [
     quantity: 25,
     description: "High-strength aluminum bracket assembly for industrial mounting applications",
     productionTime: "3.5 hours",
-    productionNotes: "Requires precision machining and anodized finish"
+    productionNotes: "Requires precision machining and anodized finish",
+    tools: [
+      { name: "CNC Mill", quantity: 1 },
+      { name: "Drill Press", quantity: 1 },
+      { name: "Precision Vise", quantity: 2 }
+    ],
+    operatorsAndMachines: [
+      { name: "Machine Operator - John Smith", type: "operator" },
+      { name: "CNC Machine #3", type: "machine" },
+      { name: "Quality Inspector - Sarah Johnson", type: "operator" }
+    ]
   },
   {
     id: "WO-002", 
@@ -182,7 +192,15 @@ const mockWorkOrders = [
     quantity: 40,
     description: "Heavy-duty steel mounting plate with precision drilled holes",
     productionTime: "2.2 hours",
-    productionNotes: "Requires heat treatment and coating application"
+    productionNotes: "Requires heat treatment and coating application",
+    tools: [
+      { name: "Laser Cutter", quantity: 1 },
+      { name: "Press Brake", quantity: 1 }
+    ],
+    operatorsAndMachines: [
+      { name: "Sheet Metal Operator - Mike Wilson", type: "operator" },
+      { name: "Laser Cutting Machine #1", type: "machine" }
+    ]
   },
   {
     id: "WO-003",
@@ -198,7 +216,17 @@ const mockWorkOrders = [
     quantity: 15,
     description: "High-precision machined shaft with tight tolerances",
     productionTime: "5.5 hours",
-    productionNotes: "Critical tolerances +/- 0.001 inch. Use coordinate measuring machine for inspection."
+    productionNotes: "Critical tolerances +/- 0.001 inch. Use coordinate measuring machine for inspection.",
+    tools: [
+      { name: "Precision Lathe", quantity: 1 },
+      { name: "CMM Machine", quantity: 1 },
+      { name: "Carbide Inserts", quantity: 5 }
+    ],
+    operatorsAndMachines: [
+      { name: "Precision Machinist - David Brown", type: "operator" },
+      { name: "CNC Lathe #2", type: "machine" },
+      { name: "Quality Inspector - Lisa Davis", type: "operator" }
+    ]
   },
   {
     id: "WO-004",
@@ -214,7 +242,17 @@ const mockWorkOrders = [
     quantity: 8,
     description: "Custom aluminum gear housing with internal bearing seats",
     productionTime: "8.0 hours",
-    productionNotes: "Complex internal geometry. Multiple setups required. Final inspection with go/no-go gauges."
+    productionNotes: "Complex internal geometry. Multiple setups required. Final inspection with go/no-go gauges.",
+    tools: [
+      { name: "5-Axis CNC Mill", quantity: 1 },
+      { name: "Boring Bar Set", quantity: 1 },
+      { name: "Go/No-Go Gauges", quantity: 3 }
+    ],
+    operatorsAndMachines: [
+      { name: "CNC Programmer - Alex Martinez", type: "operator" },
+      { name: "Senior Machinist - Robert Lee", type: "operator" },
+      { name: "5-Axis CNC Machine #1", type: "machine" }
+    ]
   },
   {
     id: "WO-005",
@@ -230,7 +268,16 @@ const mockWorkOrders = [
     quantity: 12,
     description: "Cast iron bearing support block with precision bore",
     productionTime: "6.5 hours",
-    productionNotes: "Cast iron requires carbide tooling. Surface finish critical for bearing fit."
+    productionNotes: "Cast iron requires carbide tooling. Surface finish critical for bearing fit.",
+    tools: [
+      { name: "Horizontal Boring Machine", quantity: 1 },
+      { name: "Carbide Tooling Set", quantity: 1 },
+      { name: "Surface Finish Gauge", quantity: 1 }
+    ],
+    operatorsAndMachines: [
+      { name: "Boring Machine Operator - James Garcia", type: "operator" },
+      { name: "Horizontal Boring Machine #2", type: "machine" }
+    ]
   },
 ];
 
@@ -270,6 +317,8 @@ export default function WorkOrders() {
   const [isWorkOrderDetailsOpen, setIsWorkOrderDetailsOpen] = useState(false);
   const [isAddWorkOrderOpen, setIsAddWorkOrderOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [tools, setTools] = useState([{ name: "", quantity: "" }]);
+  const [operatorsAndMachines, setOperatorsAndMachines] = useState([{ name: "", type: "operator" }]);
 
   const handlePartNameClick = (partNumber: string) => {
     const part = mockParts.find(p => p.partNumber === partNumber);
@@ -298,6 +347,8 @@ export default function WorkOrders() {
   };
 
   const handleAddWorkOrder = () => {
+    setTools([{ name: "", quantity: "" }]);
+    setOperatorsAndMachines([{ name: "", type: "operator" }]);
     setIsAddWorkOrderOpen(true);
   };
 
@@ -771,6 +822,96 @@ export default function WorkOrders() {
                 )}
               </div>
 
+              {/* Tools Section */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Tools Required
+                </h3>
+                {isEditMode ? (
+                  <div className="space-y-3">
+                    {(selectedWorkOrder.tools || []).map((tool: any, index: number) => (
+                      <div key={index} className="flex gap-2 items-end">
+                        <div className="flex-1">
+                          <Label>Tool Name</Label>
+                          <Input defaultValue={tool.name} placeholder="Tool name" />
+                        </div>
+                        <div className="w-24">
+                          <Label>Quantity</Label>
+                          <Input type="number" defaultValue={tool.quantity} placeholder="Qty" />
+                        </div>
+                        <Button variant="outline" size="sm">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <Plus className="w-4 h-4" />
+                      Add Tool
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {selectedWorkOrder.tools?.map((tool: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-muted rounded">
+                        <span className="font-medium">{tool.name}</span>
+                        <Badge variant="outline">Qty: {tool.quantity}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Operators and Machines Section */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Operators & Machines
+                </h3>
+                {isEditMode ? (
+                  <div className="space-y-3">
+                    {(selectedWorkOrder.operatorsAndMachines || []).map((item: any, index: number) => (
+                      <div key={index} className="flex gap-2 items-end">
+                        <div className="flex-1">
+                          <Label>Name</Label>
+                          <Input defaultValue={item.name} placeholder="Operator/Machine name" />
+                        </div>
+                        <div className="w-32">
+                          <Label>Type</Label>
+                          <Select defaultValue={item.type}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="operator">Operator</SelectItem>
+                              <SelectItem value="machine">Machine</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button variant="outline" size="sm">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <Plus className="w-4 h-4" />
+                      Add Operator/Machine
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {selectedWorkOrder.operatorsAndMachines?.map((item: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-muted rounded">
+                        <span className="font-medium">{item.name}</span>
+                        <Badge variant={item.type === 'operator' ? 'default' : 'secondary'}>
+                          {item.type === 'operator' ? 'Operator' : 'Machine'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Footer */}
               <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
                 Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
@@ -848,6 +989,126 @@ export default function WorkOrders() {
             <div>
               <Label htmlFor="productionNotes">Production Notes</Label>
               <Textarea id="productionNotes" placeholder="Production notes and requirements..." rows={3} />
+            </div>
+
+            {/* Tools Section */}
+            <div>
+              <Label className="flex items-center gap-2 mb-3">
+                <Settings className="w-4 h-4" />
+                Tools Required
+              </Label>
+              <div className="space-y-3">
+                {tools.map((tool, index) => (
+                  <div key={index} className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Input 
+                        placeholder="Tool name" 
+                        value={tool.name}
+                        onChange={(e) => {
+                          const newTools = [...tools];
+                          newTools[index].name = e.target.value;
+                          setTools(newTools);
+                        }}
+                      />
+                    </div>
+                    <div className="w-24">
+                      <Input 
+                        type="number" 
+                        placeholder="Qty"
+                        value={tool.quantity}
+                        onChange={(e) => {
+                          const newTools = [...tools];
+                          newTools[index].quantity = e.target.value;
+                          setTools(newTools);
+                        }}
+                      />
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        if (tools.length > 1) {
+                          setTools(tools.filter((_, i) => i !== index));
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2"
+                  onClick={() => setTools([...tools, { name: "", quantity: "" }])}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Tool
+                </Button>
+              </div>
+            </div>
+
+            {/* Operators and Machines Section */}
+            <div>
+              <Label className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4" />
+                Operators & Machines
+              </Label>
+              <div className="space-y-3">
+                {operatorsAndMachines.map((item, index) => (
+                  <div key={index} className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Input 
+                        placeholder="Operator/Machine name"
+                        value={item.name}
+                        onChange={(e) => {
+                          const newItems = [...operatorsAndMachines];
+                          newItems[index].name = e.target.value;
+                          setOperatorsAndMachines(newItems);
+                        }}
+                      />
+                    </div>
+                    <div className="w-32">
+                      <Select 
+                        value={item.type}
+                        onValueChange={(value) => {
+                          const newItems = [...operatorsAndMachines];
+                          newItems[index].type = value;
+                          setOperatorsAndMachines(newItems);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="operator">Operator</SelectItem>
+                          <SelectItem value="machine">Machine</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        if (operatorsAndMachines.length > 1) {
+                          setOperatorsAndMachines(operatorsAndMachines.filter((_, i) => i !== index));
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2"
+                  onClick={() => setOperatorsAndMachines([...operatorsAndMachines, { name: "", type: "operator" }])}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Operator/Machine
+                </Button>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
