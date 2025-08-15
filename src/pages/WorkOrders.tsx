@@ -151,7 +151,7 @@ export const mockParts = [
 ];
 
 // Mock work orders data
-const mockWorkOrders = [
+  const mockWorkOrders = [
   {
     id: "WO-001",
     workOrderNumber: "WO-2024-001",
@@ -166,6 +166,8 @@ const mockWorkOrders = [
     quantity: 25,
     description: "High-strength aluminum bracket assembly for industrial mounting applications",
     productionTime: "3.5 hours",
+    setupInstructions: "Mount workpiece in precision vise, ensure proper alignment and clamping pressure",
+    qualityRequirements: "All dimensions must be within ±0.005 inch tolerance. Check surface finish Ra 32 or better",
     productionNotes: "Requires precision machining and anodized finish",
     tools: [
       { name: "CNC Mill", quantity: 1 },
@@ -192,6 +194,8 @@ const mockWorkOrders = [
     quantity: 40,
     description: "Heavy-duty steel mounting plate with precision drilled holes",
     productionTime: "2.2 hours",
+    setupInstructions: "Secure material in laser cutting bed, verify material thickness and cutting parameters",
+    qualityRequirements: "Hole dimensions ±0.002 inch, edge quality per ISO 9013 class 2",
     productionNotes: "Requires heat treatment and coating application",
     tools: [
       { name: "Laser Cutter", quantity: 1 },
@@ -216,6 +220,8 @@ const mockWorkOrders = [
     quantity: 15,
     description: "High-precision machined shaft with tight tolerances",
     productionTime: "5.5 hours",
+    setupInstructions: "Center shaft in 4-jaw chuck, indicate runout to <0.0002 inch TIR",
+    qualityRequirements: "All critical dimensions ±0.001 inch, surface finish 32 Ra maximum",
     productionNotes: "Critical tolerances +/- 0.001 inch. Use coordinate measuring machine for inspection.",
     tools: [
       { name: "Precision Lathe", quantity: 1 },
@@ -242,6 +248,8 @@ const mockWorkOrders = [
     quantity: 8,
     description: "Custom aluminum gear housing with internal bearing seats",
     productionTime: "8.0 hours",
+    setupInstructions: "Secure housing in 5-axis vise, establish workpiece coordinate system using probe cycle",
+    qualityRequirements: "Bearing bore diameter H7 tolerance, bearing seats perpendicular within 0.001 inch",
     productionNotes: "Complex internal geometry. Multiple setups required. Final inspection with go/no-go gauges.",
     tools: [
       { name: "5-Axis CNC Mill", quantity: 1 },
@@ -268,6 +276,8 @@ const mockWorkOrders = [
     quantity: 12,
     description: "Cast iron bearing support block with precision bore",
     productionTime: "6.5 hours",
+    setupInstructions: "Mount block on boring machine table, align bore axis with spindle centerline",
+    qualityRequirements: "Bore diameter +0.0000/-0.0005 inch, concentricity within 0.002 inch TIR",
     productionNotes: "Cast iron requires carbide tooling. Surface finish critical for bearing fit.",
     tools: [
       { name: "Horizontal Boring Machine", quantity: 1 },
@@ -807,21 +817,6 @@ export default function WorkOrders() {
                 )}
               </div>
 
-              {/* Production Notes */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg border-b pb-2">Production Notes</h3>
-                {isEditMode ? (
-                  <div>
-                    <Label>Production Notes</Label>
-                    <Textarea defaultValue={selectedWorkOrder.productionNotes} rows={4} />
-                  </div>
-                ) : (
-                  <div className="mt-4">
-                    <p className="text-sm p-3 bg-muted rounded">{selectedWorkOrder.productionNotes}</p>
-                  </div>
-                )}
-              </div>
-
               {/* Tools Section */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
@@ -912,6 +907,51 @@ export default function WorkOrders() {
                 )}
               </div>
 
+              {/* Setup Instructions */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Setup Instructions</h3>
+                {isEditMode ? (
+                  <div>
+                    <Label>Setup Instructions</Label>
+                    <Textarea defaultValue={selectedWorkOrder.setupInstructions} rows={4} />
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <p className="text-sm p-3 bg-muted rounded">{selectedWorkOrder.setupInstructions}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Quality Requirements */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Quality Requirements</h3>
+                {isEditMode ? (
+                  <div>
+                    <Label>Quality Requirements</Label>
+                    <Textarea defaultValue={selectedWorkOrder.qualityRequirements} rows={4} />
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <p className="text-sm p-3 bg-muted rounded">{selectedWorkOrder.qualityRequirements}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Production Notes */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Production Notes</h3>
+                {isEditMode ? (
+                  <div>
+                    <Label>Production Notes</Label>
+                    <Textarea defaultValue={selectedWorkOrder.productionNotes} rows={4} />
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <p className="text-sm p-3 bg-muted rounded">{selectedWorkOrder.productionNotes}</p>
+                  </div>
+                )}
+              </div>
+
               {/* Footer */}
               <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
                 Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
@@ -984,6 +1024,16 @@ export default function WorkOrders() {
             <div>
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" placeholder="Part description..." rows={3} />
+            </div>
+
+            <div>
+              <Label htmlFor="setupInstructions">Setup Instructions</Label>
+              <Textarea id="setupInstructions" placeholder="Setup instructions for this work order..." rows={3} />
+            </div>
+
+            <div>
+              <Label htmlFor="qualityRequirements">Quality Requirements</Label>
+              <Textarea id="qualityRequirements" placeholder="Quality requirements and tolerances..." rows={3} />
             </div>
 
             <div>
