@@ -13,97 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-
-// Customer data structure that will be shared across the app
-export const mockCustomers = [
-  {
-    id: "C-001",
-    name: "ABC Manufacturing",
-    email: "orders@abcmanufacturing.com",
-    phone: "+1 (555) 123-4567",
-    country: "USA",
-    address: "1234 Industrial Ave, Detroit, MI 48201",
-    webpage: "https://abcmanufacturing.com",
-    contactPerson: "John Smith",
-    industry: "Automotive",
-    status: "Active",
-    totalOrders: 15,
-    totalValue: 45250.75,
-    lastOrderDate: "2024-01-15",
-    paymentTerms: "Net 30",
-    notes: "Preferred customer - priority handling"
-  },
-  {
-    id: "C-002", 
-    name: "XYZ Industries",
-    email: "procurement@xyzindustries.com",
-    phone: "+1 (555) 234-5678",
-    country: "Canada",
-    address: "789 Manufacturing Blvd, Toronto, ON M4B 1B3",
-    webpage: "https://xyzindustries.ca",
-    contactPerson: "Sarah Johnson",
-    industry: "Aerospace",
-    status: "Active",
-    totalOrders: 8,
-    totalValue: 28900.50,
-    lastOrderDate: "2024-01-12",
-    paymentTerms: "Net 15",
-    notes: "Quality requirements very strict"
-  },
-  {
-    id: "C-003",
-    name: "TechCorp Solutions", 
-    email: "engineering@techcorp.com",
-    phone: "+1 (555) 345-6789",
-    country: "USA",
-    address: "456 Tech Park Dr, San Jose, CA 95110",
-    webpage: "https://techcorpsolutions.com",
-    contactPerson: "Mike Chen",
-    industry: "Technology",
-    status: "Active",
-    totalOrders: 12,
-    totalValue: 67800.25,
-    lastOrderDate: "2024-01-20",
-    paymentTerms: "Net 45",
-    notes: "High-precision requirements"
-  },
-  {
-    id: "C-004",
-    name: "MechSystems Ltd",
-    email: "orders@mechsystems.co.uk",
-    phone: "+44 20 7123 4567",
-    country: "UK", 
-    address: "123 Industrial Estate, Manchester M1 1AA",
-    webpage: "https://mechsystems.co.uk",
-    contactPerson: "David Wilson",
-    industry: "Heavy Machinery",
-    status: "Active",
-    totalOrders: 6,
-    totalValue: 89200.00,
-    lastOrderDate: "2024-01-18",
-    paymentTerms: "Net 30",
-    notes: "Large volume orders"
-  },
-  {
-    id: "C-005",
-    name: "Industrial Partners",
-    email: "purchasing@industrialpartners.com",
-    phone: "+1 (555) 456-7890", 
-    country: "USA",
-    address: "789 Factory Rd, Chicago, IL 60601",
-    webpage: "https://industrialpartners.com",
-    contactPerson: "Lisa Rodriguez",
-    industry: "Manufacturing",
-    status: "On Hold",
-    totalOrders: 3,
-    totalValue: 15600.75,
-    lastOrderDate: "2024-01-10",
-    paymentTerms: "Net 60",
-    notes: "Payment issues - on hold until resolved"
-  }
-];
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -119,13 +32,49 @@ const getStatusColor = (status: string) => {
 };
 
 export default function Customers() {
+  const { toast } = useToast();
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
-  const [customers, setCustomers] = useState(mockCustomers);
+  const [customers, setCustomers] = useState<any[]>([]);
 
-  const handleDeleteCustomer = (customerId: string) => {
-    setCustomers(prev => prev.filter(customer => customer.id !== customerId));
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    const { data } = await supabase.from('customers').select('*');
+    if (data) {
+      const formattedCustomers = data.map(customer => ({
+        ...customer,
+        contactPerson: customer.name, // Placeholder mapping
+        industry: "General", // Placeholder
+        status: "Active", // Placeholder
+        totalOrders: 0, // Would calculate from invoices
+        totalValue: 0, // Would calculate from invoices
+        lastOrderDate: new Date().toISOString().split('T')[0],
+        paymentTerms: "Net 30", // Placeholder
+        notes: "", // Placeholder
+        webpage: "", // Placeholder
+        country: "USA" // Placeholder
+      }));
+      setCustomers(formattedCustomers);
+    }
+  };
+
+  const handleDeleteCustomer = async (customerId: string) => {
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', customerId);
+
+    if (!error) {
+      setCustomers(prev => prev.filter(customer => customer.id !== customerId));
+      toast({
+        title: "Customer Deleted",
+        description: "The customer has been successfully deleted.",
+      });
+    }
   };
 
   const handleCustomerClick = (customer: any) => {

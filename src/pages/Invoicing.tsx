@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,77 +10,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Plus, Search, DollarSign, Calendar, Send, Trash2, Download, Eye } from "lucide-react";
-import { mockCustomers } from "./Customers";
 import { useToast } from "@/hooks/use-toast";
-
-// Mock invoice data
-const mockInvoices = [
-  {
-    id: "INV-001",
-    invoiceNumber: "INV-2024-001",
-    customerId: "C-001",
-    customerName: "ABC Manufacturing",
-    issueDate: "2024-01-15",
-    dueDate: "2024-02-14",
-    status: "Paid",
-    subtotal: 1250.00,
-    tax: 125.00,
-    total: 1375.00,
-    items: [
-      { description: "Aluminum Bracket Assembly", quantity: 10, unitPrice: 125.50, total: 1255.00 }
-    ],
-    notes: "Payment received on time"
-  },
-  {
-    id: "INV-002",
-    invoiceNumber: "INV-2024-002",
-    customerId: "C-002",
-    customerName: "XYZ Industries",
-    issueDate: "2024-01-20",
-    dueDate: "2024-02-19",
-    status: "Pending",
-    subtotal: 890.00,
-    tax: 89.00,
-    total: 979.00,
-    items: [
-      { description: "Precision Shaft", quantity: 4, unitPrice: 220.00, total: 880.00 },
-      { description: "Setup Fee", quantity: 1, unitPrice: 10.00, total: 10.00 }
-    ],
-    notes: "Rush order - expedited processing"
-  },
-  {
-    id: "INV-003",
-    invoiceNumber: "INV-2024-003",
-    customerId: "C-003",
-    customerName: "TechCorp Solutions",
-    issueDate: "2024-01-25",
-    dueDate: "2024-02-24",
-    status: "Overdue",
-    subtotal: 2100.00,
-    tax: 210.00,
-    total: 2310.00,
-    items: [
-      { description: "Custom Heat Sink Housing", quantity: 28, unitPrice: 75.00, total: 2100.00 }
-    ],
-    notes: "Follow up required - payment overdue"
-  },
-  {
-    id: "INV-004",
-    invoiceNumber: "INV-2024-004",
-    customerId: "C-004",
-    customerName: "MechSystems Ltd",
-    issueDate: "2024-01-28",
-    dueDate: "2024-02-27",
-    status: "Draft",
-    subtotal: 1800.00,
-    tax: 180.00,
-    total: 1980.00,
-    items: [
-      { description: "Motor Mount Plate", quantity: 20, unitPrice: 95.00, total: 1900.00 }
-    ],
-    notes: "Pending customer approval"
-  }
-];
+import { supabase } from "@/integrations/supabase/client";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -99,19 +30,58 @@ const getStatusColor = (status: string) => {
 
 export default function Invoicing() {
   const { toast } = useToast();
-  const [invoices, setInvoices] = useState(mockInvoices);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isAddInvoiceOpen, setIsAddInvoiceOpen] = useState(false);
 
-  const handleDeleteInvoice = (invoiceId: string) => {
-    setInvoices(prev => prev.filter(invoice => invoice.id !== invoiceId));
-    toast({
-      title: "Invoice Deleted",
-      description: "The invoice has been successfully deleted.",
-    });
+  useEffect(() => {
+    fetchInvoices();
+    fetchCustomers();
+  }, []);
+
+  const fetchInvoices = async () => {
+    const { data } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        customers(name)
+      `);
+    
+    if (data) {
+      const formattedInvoices = data.map(invoice => ({
+        ...invoice,
+        customerName: invoice.customers?.name || 'Unknown Customer',
+        items: [], // Would need separate table for items
+        subtotal: invoice.amount * 0.9, // Example calculation
+        tax: invoice.amount * 0.1,
+        total: invoice.amount
+      }));
+      setInvoices(formattedInvoices);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    const { data } = await supabase.from('customers').select('*');
+    if (data) setCustomers(data);
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    const { error } = await supabase
+      .from('invoices')
+      .delete()
+      .eq('id', invoiceId);
+
+    if (!error) {
+      setInvoices(prev => prev.filter(invoice => invoice.id !== invoiceId));
+      toast({
+        title: "Invoice Deleted",
+        description: "The invoice has been successfully deleted.",
+      });
+    }
   };
 
   const handleViewInvoice = (invoice: any) => {
@@ -160,7 +130,7 @@ export default function Invoicing() {
                     <SelectValue placeholder="Select customer" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockCustomers.map(customer => (
+                    {customers.map(customer => (
                       <SelectItem key={customer.id} value={customer.id}>
                         {customer.name}
                       </SelectItem>

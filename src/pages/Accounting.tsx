@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DollarSign, Plus, Search, TrendingUp, TrendingDown, Calculator, FileText, Trash2, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Mock accounting data
 const mockTransactions = [
@@ -115,28 +116,42 @@ const getTransactionTypeColor = (type: string) => {
 
 export default function Accounting() {
   const { toast } = useToast();
-  const [transactions, setTransactions] = useState(mockTransactions);
-  const [budgetItems, setBudgetItems] = useState(mockBudgetItems);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
-  const [isAddBudgetOpen, setIsAddBudgetOpen] = useState(false);
 
-  const handleDeleteTransaction = (transactionId: string) => {
-    setTransactions(prev => prev.filter(txn => txn.id !== transactionId));
-    toast({
-      title: "Transaction Deleted",
-      description: "The transaction has been successfully deleted.",
-    });
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    const { data } = await supabase.from('accounting_entries').select('*');
+    if (data) {
+      const formattedTransactions = data.map(entry => ({
+        ...entry,
+        description: entry.description,
+        account: "General", // Placeholder
+        reference: entry.reference || `TXN-${entry.id}`
+      }));
+      setTransactions(formattedTransactions);
+    }
   };
 
-  const handleDeleteBudgetItem = (budgetId: string) => {
-    setBudgetItems(prev => prev.filter(item => item.id !== budgetId));
-    toast({
-      title: "Budget Item Deleted",
-      description: "The budget item has been successfully deleted.",
-    });
+  const handleDeleteTransaction = async (transactionId: string) => {
+    const { error } = await supabase
+      .from('accounting_entries')
+      .delete()
+      .eq('id', transactionId);
+
+    if (!error) {
+      setTransactions(prev => prev.filter(txn => txn.id !== transactionId));
+      toast({
+        title: "Transaction Deleted",
+        description: "The transaction has been successfully deleted.",
+      });
+    }
   };
 
   const filteredTransactions = transactions.filter(transaction => {
@@ -147,8 +162,8 @@ export default function Accounting() {
     return matchesSearch && matchesType && matchesCategory;
   });
 
-  const totalIncome = transactions.filter(t => t.type === "Income").reduce((sum, t) => sum + t.amount, 0);
-  const totalExpenses = transactions.filter(t => t.type === "Expense").reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
+  const totalExpenses = transactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
   const netIncome = totalIncome - totalExpenses;
 
   const categories = [...new Set(transactions.map(t => t.category))];
@@ -227,39 +242,6 @@ export default function Accounting() {
               <div className="flex gap-2 pt-4">
                 <Button className="flex-1">Add Transaction</Button>
                 <Button variant="outline" onClick={() => setIsAddTransactionOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={isAddBudgetOpen} onOpenChange={setIsAddBudgetOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Calculator className="w-4 h-4 mr-2" />
-                Add Budget
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Budget Item</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Category</Label>
-                  <Input placeholder="Budget category" />
-                </div>
-                <div>
-                  <Label>Budgeted Amount</Label>
-                  <Input type="number" placeholder="0.00" />
-                </div>
-                <div>
-                  <Label>Period</Label>
-                  <Input placeholder="e.g., January 2024" />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button className="flex-1">Add Budget Item</Button>
-                <Button variant="outline" onClick={() => setIsAddBudgetOpen(false)}>
                   Cancel
                 </Button>
               </div>
@@ -461,45 +443,7 @@ export default function Accounting() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {budgetItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.category}</TableCell>
-                        <TableCell>{item.period}</TableCell>
-                        <TableCell>${item.budgeted.toLocaleString()}</TableCell>
-                        <TableCell>${item.actual.toLocaleString()}</TableCell>
-                        <TableCell className={item.variance >= 0 ? 'text-red-600' : 'text-green-600'}>
-                          {item.variance >= 0 ? '+' : ''}${item.variance.toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={item.variance >= 0 ? 'destructive' : 'default'}>
-                            {item.variance >= 0 ? 'Over Budget' : 'Under Budget'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Budget Item</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this budget item? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteBudgetItem(item.id)}>
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {/* No budget items in this version */}
                   </TableBody>
                 </Table>
               </div>

@@ -16,10 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Package, FileText, Wrench, Clock, Plus, Edit, Printer, Calendar, Settings, Users, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { mockCustomers } from "./Customers";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 // Shared parts data that will be imported by inventory
 export const mockParts = [
@@ -330,22 +330,50 @@ export default function WorkOrders() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [tools, setTools] = useState([{ name: "", quantity: "" }]);
   const [operatorsAndMachines, setOperatorsAndMachines] = useState([{ name: "", type: "operator" }]);
-  const [workOrders, setWorkOrders] = useState(mockWorkOrders);
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
 
-  const handleDeleteWorkOrder = (workOrderId: string) => {
-    setWorkOrders(prev => prev.filter(wo => wo.id !== workOrderId));
-    toast({
-      title: "Work Order Deleted",
-      description: "The work order has been successfully deleted.",
-    });
+  useEffect(() => {
+    fetchWorkOrders();
+  }, []);
+
+  const fetchWorkOrders = async () => {
+    const { data } = await supabase.from('work_orders').select('*');
+    if (data) {
+      const formattedWorkOrders = data.map(wo => ({
+        ...wo,
+        workOrderNumber: `WO-${wo.id}`,
+        partName: wo.title,
+        partNumber: `P-${wo.id}`,
+        percentageCompletion: 50, // Placeholder
+        productionTime: "3.5 hours", // Placeholder
+        setupInstructions: "", // Placeholder
+        qualityRequirements: "", // Placeholder
+        productionNotes: wo.description || "",
+        tools: [], // Placeholder
+        operatorsAndMachines: [] // Placeholder
+      }));
+      setWorkOrders(formattedWorkOrders);
+    }
+  };
+
+  const handleDeleteWorkOrder = async (workOrderId: string) => {
+    const { error } = await supabase
+      .from('work_orders')
+      .delete()
+      .eq('id', workOrderId);
+
+    if (!error) {
+      setWorkOrders(prev => prev.filter(wo => wo.id !== workOrderId));
+      toast({
+        title: "Work Order Deleted",
+        description: "The work order has been successfully deleted.",
+      });
+    }
   };
 
   const handlePartNameClick = (partNumber: string) => {
-    const part = mockParts.find(p => p.partNumber === partNumber);
-    if (part) {
-      setSelectedProduct(part);
-      setIsProductDialogOpen(true);
-    }
+    // Would fetch part details from database
+    console.log("View part:", partNumber);
   };
 
   const handleWorkOrderClick = (workOrder: any) => {
