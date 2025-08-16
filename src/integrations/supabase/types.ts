@@ -53,7 +53,9 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          country: string | null
           created_at: string
+          declaration_numbers: string[] | null
           email: string | null
           id: string
           name: string
@@ -62,7 +64,9 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          country?: string | null
           created_at?: string
+          declaration_numbers?: string[] | null
           email?: string | null
           id?: string
           name: string
@@ -71,7 +75,9 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          country?: string | null
           created_at?: string
+          declaration_numbers?: string[] | null
           email?: string | null
           id?: string
           name?: string
@@ -119,6 +125,7 @@ export type Database = {
           supplier: string | null
           unit_price: number
           updated_at: string
+          weight: number | null
         }
         Insert: {
           category: string
@@ -131,6 +138,7 @@ export type Database = {
           supplier?: string | null
           unit_price?: number
           updated_at?: string
+          weight?: number | null
         }
         Update: {
           category?: string
@@ -143,6 +151,7 @@ export type Database = {
           supplier?: string | null
           unit_price?: number
           updated_at?: string
+          weight?: number | null
         }
         Relationships: []
       }
@@ -176,6 +185,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_invoice_items_invoice"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoice_items_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
@@ -188,38 +204,74 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          currency: string | null
           customer_id: string | null
+          declaration_number: string | null
           due_date: string | null
           id: string
+          incoterms: string | null
           invoice_number: string
           issue_date: string
+          net_weight: number | null
           notes: string | null
+          order_number: string | null
+          packing: number | null
+          shipping_address: string | null
+          shipping_date: string | null
           status: string
+          tara_weight: number | null
+          total_quantity: number | null
+          total_weight: number | null
           updated_at: string
+          vat_rate: number | null
         }
         Insert: {
           amount?: number
           created_at?: string
+          currency?: string | null
           customer_id?: string | null
+          declaration_number?: string | null
           due_date?: string | null
           id?: string
+          incoterms?: string | null
           invoice_number: string
           issue_date?: string
+          net_weight?: number | null
           notes?: string | null
+          order_number?: string | null
+          packing?: number | null
+          shipping_address?: string | null
+          shipping_date?: string | null
           status?: string
+          tara_weight?: number | null
+          total_quantity?: number | null
+          total_weight?: number | null
           updated_at?: string
+          vat_rate?: number | null
         }
         Update: {
           amount?: number
           created_at?: string
+          currency?: string | null
           customer_id?: string | null
+          declaration_number?: string | null
           due_date?: string | null
           id?: string
+          incoterms?: string | null
           invoice_number?: string
           issue_date?: string
+          net_weight?: number | null
           notes?: string | null
+          order_number?: string | null
+          packing?: number | null
+          shipping_address?: string | null
+          shipping_date?: string | null
           status?: string
+          tara_weight?: number | null
+          total_quantity?: number | null
+          total_weight?: number | null
           updated_at?: string
+          vat_rate?: number | null
         }
         Relationships: [
           {
@@ -361,7 +413,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_invoice_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
