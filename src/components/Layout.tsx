@@ -11,6 +11,7 @@ import {
   Tag,
   TrendingUp,
   Users,
+  Truck,
   FolderOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const navigation = [
   { name: "Labels", href: "/labels", icon: Tag },
   { name: "Sales", href: "/sales", icon: TrendingUp },
   { name: "Customers", href: "/customers", icon: Users },
+  { name: "Suppliers", href: "/suppliers", icon: Truck },
   { name: "Other docs", href: "/other-docs", icon: FolderOpen },
 ];
 

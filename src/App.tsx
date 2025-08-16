@@ -12,6 +12,7 @@ import Accounting from "./pages/Accounting";
 import Labels from "./pages/Labels";
 import Sales from "./pages/Sales";
 import Customers from "./pages/Customers";
+import Suppliers from "./pages/Suppliers";
 import OtherDocs from "./pages/OtherDocs";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/labels" element={<Layout><Labels /></Layout>} />
           <Route path="/sales" element={<Layout><Sales /></Layout>} />
           <Route path="/customers" element={<Layout><Customers /></Layout>} />
+          <Route path="/suppliers" element={<Layout><Suppliers /></Layout>} />
           <Route path="/other-docs" element={<Layout><OtherDocs /></Layout>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
