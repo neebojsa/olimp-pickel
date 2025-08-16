@@ -7,16 +7,29 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+const INVENTORY_CATEGORIES = ["Parts", "Materials", "Tools", "Machines"];
 
 export default function Inventory() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    category: "",
+    description: "",
+    quantity: "",
+    unit_price: "",
+    supplier: "",
+    location: ""
+  });
 
   useEffect(() => {
     fetchInventoryItems();
@@ -38,6 +51,53 @@ export default function Inventory() {
     }
   };
 
+  const handleAddItem = async () => {
+    if (!formData.name || !formData.category || !formData.quantity || !formData.unit_price) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('inventory')
+      .insert({
+        name: formData.name,
+        category: formData.category,
+        description: formData.description,
+        quantity: parseInt(formData.quantity),
+        unit_price: parseFloat(formData.unit_price),
+        supplier: formData.supplier,
+        location: formData.location
+      });
+
+    if (!error) {
+      setIsAddDialogOpen(false);
+      setFormData({
+        name: "",
+        category: "",
+        description: "",
+        quantity: "",
+        unit_price: "",
+        supplier: "",
+        location: ""
+      });
+      fetchInventoryItems();
+      toast({
+        title: "Item Added",
+        description: "The inventory item has been successfully added.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to add inventory item.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteInventoryItem = async (itemId: string) => {
     const { error } = await supabase
       .from('inventory')
@@ -52,6 +112,12 @@ export default function Inventory() {
       });
     }
   };
+
+  const filteredItems = inventoryItems.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   const lowStockItems = inventoryItems.filter(
     item => item.currentQuantity <= item.minimumQuantity
@@ -73,7 +139,7 @@ export default function Inventory() {
             Track materials, tools, and stock levels
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsAddDialogOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Add Item
         </Button>
@@ -155,11 +221,24 @@ export default function Inventory() {
                 className="pl-10"
               />
             </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {INVENTORY_CATEGORIES.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Items Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {inventoryItems.map((item) => (
+            {filteredItems.map((item) => (
               <Card key={item.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="space-y-2">
                   <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden relative">
@@ -269,6 +348,105 @@ export default function Inventory() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Add Item Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Inventory Item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter item name"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="category">Category *</Label>
+              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INVENTORY_CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Enter item description"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="quantity">Quantity *</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="unit_price">Unit Price *</Label>
+                <Input
+                  id="unit_price"
+                  type="number"
+                  step="0.01"
+                  value={formData.unit_price}
+                  onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="supplier">Supplier</Label>
+              <Input
+                id="supplier"
+                value={formData.supplier}
+                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                placeholder="Enter supplier name"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="Enter storage location"
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddItem}>
+                Add Item
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
