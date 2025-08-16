@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, FileText, Clock, Wrench, Trash2 } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,16 +7,26 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Inventory() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [currentCategory, setCurrentCategory] = useState("Parts");
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    quantity: "",
+    unit_price: "",
+    location: "",
+    supplier: "",
+    category: "Parts"
+  });
 
   useEffect(() => {
     fetchInventoryItems();
@@ -53,6 +63,76 @@ export default function Inventory() {
     }
   };
 
+  const handleSaveItem = async () => {
+    if (!formData.name || !formData.quantity || !formData.unit_price) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('inventory')
+      .insert({
+        name: formData.name,
+        description: formData.description,
+        quantity: parseInt(formData.quantity),
+        unit_price: parseFloat(formData.unit_price),
+        location: formData.location,
+        supplier: formData.supplier,
+        category: formData.category
+      });
+
+    if (!error) {
+      setFormData({
+        name: "",
+        description: "",
+        quantity: "",
+        unit_price: "",
+        location: "",
+        supplier: "",
+        category: currentCategory
+      });
+      setIsAddDialogOpen(false);
+      fetchInventoryItems();
+      toast({
+        title: "Item Added",
+        description: "The inventory item has been successfully added.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to add item. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenAddDialog = (category: string) => {
+    setCurrentCategory(category);
+    setFormData(prev => ({ ...prev, category }));
+    setIsAddDialogOpen(true);
+  };
+
+  const getFilteredItems = (category: string) => {
+    return inventoryItems.filter(item => 
+      item.category === category && 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case "Parts": return Package;
+      case "Materials": return Settings;
+      case "Tools": return Wrench;
+      case "Machines": return Cog;
+      default: return Package;
+    }
+  };
+
   const lowStockItems = inventoryItems.filter(
     item => item.currentQuantity <= item.minimumQuantity
   );
@@ -73,7 +153,7 @@ export default function Inventory() {
             Track materials, tools, and stock levels
           </p>
         </div>
-        <Button>
+        <Button onClick={() => handleOpenAddDialog(currentCategory)}>
           <Plus className="w-4 h-4 mr-2" />
           Add Item
         </Button>
@@ -137,138 +217,217 @@ export default function Inventory() {
       </div>
 
       {/* Main Content */}
-      <Tabs defaultValue="items" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="items">Inventory Items</TabsTrigger>
-          <TabsTrigger value="low-stock">Low Stock</TabsTrigger>
+      <Tabs defaultValue="Parts" className="space-y-4" onValueChange={setCurrentCategory}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="Parts">Parts</TabsTrigger>
+          <TabsTrigger value="Materials">Materials</TabsTrigger>
+          <TabsTrigger value="Tools">Tools</TabsTrigger>
+          <TabsTrigger value="Machines">Machines</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="items" className="space-y-4">
-          {/* Search and Filters */}
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+        {["Parts", "Materials", "Tools", "Machines"].map((category) => {
+          const CategoryIcon = getCategoryIcon(category);
+          const filteredItems = getFilteredItems(category);
+
+          return (
+            <TabsContent key={category} value={category} className="space-y-4">
+              {/* Search and Add */}
+              <div className="flex items-center justify-between space-x-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder={`Search ${category.toLowerCase()}...`}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button onClick={() => handleOpenAddDialog(category)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add {category.slice(0, -1)}
+                </Button>
+              </div>
+
+              {/* Items Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredItems.length > 0 ? (
+                  filteredItems.map((item) => (
+                    <Card key={item.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className="space-y-2">
+                        <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden relative flex items-center justify-center">
+                          <CategoryIcon className="w-16 h-16 text-muted-foreground" />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="absolute top-2 right-2 h-8 w-8"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{item.name}</CardTitle>
+                            <p className="text-sm text-muted-foreground">SKU: {item.sku}</p>
+                          </div>
+                          {item.currentQuantity <= item.minimumQuantity && (
+                            <Badge variant="destructive">Low Stock</Badge>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Quantity:</span>
+                          <span className={`font-bold ${
+                            item.currentQuantity <= item.minimumQuantity 
+                              ? 'text-destructive' 
+                              : 'text-foreground'
+                          }`}>
+                            {item.currentQuantity} {item.unitOfMeasure}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Unit Cost:</span>
+                          <span className="font-bold">${item.unitCost}</span>
+                        </div>
+                        
+                        {item.location && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">Location:</span>
+                            <span className="text-sm">{item.location}</span>
+                          </div>
+                        )}
+                        
+                        {item.supplier && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">Supplier:</span>
+                            <span className="text-sm">{item.supplier}</span>
+                          </div>
+                        )}
+                        
+                        {item.description && (
+                          <div className="text-sm text-muted-foreground">
+                            {item.description}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-8">
+                    <CategoryIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No {category.toLowerCase()} found</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-2" 
+                      onClick={() => handleOpenAddDialog(category)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add First {category.slice(0, -1)}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          );
+        })}
+      </Tabs>
+
+      {/* Add Item Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New {currentCategory.slice(0, -1)}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name *</Label>
               <Input
-                placeholder="Search inventory items..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter item name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter item description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="quantity">Quantity *</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="unit_price">Unit Price *</Label>
+                <Input
+                  id="unit_price"
+                  type="number"
+                  step="0.01"
+                  value={formData.unit_price}
+                  onChange={(e) => setFormData(prev => ({ ...prev, unit_price: e.target.value }))}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                placeholder="Storage location"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="supplier">Supplier</Label>
+              <Input
+                id="supplier"
+                value={formData.supplier}
+                onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
+                placeholder="Supplier name"
               />
             </div>
           </div>
-
-          {/* Items Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {inventoryItems.map((item) => (
-              <Card key={item.id} className="hover:shadow-md transition-shadow">
-                <CardHeader className="space-y-2">
-                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden relative">
-                    <img 
-                      src={item.image} 
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2 h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Item</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{item.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">SKU: {item.sku}</p>
-                    </div>
-                    {item.currentQuantity <= item.minimumQuantity && (
-                      <Badge variant="destructive">Low Stock</Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Quantity:</span>
-                    <span className={`font-bold ${
-                      item.currentQuantity <= item.minimumQuantity 
-                        ? 'text-destructive' 
-                        : 'text-foreground'
-                    }`}>
-                      {item.currentQuantity} {item.unitOfMeasure}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Unit Cost:</span>
-                    <span className="font-bold">${item.unitCost}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Location:</span>
-                    <span className="text-sm">{item.location}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Supplier:</span>
-                    <span className="text-sm">{item.supplier}</span>
-                  </div>
-                  
-                  <Badge variant="secondary" className="w-fit">
-                    {item.category}
-                  </Badge>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveItem}>
+              Save {currentCategory.slice(0, -1)}
+            </Button>
           </div>
-        </TabsContent>
-
-        <TabsContent value="low-stock" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Low Stock Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {lowStockItems.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {lowStockItems.map((item) => (
-                    <Card key={item.id} className="border-red-200">
-                      <CardHeader>
-                        <CardTitle className="text-lg text-red-600">{item.name}</CardTitle>
-                        <Badge variant="destructive">Low Stock</Badge>
-                      </CardHeader>
-                      <CardContent>
-                        <p>Current: {item.currentQuantity} {item.unitOfMeasure}</p>
-                        <p>Minimum: {item.minimumQuantity} {item.unitOfMeasure}</p>
-                        <p>Category: {item.category}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground">No low stock items</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
