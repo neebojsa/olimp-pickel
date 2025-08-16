@@ -69,7 +69,7 @@ export default function Invoicing() {
       .select(`
         *,
         customers!inner(id, name, country),
-        invoice_items(*)
+        invoice_items!fk_invoice_items_invoice(*)
       `)
       .order('created_at', { ascending: false });
     
