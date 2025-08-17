@@ -18,6 +18,8 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [stockLocations, setStockLocations] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [currentCategory, setCurrentCategory] = useState("Parts");
   const [formData, setFormData] = useState({
@@ -27,12 +29,15 @@ export default function Inventory() {
     unit_price: "",
     location: "",
     supplier: "",
+    assigned_to: "",
     category: "Parts"
   });
 
   useEffect(() => {
     fetchInventoryItems();
     fetchSuppliers();
+    fetchStockLocations();
+    fetchStaff();
   }, []);
 
   const fetchInventoryItems = async () => {
@@ -55,6 +60,20 @@ export default function Inventory() {
     const { data } = await supabase.from('suppliers').select('id, name');
     if (data) {
       setSuppliers(data);
+    }
+  };
+
+  const fetchStockLocations = async () => {
+    const { data } = await supabase.from('stock_locations').select('id, name, description').eq('is_active', true);
+    if (data) {
+      setStockLocations(data);
+    }
+  };
+
+  const fetchStaff = async () => {
+    const { data } = await supabase.from('staff').select('id, name, position').eq('is_active', true);
+    if (data) {
+      setStaff(data);
     }
   };
 
@@ -103,6 +122,7 @@ export default function Inventory() {
         unit_price: "",
         location: "",
         supplier: "",
+        assigned_to: "",
         category: currentCategory
       });
       setIsAddDialogOpen(false);
@@ -411,12 +431,18 @@ export default function Inventory() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                placeholder="Storage location"
-              />
+              <Select value={formData.location} onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}>
+                <SelectTrigger id="location">
+                  <SelectValue placeholder="Select a location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stockLocations.map((location) => (
+                    <SelectItem key={location.id} value={location.name}>
+                      {location.name} {location.description && `- ${location.description}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="supplier">Supplier</Label>
@@ -428,6 +454,21 @@ export default function Inventory() {
                   {suppliers.map((supplier) => (
                     <SelectItem key={supplier.id} value={supplier.name}>
                       {supplier.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="assigned_to">Assigned To</Label>
+              <Select value={formData.assigned_to} onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}>
+                <SelectTrigger id="assigned_to">
+                  <SelectValue placeholder="Select staff member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {staff.map((person) => (
+                    <SelectItem key={person.id} value={person.name}>
+                      {person.name} {person.position && `- ${person.position}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
