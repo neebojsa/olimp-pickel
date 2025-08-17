@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { User, Shield, Palette, Bell, Lock, Globe, Building } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -47,25 +48,48 @@ export default function Settings() {
   };
 
   const handleLogoUpload = async (file: File) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `company-logo.${fileExt}`;
-    const filePath = `logos/${fileName}`;
+    try {
+      // Validate file type
+      if (!validateImageFile(file)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a JPG or PNG image.",
+          variant: "destructive",
+        });
+        return null;
+      }
 
-    const { error: uploadError } = await supabase.storage
-      .from('company-assets')
-      .upload(filePath, file, { upsert: true });
+      // Resize image while maintaining aspect ratio
+      const resizedFile = await resizeImageFile(file, 200, 200, 0.8);
+      
+      const fileName = `company-logo.jpg`;
+      const filePath = `logos/${fileName}`;
 
-    if (uploadError) {
+      const { error: uploadError } = await supabase.storage
+        .from('company-assets')
+        .upload(filePath, resizedFile, { upsert: true });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        toast({
+          title: "Upload failed",
+          description: "Failed to upload logo. Please try again.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      const { data } = supabase.storage.from('company-assets').getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Logo upload error:', error);
       toast({
         title: "Upload failed",
-        description: "Failed to upload logo. Please try again.",
+        description: "Failed to process logo. Please try again.",
         variant: "destructive",
       });
       return null;
     }
-
-    const { data } = supabase.storage.from('company-assets').getPublicUrl(filePath);
-    return data.publicUrl;
   };
 
   const handleSaveCompany = async () => {
