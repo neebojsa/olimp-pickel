@@ -62,10 +62,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col h-full">
       <div className="flex flex-col items-center justify-center h-20 px-4 border-b space-y-2">
         {companyInfo?.logo_url ? (
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={companyInfo.logo_url} alt="Company Logo" />
-            <AvatarFallback>{companyInfo.company_name?.charAt(0) || "C"}</AvatarFallback>
-          </Avatar>
+          <img 
+            src={companyInfo.logo_url} 
+            alt="Company Logo" 
+            className="max-w-full max-h-12 h-auto object-contain"
+          />
         ) : (
           <h1 className="text-xl font-bold">{companyInfo?.company_name || "CNC Manager"}</h1>
         )}
@@ -130,10 +131,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </SheetTrigger>
             <div className="ml-4 flex items-center space-x-2">
               {companyInfo?.logo_url ? (
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={companyInfo.logo_url} alt="Company Logo" />
-                  <AvatarFallback>{companyInfo.company_name?.charAt(0) || "C"}</AvatarFallback>
-                </Avatar>
+                <img 
+                  src={companyInfo.logo_url} 
+                  alt="Company Logo" 
+                  className="max-h-8 h-auto object-contain"
+                />
               ) : null}
               <h1 className="text-lg font-semibold">{companyInfo?.company_name || "CNC Manager"}</h1>
             </div>
