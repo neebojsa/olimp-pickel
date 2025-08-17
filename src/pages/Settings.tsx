@@ -62,25 +62,16 @@ export default function Settings() {
       // Resize image while maintaining aspect ratio
       const resizedFile = await resizeImageFile(file, 200, 200, 0.8);
       
-      const fileName = `company-logo.jpg`;
-      const filePath = `logos/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('company-assets')
-        .upload(filePath, resizedFile, { upsert: true });
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        toast({
-          title: "Upload failed",
-          description: "Failed to upload logo. Please try again.",
-          variant: "destructive",
-        });
-        return null;
-      }
-
-      const { data } = supabase.storage.from('company-assets').getPublicUrl(filePath);
-      return data.publicUrl;
+      // Convert to base64
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64String = reader.result as string;
+          resolve(base64String);
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(resizedFile);
+      });
     } catch (error) {
       console.error('Logo upload error:', error);
       toast({
