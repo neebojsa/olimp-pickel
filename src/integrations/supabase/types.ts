@@ -178,6 +178,7 @@ export type Database = {
           id: string
           location: string | null
           name: string
+          photo_url: string | null
           quantity: number
           supplier: string | null
           unit_price: number
@@ -191,6 +192,7 @@ export type Database = {
           id?: string
           location?: string | null
           name: string
+          photo_url?: string | null
           quantity?: number
           supplier?: string | null
           unit_price?: number
@@ -204,6 +206,7 @@ export type Database = {
           id?: string
           location?: string | null
           name?: string
+          photo_url?: string | null
           quantity?: number
           supplier?: string | null
           unit_price?: number

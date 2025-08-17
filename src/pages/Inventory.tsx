@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
 
 export default function Inventory() {
   const { toast } = useToast();
@@ -30,8 +31,11 @@ export default function Inventory() {
     location: "",
     supplier: "",
     assigned_to: "",
-    category: "Parts"
+    category: "Parts",
+    photo: null as File | null
   });
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchInventoryItems();
@@ -50,7 +54,7 @@ export default function Inventory() {
         minimumQuantity: 5, // Default minimum
         unitOfMeasure: "pieces",
         unitCost: item.unit_price,
-        image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop&crop=center"
+        image: item.photo_url || null
       }));
       setInventoryItems(formattedItems);
     }
@@ -92,6 +96,58 @@ export default function Inventory() {
     }
   };
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!validateImageFile(file)) {
+      toast({
+        title: "Invalid File",
+        description: "Please select a valid image file (JPEG, PNG).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const resizedFile = await resizeImageFile(file, 400, 400);
+      setFormData(prev => ({ ...prev, photo: resizedFile }));
+      setPhotoPreview(URL.createObjectURL(resizedFile));
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to process image. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData(prev => ({ ...prev, photo: null }));
+    setPhotoPreview(null);
+  };
+
+  const uploadPhoto = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('inventory-photos')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return null;
+    }
+
+    const { data } = supabase.storage
+      .from('inventory-photos')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
   const handleSaveItem = async () => {
     if (!formData.name || !formData.quantity || !formData.unit_price) {
       toast({
@@ -100,6 +156,22 @@ export default function Inventory() {
         variant: "destructive",
       });
       return;
+    }
+
+    setIsUploading(true);
+    
+    let photoUrl = null;
+    if (formData.photo) {
+      photoUrl = await uploadPhoto(formData.photo);
+      if (!photoUrl) {
+        toast({
+          title: "Error",
+          description: "Failed to upload photo. Please try again.",
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        return;
+      }
     }
 
     const { error } = await supabase
@@ -111,8 +183,11 @@ export default function Inventory() {
         unit_price: parseFloat(formData.unit_price),
         location: formData.location,
         supplier: formData.supplier,
-        category: formData.category
+        category: formData.category,
+        photo_url: photoUrl
       });
+
+    setIsUploading(false);
 
     if (!error) {
       setFormData({
@@ -123,8 +198,10 @@ export default function Inventory() {
         location: "",
         supplier: "",
         assigned_to: "",
-        category: currentCategory
+        category: currentCategory,
+        photo: null
       });
+      setPhotoPreview(null);
       setIsAddDialogOpen(false);
       fetchInventoryItems();
       toast({
@@ -285,7 +362,15 @@ export default function Inventory() {
                     <Card key={item.id} className="hover:shadow-md transition-shadow">
                       <CardHeader className="space-y-2">
                         <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden relative flex items-center justify-center">
-                          <CategoryIcon className="w-16 h-16 text-muted-foreground" />
+                          {item.image ? (
+                            <img 
+                              src={item.image} 
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <CategoryIcon className="w-16 h-16 text-muted-foreground" />
+                          )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
@@ -474,13 +559,53 @@ export default function Inventory() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="photo">Photo</Label>
+              <div className="space-y-2">
+                {photoPreview ? (
+                  <div className="relative">
+                    <img 
+                      src={photoPreview} 
+                      alt="Preview" 
+                      className="w-32 h-32 object-cover rounded-lg border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6"
+                      onClick={handleRemovePhoto}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
+                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground mb-2">Click to upload photo</p>
+                    <Input
+                      id="photo"
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
+                    <Label htmlFor="photo" className="cursor-pointer">
+                      <Button type="button" variant="outline" size="sm" asChild>
+                        <span>Choose File</span>
+                      </Button>
+                    </Label>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           <div className="flex justify-end space-x-2">
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveItem}>
-              Save {currentCategory.slice(0, -1)}
+            <Button onClick={handleSaveItem} disabled={isUploading}>
+              {isUploading ? "Uploading..." : `Save ${currentCategory.slice(0, -1)}`}
             </Button>
           </div>
         </DialogContent>
