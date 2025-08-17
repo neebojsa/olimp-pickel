@@ -41,7 +41,11 @@ export default function Settings() {
   }, []);
 
   const fetchCompanyInfo = async () => {
-    const { data } = await supabase.from('company_info').select('*').limit(1).single();
+    const { data, error } = await supabase.from('company_info').select('*').limit(1).maybeSingle();
+    if (error) {
+      console.error('Error fetching company info:', error);
+      return;
+    }
     if (data) {
       setCompanyData(data);
     }
@@ -93,14 +97,25 @@ export default function Settings() {
 
     const companyInfo = { ...companyData, logo_url: logoUrl };
 
-    const { data: existingData } = await supabase.from('company_info').select('id').limit(1).single();
+    const { data: existingData, error: fetchError } = await supabase.from('company_info').select('id').limit(1).maybeSingle();
+    
+    if (fetchError) {
+      console.error('Fetch error:', fetchError);
+      toast({
+        title: "Save failed",
+        description: "Failed to check existing company information.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (existingData) {
       const { error } = await supabase.from('company_info').update(companyInfo).eq('id', existingData.id);
       if (error) {
+        console.error('Update error:', error);
         toast({
           title: "Save failed",
-          description: "Failed to update company information.",
+          description: `Failed to update company information: ${error.message}`,
           variant: "destructive",
         });
         return;
@@ -108,9 +123,10 @@ export default function Settings() {
     } else {
       const { error } = await supabase.from('company_info').insert([companyInfo]);
       if (error) {
+        console.error('Insert error:', error);
         toast({
           title: "Save failed",
-          description: "Failed to save company information.",
+          description: `Failed to save company information: ${error.message}`,
           variant: "destructive",
         });
         return;
