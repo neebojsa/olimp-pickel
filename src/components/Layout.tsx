@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const navigation = [
   { name: "Inventory", href: "/inventory", icon: Package },
@@ -33,11 +36,40 @@ const navigation = [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [userName, setUserName] = useState("User");
+
+  useEffect(() => {
+    fetchCompanyInfo();
+    fetchUserInfo();
+  }, []);
+
+  const fetchCompanyInfo = async () => {
+    const { data } = await supabase.from('company_info').select('*').limit(1).single();
+    if (data) {
+      setCompanyInfo(data);
+    }
+  };
+
+  const fetchUserInfo = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setUserName(user.email?.split('@')[0] || "User");
+    }
+  };
 
   const NavContent = () => (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-center h-16 px-4 border-b">
-        <h1 className="text-xl font-bold">CNC Manager</h1>
+      <div className="flex flex-col items-center justify-center h-20 px-4 border-b space-y-2">
+        {companyInfo?.logo_url ? (
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={companyInfo.logo_url} alt="Company Logo" />
+            <AvatarFallback>{companyInfo.company_name?.charAt(0) || "C"}</AvatarFallback>
+          </Avatar>
+        ) : (
+          <h1 className="text-xl font-bold">{companyInfo?.company_name || "CNC Manager"}</h1>
+        )}
+        <p className="text-xs text-muted-foreground">{userName}</p>
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2">
         {navigation.map((item) => {
@@ -96,7 +128,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Menu className="w-5 h-5" />
               </Button>
             </SheetTrigger>
-            <h1 className="ml-4 text-lg font-semibold">CNC Manager</h1>
+            <div className="ml-4 flex items-center space-x-2">
+              {companyInfo?.logo_url ? (
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={companyInfo.logo_url} alt="Company Logo" />
+                  <AvatarFallback>{companyInfo.company_name?.charAt(0) || "C"}</AvatarFallback>
+                </Avatar>
+              ) : null}
+              <h1 className="text-lg font-semibold">{companyInfo?.company_name || "CNC Manager"}</h1>
+            </div>
           </div>
           <main className="flex-1 overflow-auto">
             {children}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -9,14 +9,106 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { User, Shield, Palette, Bell, Lock, Globe } from "lucide-react";
+import { User, Shield, Palette, Bell, Lock, Globe, Building } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Settings() {
   const { toast } = useToast();
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
+  const [companyData, setCompanyData] = useState({
+    company_name: "",
+    legal_name: "",
+    tax_id: "",
+    registration_number: "",
+    address: "",
+    city: "",
+    state: "",
+    postal_code: "",
+    country: "",
+    phone: "",
+    email: "",
+    website: "",
+    logo_url: ""
+  });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    fetchCompanyInfo();
+  }, []);
+
+  const fetchCompanyInfo = async () => {
+    const { data } = await supabase.from('company_info').select('*').limit(1).single();
+    if (data) {
+      setCompanyData(data);
+    }
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `company-logo.${fileExt}`;
+    const filePath = `logos/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('company-assets')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload logo. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    const { data } = supabase.storage.from('company-assets').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const handleSaveCompany = async () => {
+    let logoUrl = companyData.logo_url;
+    
+    if (logoFile) {
+      logoUrl = await handleLogoUpload(logoFile);
+      if (!logoUrl) return;
+    }
+
+    const companyInfo = { ...companyData, logo_url: logoUrl };
+
+    const { data: existingData } = await supabase.from('company_info').select('id').limit(1).single();
+    
+    if (existingData) {
+      const { error } = await supabase.from('company_info').update(companyInfo).eq('id', existingData.id);
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: "Failed to update company information.",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      const { error } = await supabase.from('company_info').insert([companyInfo]);
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: "Failed to save company information.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setCompanyData(companyInfo);
+    setLogoFile(null);
+    toast({
+      title: "Company information saved",
+      description: "Company details have been updated successfully.",
+    });
+  };
 
   const handleSave = () => {
     toast({
@@ -33,8 +125,9 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="company">Company</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
@@ -94,6 +187,181 @@ export default function Settings() {
                     <SelectItem value="maintenance">Maintenance</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="company" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                Company Information
+              </CardTitle>
+              <CardDescription>Manage your company's official information and branding.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center space-x-4">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={companyData.logo_url || "/placeholder.svg"} />
+                  <AvatarFallback>LOGO</AvatarFallback>
+                </Avatar>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" onClick={() => document.getElementById('logo-upload')?.click()}>
+                    Change Logo
+                  </Button>
+                  <input
+                    id="logo-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setLogoFile(file);
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                          setCompanyData(prev => ({ ...prev, logo_url: e.target?.result as string }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <p className="text-sm text-muted-foreground">PNG or JPG. Max size 2MB.</p>
+                </div>
+              </div>
+              
+              <Separator />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="companyName">Company Name</Label>
+                  <Input 
+                    id="companyName" 
+                    value={companyData.company_name}
+                    onChange={(e) => setCompanyData(prev => ({ ...prev, company_name: e.target.value }))}
+                    placeholder="Your Company Name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="legalName">Legal Name</Label>
+                  <Input 
+                    id="legalName" 
+                    value={companyData.legal_name}
+                    onChange={(e) => setCompanyData(prev => ({ ...prev, legal_name: e.target.value }))}
+                    placeholder="Legal Company Name"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="taxId">Tax ID</Label>
+                  <Input 
+                    id="taxId" 
+                    value={companyData.tax_id}
+                    onChange={(e) => setCompanyData(prev => ({ ...prev, tax_id: e.target.value }))}
+                    placeholder="Tax Identification Number"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="regNumber">Registration Number</Label>
+                  <Input 
+                    id="regNumber" 
+                    value={companyData.registration_number}
+                    onChange={(e) => setCompanyData(prev => ({ ...prev, registration_number: e.target.value }))}
+                    placeholder="Business Registration Number"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input 
+                  id="address" 
+                  value={companyData.address}
+                  onChange={(e) => setCompanyData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Street Address"
+                />
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input 
+                    id="city" 
+                    value={companyData.city}
+                    onChange={(e) => setCompanyData(prev => ({ ...prev, city: e.target.value }))}
+                    placeholder="City"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State/Province</Label>
+                  <Input 
+                    id="state" 
+                    value={companyData.state}
+                    onChange={(e) => setCompanyData(prev => ({ ...prev, state: e.target.value }))}
+                    placeholder="State/Province"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="postalCode">Postal Code</Label>
+                  <Input 
+                    id="postalCode" 
+                    value={companyData.postal_code}
+                    onChange={(e) => setCompanyData(prev => ({ ...prev, postal_code: e.target.value }))}
+                    placeholder="Postal Code"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="country">Country</Label>
+                <Input 
+                  id="country" 
+                  value={companyData.country}
+                  onChange={(e) => setCompanyData(prev => ({ ...prev, country: e.target.value }))}
+                  placeholder="Country"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="companyPhone">Phone</Label>
+                  <Input 
+                    id="companyPhone" 
+                    value={companyData.phone}
+                    onChange={(e) => setCompanyData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Company Phone Number"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companyEmail">Email</Label>
+                  <Input 
+                    id="companyEmail" 
+                    type="email"
+                    value={companyData.email}
+                    onChange={(e) => setCompanyData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="info@company.com"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input 
+                  id="website" 
+                  value={companyData.website}
+                  onChange={(e) => setCompanyData(prev => ({ ...prev, website: e.target.value }))}
+                  placeholder="https://www.company.com"
+                />
+              </div>
+              
+              <div className="flex justify-end">
+                <Button onClick={handleSaveCompany} className="px-8">
+                  Save Company Info
+                </Button>
               </div>
             </CardContent>
           </Card>
