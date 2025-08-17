@@ -21,31 +21,33 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/inventory" replace />} />
-          <Route path="/inventory" element={<Layout><Inventory /></Layout>} />
-          <Route path="/work-orders" element={<Layout><WorkOrders /></Layout>} />
-          <Route path="/invoicing" element={<Layout><Invoicing /></Layout>} />
-          <Route path="/accounting" element={<Layout><Accounting /></Layout>} />
-          <Route path="/labels" element={<Layout><Labels /></Layout>} />
-          <Route path="/sales" element={<Layout><Sales /></Layout>} />
-          <Route path="/customers" element={<Layout><Customers /></Layout>} />
-          <Route path="/suppliers" element={<Layout><Suppliers /></Layout>} />
-          <Route path="/other-docs" element={<Layout><OtherDocs /></Layout>} />
-          <Route path="/settings" element={<Layout><Settings /></Layout>} />
-          <Route path="/staff-and-location" element={<Layout><StaffAndLocation /></Layout>} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Navigate to="/inventory" replace />} />
+            <Route path="/inventory" element={<Layout><Inventory /></Layout>} />
+            <Route path="/work-orders" element={<Layout><WorkOrders /></Layout>} />
+            <Route path="/invoicing" element={<Layout><Invoicing /></Layout>} />
+            <Route path="/accounting" element={<Layout><Accounting /></Layout>} />
+            <Route path="/labels" element={<Layout><Labels /></Layout>} />
+            <Route path="/sales" element={<Layout><Sales /></Layout>} />
+            <Route path="/customers" element={<Layout><Customers /></Layout>} />
+            <Route path="/suppliers" element={<Layout><Suppliers /></Layout>} />
+            <Route path="/other-docs" element={<Layout><OtherDocs /></Layout>} />
+            <Route path="/settings" element={<Layout><Settings /></Layout>} />
+            <Route path="/staff-and-location" element={<Layout><StaffAndLocation /></Layout>} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
