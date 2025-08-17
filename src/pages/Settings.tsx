@@ -1,540 +1,393 @@
-import React, { useState, useEffect } from "react";
-import { Plus, MapPin, Users, Edit, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { User, Shield, Palette, Bell, Lock, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface StockLocation {
-  id: string;
-  name: string;
-  description?: string;
-  address?: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface Staff {
-  id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  position?: string;
-  department?: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-const Settings = () => {
-  const [stockLocations, setStockLocations] = useState<StockLocation[]>([]);
-  const [staff, setStaff] = useState<Staff[]>([]);
-  const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
-  const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
-  const [editingLocation, setEditingLocation] = useState<StockLocation | null>(null);
-  const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+export default function Settings() {
   const { toast } = useToast();
+  const [darkMode, setDarkMode] = useState(false);
+  const [notifications, setNotifications] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(true);
 
-  const [locationForm, setLocationForm] = useState({
-    name: "",
-    description: "",
-    address: "",
-    is_active: true
-  });
-
-  const [staffForm, setStaffForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    position: "",
-    department: "",
-    is_active: true
-  });
-
-  useEffect(() => {
-    fetchStockLocations();
-    fetchStaff();
-  }, []);
-
-  const fetchStockLocations = async () => {
-    const { data, error } = await supabase
-      .from('stock_locations')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch stock locations",
-        variant: "destructive"
-      });
-    } else {
-      setStockLocations(data || []);
-    }
-  };
-
-  const fetchStaff = async () => {
-    const { data, error } = await supabase
-      .from('staff')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch staff",
-        variant: "destructive"
-      });
-    } else {
-      setStaff(data || []);
-    }
-  };
-
-  const handleSaveLocation = async () => {
-    if (!locationForm.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Location name is required",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (editingLocation) {
-      const { error } = await supabase
-        .from('stock_locations')
-        .update(locationForm)
-        .eq('id', editingLocation.id);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update location",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from('stock_locations')
-        .insert([locationForm]);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to create location",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
-
+  const handleSave = () => {
     toast({
-      title: "Success",
-      description: `Location ${editingLocation ? 'updated' : 'created'} successfully`
+      title: "Settings saved",
+      description: "Your preferences have been updated successfully.",
     });
-
-    setLocationForm({ name: "", description: "", address: "", is_active: true });
-    setEditingLocation(null);
-    setIsLocationDialogOpen(false);
-    fetchStockLocations();
-  };
-
-  const handleSaveStaff = async () => {
-    if (!staffForm.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Staff name is required",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (editingStaff) {
-      const { error } = await supabase
-        .from('staff')
-        .update(staffForm)
-        .eq('id', editingStaff.id);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update staff member",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from('staff')
-        .insert([staffForm]);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to create staff member",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
-
-    toast({
-      title: "Success",
-      description: `Staff member ${editingStaff ? 'updated' : 'created'} successfully`
-    });
-
-    setStaffForm({ name: "", email: "", phone: "", position: "", department: "", is_active: true });
-    setEditingStaff(null);
-    setIsStaffDialogOpen(false);
-    fetchStaff();
-  };
-
-  const handleDeleteLocation = async (id: string) => {
-    const { error } = await supabase
-      .from('stock_locations')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete location",
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Location deleted successfully"
-      });
-      fetchStockLocations();
-    }
-  };
-
-  const handleDeleteStaff = async (id: string) => {
-    const { error } = await supabase
-      .from('staff')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete staff member",
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Staff member deleted successfully"
-      });
-      fetchStaff();
-    }
-  };
-
-  const openLocationDialog = (location?: StockLocation) => {
-    if (location) {
-      setEditingLocation(location);
-      setLocationForm({
-        name: location.name,
-        description: location.description || "",
-        address: location.address || "",
-        is_active: location.is_active
-      });
-    } else {
-      setEditingLocation(null);
-      setLocationForm({ name: "", description: "", address: "", is_active: true });
-    }
-    setIsLocationDialogOpen(true);
-  };
-
-  const openStaffDialog = (staffMember?: Staff) => {
-    if (staffMember) {
-      setEditingStaff(staffMember);
-      setStaffForm({
-        name: staffMember.name,
-        email: staffMember.email || "",
-        phone: staffMember.phone || "",
-        position: staffMember.position || "",
-        department: staffMember.department || "",
-        is_active: staffMember.is_active
-      });
-    } else {
-      setEditingStaff(null);
-      setStaffForm({ name: "", email: "", phone: "", position: "", department: "", is_active: true });
-    }
-    setIsStaffDialogOpen(true);
   };
 
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage stock locations and staff members</p>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Settings</h1>
+        <p className="text-muted-foreground">Manage your account preferences and system settings.</p>
       </div>
 
-      <Tabs defaultValue="locations" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="locations">Stock Locations</TabsTrigger>
-          <TabsTrigger value="staff">Staff</TabsTrigger>
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="permissions">Permissions</TabsTrigger>
+          <TabsTrigger value="appearance">Appearance</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="system">System</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="locations" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-semibold">Stock Locations</h2>
-              <p className="text-muted-foreground">Manage warehouse and storage locations</p>
-            </div>
-            <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => openLocationDialog()}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Location
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingLocation ? 'Edit' : 'Add'} Stock Location</DialogTitle>
-                  <DialogDescription>
-                    {editingLocation ? 'Update' : 'Create a new'} stock location for inventory management
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="location-name">Name *</Label>
-                    <Input
-                      id="location-name"
-                      value={locationForm.name}
-                      onChange={(e) => setLocationForm({ ...locationForm, name: e.target.value })}
-                      placeholder="e.g., Main Warehouse, Storage Room A"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="location-description">Description</Label>
-                    <Textarea
-                      id="location-description"
-                      value={locationForm.description}
-                      onChange={(e) => setLocationForm({ ...locationForm, description: e.target.value })}
-                      placeholder="Optional description"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="location-address">Address</Label>
-                    <Textarea
-                      id="location-address"
-                      value={locationForm.address}
-                      onChange={(e) => setLocationForm({ ...locationForm, address: e.target.value })}
-                      placeholder="Physical address"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="location-active"
-                      checked={locationForm.is_active}
-                      onCheckedChange={(checked) => setLocationForm({ ...locationForm, is_active: checked })}
-                    />
-                    <Label htmlFor="location-active">Active</Label>
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setIsLocationDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSaveLocation}>
-                      {editingLocation ? 'Update' : 'Create'}
-                    </Button>
-                  </div>
+        <TabsContent value="profile" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Profile Information
+              </CardTitle>
+              <CardDescription>Update your personal information and profile details.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center space-x-4">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src="/placeholder.svg" />
+                  <AvatarFallback>JD</AvatarFallback>
+                </Avatar>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm">Change Avatar</Button>
+                  <p className="text-sm text-muted-foreground">JPG, GIF or PNG. Max size 1MB.</p>
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {stockLocations.map((location) => (
-              <Card key={location.id} className={!location.is_active ? "opacity-50" : ""}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      {location.name}
-                    </CardTitle>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openLocationDialog(location)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteLocation(location.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  {!location.is_active && (
-                    <span className="text-xs text-muted-foreground">Inactive</span>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  {location.description && (
-                    <p className="text-sm text-muted-foreground mb-2">{location.description}</p>
-                  )}
-                  {location.address && (
-                    <p className="text-xs text-muted-foreground">{location.address}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+              </div>
+              
+              <Separator />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input id="firstName" defaultValue="John" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input id="lastName" defaultValue="Doe" />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" defaultValue="john.doe@example.com" />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <Select defaultValue="production">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="production">Production</SelectItem>
+                    <SelectItem value="management">Management</SelectItem>
+                    <SelectItem value="quality">Quality Control</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="staff" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-semibold">Staff</h2>
-              <p className="text-muted-foreground">Manage team members and employees</p>
-            </div>
-            <Dialog open={isStaffDialogOpen} onOpenChange={setIsStaffDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => openStaffDialog()}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Staff
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingStaff ? 'Edit' : 'Add'} Staff Member</DialogTitle>
-                  <DialogDescription>
-                    {editingStaff ? 'Update' : 'Add a new'} team member
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="staff-name">Name *</Label>
-                    <Input
-                      id="staff-name"
-                      value={staffForm.name}
-                      onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
-                      placeholder="Full name"
-                    />
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Security Settings
+              </CardTitle>
+              <CardDescription>Manage your account security and authentication methods.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Input id="currentPassword" type="password" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input id="newPassword" type="password" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Input id="confirmPassword" type="password" />
+                </div>
+                <Button>Update Password</Button>
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">Two-Factor Authentication</h4>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Enable 2FA</Label>
+                    <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
                   </div>
-                  <div>
-                    <Label htmlFor="staff-email">Email</Label>
-                    <Input
-                      id="staff-email"
-                      type="email"
-                      value={staffForm.email}
-                      onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
-                      placeholder="email@company.com"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="staff-phone">Phone</Label>
-                    <Input
-                      id="staff-phone"
-                      value={staffForm.phone}
-                      onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
-                      placeholder="Phone number"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="staff-position">Position</Label>
-                    <Input
-                      id="staff-position"
-                      value={staffForm.position}
-                      onChange={(e) => setStaffForm({ ...staffForm, position: e.target.value })}
-                      placeholder="Job title"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="staff-department">Department</Label>
-                    <Input
-                      id="staff-department"
-                      value={staffForm.department}
-                      onChange={(e) => setStaffForm({ ...staffForm, department: e.target.value })}
-                      placeholder="Department name"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="staff-active"
-                      checked={staffForm.is_active}
-                      onCheckedChange={(checked) => setStaffForm({ ...staffForm, is_active: checked })}
-                    />
-                    <Label htmlFor="staff-active">Active</Label>
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setIsStaffDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSaveStaff}>
-                      {editingStaff ? 'Update' : 'Create'}
-                    </Button>
+                  <Switch />
+                </div>
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">Active Sessions</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium">Current Session</p>
+                      <p className="text-xs text-muted-foreground">Chrome on Windows • Started 2 hours ago</p>
+                    </div>
+                    <Badge variant="secondary">Active</Badge>
                   </div>
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {staff.map((member) => (
-              <Card key={member.id} className={!member.is_active ? "opacity-50" : ""}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      {member.name}
-                    </CardTitle>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openStaffDialog(member)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteStaff(member.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
+        <TabsContent value="permissions" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                User Permissions & Roles
+              </CardTitle>
+              <CardDescription>Manage user access levels and system permissions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Current Role</Label>
+                    <p className="text-sm text-muted-foreground">Your current access level in the system</p>
                   </div>
-                  {!member.is_active && (
-                    <span className="text-xs text-muted-foreground">Inactive</span>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  {member.position && (
-                    <p className="text-sm font-medium">{member.position}</p>
-                  )}
-                  {member.department && (
-                    <p className="text-sm text-muted-foreground">{member.department}</p>
-                  )}
-                  {member.email && (
-                    <p className="text-xs text-muted-foreground mt-2">{member.email}</p>
-                  )}
-                  {member.phone && (
-                    <p className="text-xs text-muted-foreground">{member.phone}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <Badge>Administrator</Badge>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">System Permissions</h4>
+                  {[
+                    { name: "Inventory Management", description: "Add, edit, and delete inventory items", enabled: true },
+                    { name: "Work Order Creation", description: "Create and modify work orders", enabled: true },
+                    { name: "Financial Data Access", description: "View accounting and financial reports", enabled: true },
+                    { name: "User Management", description: "Manage staff and user accounts", enabled: false },
+                  ].map((permission) => (
+                    <div key={permission.name} className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>{permission.name}</Label>
+                        <p className="text-sm text-muted-foreground">{permission.description}</p>
+                      </div>
+                      <Switch checked={permission.enabled} disabled />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="appearance" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="h-5 w-5" />
+                Appearance & Theme
+              </CardTitle>
+              <CardDescription>Customize the look and feel of your workspace.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Dark Mode</Label>
+                    <p className="text-sm text-muted-foreground">Toggle between light and dark themes</p>
+                  </div>
+                  <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <Label>Theme Color</Label>
+                  <Select defaultValue="blue">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="blue">Blue</SelectItem>
+                      <SelectItem value="green">Green</SelectItem>
+                      <SelectItem value="purple">Purple</SelectItem>
+                      <SelectItem value="orange">Orange</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Font Size</Label>
+                  <Select defaultValue="medium">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="small">Small</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="large">Large</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Notification Preferences
+              </CardTitle>
+              <CardDescription>Control how and when you receive notifications.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Push Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Receive notifications in the browser</p>
+                  </div>
+                  <Switch checked={notifications} onCheckedChange={setNotifications} />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Email Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                  </div>
+                  <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Notification Types</h4>
+                  {[
+                    { name: "Work Order Updates", description: "When work orders are created or modified", enabled: true },
+                    { name: "Inventory Alerts", description: "Low stock and inventory updates", enabled: true },
+                    { name: "System Maintenance", description: "Scheduled maintenance and downtime", enabled: false },
+                    { name: "Account Security", description: "Login attempts and security alerts", enabled: true },
+                  ].map((notif) => (
+                    <div key={notif.name} className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>{notif.name}</Label>
+                        <p className="text-sm text-muted-foreground">{notif.description}</p>
+                      </div>
+                      <Switch defaultChecked={notif.enabled} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="system" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                System Settings
+              </CardTitle>
+              <CardDescription>Configure system-wide preferences and regional settings.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Language</Label>
+                  <Select defaultValue="en">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="es">Spanish</SelectItem>
+                      <SelectItem value="fr">French</SelectItem>
+                      <SelectItem value="de">German</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Timezone</Label>
+                  <Select defaultValue="utc-5">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="utc-8">Pacific Time (UTC-8)</SelectItem>
+                      <SelectItem value="utc-6">Central Time (UTC-6)</SelectItem>
+                      <SelectItem value="utc-5">Eastern Time (UTC-5)</SelectItem>
+                      <SelectItem value="utc+0">Greenwich Mean Time (UTC+0)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Date Format</Label>
+                  <Select defaultValue="mdy">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mdy">MM/DD/YYYY</SelectItem>
+                      <SelectItem value="dmy">DD/MM/YYYY</SelectItem>
+                      <SelectItem value="ymd">YYYY-MM-DD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Data & Privacy</h4>
+                  <div className="space-y-2">
+                    <Button variant="outline" className="w-full justify-start">
+                      Export Data
+                    </Button>
+                    <p className="text-xs text-muted-foreground">Download a copy of your account data</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Button variant="destructive" className="w-full justify-start">
+                      Delete Account
+                    </Button>
+                    <p className="text-xs text-muted-foreground">Permanently delete your account and all data</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
+
+      <div className="flex justify-end mt-8">
+        <Button onClick={handleSave} className="px-8">
+          Save All Changes
+        </Button>
+      </div>
     </div>
   );
-};
-
-export default Settings;
+}

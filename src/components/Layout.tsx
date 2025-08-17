@@ -12,7 +12,8 @@ import {
   TrendingUp,
   Users,
   Truck,
-  FolderOpen
+  FolderOpen,
+  MapPin
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -27,7 +28,7 @@ const navigation = [
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Suppliers", href: "/suppliers", icon: Truck },
   { name: "Other docs", href: "/other-docs", icon: FolderOpen },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Staff and Location", href: "/staff-and-location", icon: MapPin },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -58,8 +59,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
-      <div className="px-4 py-4 border-t">
-        <Button variant="ghost" size="sm" className="w-full justify-start mt-1">
+      <div className="px-4 py-4 border-t space-y-2">
+        <Link
+          to="/settings"
+          className={cn(
+            "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors w-full",
+            location.pathname.startsWith("/settings")
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          )}
+        >
+          <Settings className="w-4 h-4 mr-2" />
+          Settings
+        </Link>
+        <Button variant="ghost" size="sm" className="w-full justify-start">
           <LogOut className="w-4 h-4 mr-2" />
           Sign Out
         </Button>
