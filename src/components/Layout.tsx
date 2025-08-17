@@ -27,6 +27,7 @@ const navigation = [
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Suppliers", href: "/suppliers", icon: Truck },
   { name: "Other docs", href: "/other-docs", icon: FolderOpen },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -58,10 +59,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
       <div className="px-4 py-4 border-t">
-        <Button variant="ghost" size="sm" className="w-full justify-start">
-          <Settings className="w-4 h-4 mr-2" />
-          Settings
-        </Button>
         <Button variant="ghost" size="sm" className="w-full justify-start mt-1">
           <LogOut className="w-4 h-4 mr-2" />
           Sign Out
