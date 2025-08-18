@@ -201,6 +201,88 @@ export default function Invoicing() {
     }
   };
 
+  const handleUpdateInvoice = async () => {
+    if (!newInvoice.customerId || !selectedInvoice) {
+      toast({
+        title: "Error", 
+        description: "Please select a customer",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const totals = calculateTotals();
+    const customer = getSelectedCustomer();
+
+    // Update the invoice
+    const { error: invoiceError } = await supabase
+      .from('invoices')
+      .update({
+        customer_id: newInvoice.customerId,
+        order_number: newInvoice.orderNumber,
+        shipping_date: newInvoice.shippingDate,
+        shipping_address: newInvoice.shippingAddress || customer?.address,
+        incoterms: newInvoice.incoterms,
+        declaration_number: newInvoice.declarationNumber,
+        packing: newInvoice.packing,
+        tara_weight: newInvoice.taraWeight,
+        total_quantity: totals.totalQuantity,
+        net_weight: totals.netWeight,
+        total_weight: totals.totalWeight,
+        amount: totals.total,
+        currency: totals.currency,
+        vat_rate: totals.vatRate,
+        notes: newInvoice.notes
+      })
+      .eq('id', selectedInvoice.id);
+
+    if (invoiceError) {
+      toast({
+        title: "Error",
+        description: "Failed to update invoice",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Delete existing invoice items
+    await supabase
+      .from('invoice_items')
+      .delete()
+      .eq('invoice_id', selectedInvoice.id);
+
+    // Insert updated invoice items
+    const itemsData = invoiceItems.map(item => ({
+      invoice_id: selectedInvoice.id,
+      description: inventoryItems.find(inv => inv.id === item.inventoryId)?.name || '',
+      quantity: item.quantity,
+      unit_price: item.unitPrice,
+      total: item.quantity * item.unitPrice
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('invoice_items')
+      .insert(itemsData);
+
+    if (!itemsError) {
+      await fetchInvoices();
+      setIsAddInvoiceOpen(false);
+      resetForm();
+      toast({
+        title: "Success",
+        description: "Invoice updated successfully"
+      });
+    }
+  };
+
+  const handleSubmitInvoice = () => {
+    if (isEditMode) {
+      handleUpdateInvoice();
+    } else {
+      handleCreateInvoice();
+    }
+  };
+
   const resetForm = () => {
     setNewInvoice({
       customerId: '',
@@ -564,7 +646,7 @@ export default function Invoicing() {
             </div>
 
             <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleCreateInvoice}>
+              <Button className="flex-1" onClick={handleSubmitInvoice}>
                 {isEditMode ? 'Update Invoice' : 'Create Invoice'}
               </Button>
               <Button variant="outline" onClick={() => setIsAddInvoiceOpen(false)}>
