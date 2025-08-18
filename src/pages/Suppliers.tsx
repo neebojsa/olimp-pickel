@@ -36,6 +36,7 @@ export default function Suppliers() {
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
   const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
+  const [isEditSupplierOpen, setIsEditSupplierOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [newSupplier, setNewSupplier] = useState({
     name: '',
@@ -138,6 +139,75 @@ export default function Suppliers() {
   const handleSupplierClick = (supplier: any) => {
     setSelectedSupplier(supplier);
     setIsSupplierDialogOpen(true);
+  };
+
+  const handleEditSupplier = () => {
+    setNewSupplier({
+      name: selectedSupplier.name,
+      contact_person: selectedSupplier.contact_person || '',
+      email: selectedSupplier.email || '',
+      phone: selectedSupplier.phone || '',
+      address: selectedSupplier.address || '',
+      website: selectedSupplier.website || '',
+      tax_id: selectedSupplier.tax_id || '',
+      payment_terms: selectedSupplier.payment_terms || 'Net 30',
+      notes: selectedSupplier.notes || ''
+    });
+    setIsSupplierDialogOpen(false);
+    setIsEditSupplierOpen(true);
+  };
+
+  const handleUpdateSupplier = async () => {
+    if (!newSupplier.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Company name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('suppliers')
+      .update({
+        name: newSupplier.name,
+        contact_person: newSupplier.contact_person,
+        email: newSupplier.email,
+        phone: newSupplier.phone,
+        address: newSupplier.address,
+        website: newSupplier.website,
+        tax_id: newSupplier.tax_id,
+        payment_terms: newSupplier.payment_terms,
+        notes: newSupplier.notes
+      })
+      .eq('id', selectedSupplier.id);
+
+    if (!error) {
+      toast({
+        title: "Supplier Updated",
+        description: "The supplier has been successfully updated.",
+      });
+      
+      await fetchSuppliers();
+      setNewSupplier({
+        name: '',
+        contact_person: '',
+        email: '',
+        phone: '',
+        address: '',
+        website: '',
+        tax_id: '',
+        payment_terms: 'Net 30',
+        notes: ''
+      });
+      setIsEditSupplierOpen(false);
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update supplier",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -446,7 +516,7 @@ export default function Suppliers() {
                   <CreditCard className="w-4 h-4 mr-2" />
                   Create Purchase Order
                 </Button>
-                <Button variant="outline" className="flex-1">
+                <Button variant="outline" className="flex-1" onClick={handleEditSupplier}>
                   Edit Supplier
                 </Button>
                 <Button variant="outline" className="flex-1">
@@ -455,6 +525,107 @@ export default function Suppliers() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Supplier Dialog */}
+      <Dialog open={isEditSupplierOpen} onOpenChange={setIsEditSupplierOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Supplier</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Company Name *</Label>
+              <Input
+                id="edit-name"
+                value={newSupplier.name}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter company name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-contact">Contact Person</Label>
+              <Input
+                id="edit-contact"
+                value={newSupplier.contact_person}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, contact_person: e.target.value }))}
+                placeholder="Enter contact person name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={newSupplier.email}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={newSupplier.phone}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Enter phone number"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-address">Address</Label>
+              <Input
+                id="edit-address"
+                value={newSupplier.address}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="Enter address"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-website">Website</Label>
+              <Input
+                id="edit-website"
+                value={newSupplier.website}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, website: e.target.value }))}
+                placeholder="Enter website URL"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-tax-id">Tax ID</Label>
+              <Input
+                id="edit-tax-id"
+                value={newSupplier.tax_id}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, tax_id: e.target.value }))}
+                placeholder="Enter tax ID"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-payment-terms">Payment Terms</Label>
+              <Input
+                id="edit-payment-terms"
+                value={newSupplier.payment_terms}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, payment_terms: e.target.value }))}
+                placeholder="e.g., Net 30"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-notes">Notes</Label>
+              <Input
+                id="edit-notes"
+                value={newSupplier.notes}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Enter any additional notes"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsEditSupplierOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateSupplier}>
+              Update Supplier
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

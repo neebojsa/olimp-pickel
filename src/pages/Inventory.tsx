@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,8 @@ export default function Inventory() {
   const [stockLocations, setStockLocations] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [currentCategory, setCurrentCategory] = useState("Parts");
   const [formData, setFormData] = useState({
     name: "",
@@ -223,6 +225,96 @@ export default function Inventory() {
     setIsAddDialogOpen(true);
   };
 
+  const handleOpenEditDialog = (item: any) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name,
+      description: item.description || "",
+      quantity: item.quantity.toString(),
+      unit_price: item.unit_price.toString(),
+      location: item.location || "",
+      supplier: item.supplier || "",
+      assigned_to: item.assigned_to || "",
+      category: item.category,
+      photo: null
+    });
+    if (item.photo_url) {
+      setPhotoPreview(item.photo_url);
+    }
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateItem = async () => {
+    if (!formData.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Item name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      let photoUrl = editingItem.photo_url;
+
+      // Upload new photo if selected
+      if (formData.photo) {
+        photoUrl = await uploadPhoto(formData.photo);
+      }
+
+      const { error } = await supabase
+        .from('inventory')
+        .update({
+          name: formData.name,
+          description: formData.description,
+          quantity: parseInt(formData.quantity) || 0,
+          unit_price: parseFloat(formData.unit_price) || 0,
+          location: formData.location,
+          supplier: formData.supplier,
+          category: formData.category,
+          photo_url: photoUrl
+        })
+        .eq('id', editingItem.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Item Updated",
+        description: `${formData.name} has been successfully updated.`,
+      });
+
+      // Refresh the list
+      await fetchInventoryItems();
+      
+      // Reset form
+      setFormData({
+        name: "",
+        description: "",
+        quantity: "",
+        unit_price: "",
+        location: "",
+        supplier: "",
+        assigned_to: "",
+        category: "Parts",
+        photo: null
+      });
+      setPhotoPreview(null);
+      setEditingItem(null);
+      setIsEditDialogOpen(false);
+    } catch (error) {
+      console.error('Error updating item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update item. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const getFilteredItems = (category: string) => {
     return inventoryItems.filter(item => 
       item.category === category && 
@@ -372,15 +464,25 @@ export default function Inventory() {
                             <CategoryIcon className="w-16 h-16 text-muted-foreground" />
                           )}
                           <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="destructive"
-                                size="icon"
-                                className="absolute top-2 right-2 h-8 w-8"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
+                             <div className="absolute top-2 right-2 flex gap-1">
+                               <Button
+                                 variant="outline"
+                                 size="icon"
+                                 className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                                 onClick={() => handleOpenEditDialog(item)}
+                               >
+                                 <Edit className="h-4 w-4" />
+                               </Button>
+                               <AlertDialogTrigger asChild>
+                                 <Button
+                                   variant="destructive"
+                                   size="icon"
+                                   className="h-8 w-8"
+                                 >
+                                   <Trash2 className="h-4 w-4" />
+                                 </Button>
+                               </AlertDialogTrigger>
+                             </div>
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Item</AlertDialogTitle>
@@ -606,6 +708,152 @@ export default function Inventory() {
             </Button>
             <Button onClick={handleSaveItem} disabled={isUploading}>
               {isUploading ? "Uploading..." : `Save ${currentCategory.slice(0, -1)}`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Item Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit {editingItem?.category?.slice(0, -1) || "Item"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit_name">Name *</Label>
+              <Input
+                id="edit_name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter item name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit_description">Description</Label>
+              <Textarea
+                id="edit_description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter description"
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit_quantity">Quantity *</Label>
+                <Input
+                  id="edit_quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit_unit_price">Unit Price *</Label>
+                <Input
+                  id="edit_unit_price"
+                  type="number"
+                  step="0.01"
+                  value={formData.unit_price}
+                  onChange={(e) => setFormData(prev => ({ ...prev, unit_price: e.target.value }))}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit_location">Location</Label>
+              <Select value={formData.location} onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}>
+                <SelectTrigger id="edit_location">
+                  <SelectValue placeholder="Select a location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stockLocations.map((location) => (
+                    <SelectItem key={location.id} value={location.name}>
+                      {location.name} {location.description && `- ${location.description}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit_supplier">Supplier</Label>
+              <Select value={formData.supplier} onValueChange={(value) => setFormData(prev => ({ ...prev, supplier: value }))}>
+                <SelectTrigger id="edit_supplier">
+                  <SelectValue placeholder="Select a supplier" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.name}>
+                      {supplier.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit_assigned_to">Assigned To</Label>
+              <Select value={formData.assigned_to} onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}>
+                <SelectTrigger id="edit_assigned_to">
+                  <SelectValue placeholder="Select staff member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {staff.map((person) => (
+                    <SelectItem key={person.id} value={person.name}>
+                      {person.name} {person.position && `- ${person.position}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit_photo">Photo</Label>
+              <div className="space-y-2">
+                {photoPreview ? (
+                  <div className="relative">
+                    <img 
+                      src={photoPreview} 
+                      alt="Preview" 
+                      className="w-32 h-32 object-cover rounded-lg border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6"
+                      onClick={handleRemovePhoto}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
+                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground mb-2">Click to upload photo</p>
+                    <Input
+                      id="edit_photo"
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
+                    <Label htmlFor="edit_photo" className="cursor-pointer">
+                      <Button type="button" variant="outline" size="sm" asChild>
+                        <span>Choose File</span>
+                      </Button>
+                    </Label>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateItem} disabled={isUploading}>
+              {isUploading ? "Updating..." : "Update Item"}
             </Button>
           </div>
         </DialogContent>

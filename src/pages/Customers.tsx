@@ -36,6 +36,7 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+  const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
@@ -138,6 +139,71 @@ export default function Customers() {
   const handleCustomerClick = (customer: any) => {
     setSelectedCustomer(customer);
     setIsCustomerDialogOpen(true);
+  };
+
+  const handleEditCustomer = () => {
+    setNewCustomer({
+      name: selectedCustomer.name,
+      contactPerson: selectedCustomer.contactPerson || '',
+      email: selectedCustomer.email || '',
+      phone: selectedCustomer.phone || '',
+      address: selectedCustomer.address || '',
+      industry: selectedCustomer.industry || '',
+      country: selectedCustomer.country || '',
+      webpage: selectedCustomer.webpage || '',
+      notes: selectedCustomer.notes || ''
+    });
+    setIsCustomerDialogOpen(false);
+    setIsEditCustomerOpen(true);
+  };
+
+  const handleUpdateCustomer = async () => {
+    if (!newCustomer.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Company name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('customers')
+      .update({
+        name: newCustomer.name,
+        email: newCustomer.email,
+        phone: newCustomer.phone,
+        address: newCustomer.address,
+        country: newCustomer.country
+      })
+      .eq('id', selectedCustomer.id);
+
+    if (!error) {
+      toast({
+        title: "Customer Updated",
+        description: "The customer has been successfully updated.",
+      });
+      
+      await fetchCustomers();
+      setNewCustomer({
+        name: '',
+        contactPerson: '',
+        email: '',
+        phone: '',
+        address: '',
+        industry: '',
+        country: '',
+        webpage: '',
+        notes: ''
+      });
+      setIsEditCustomerOpen(false);
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update customer",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -447,7 +513,7 @@ export default function Customers() {
                 <Button className="flex-1">
                   Create Work Order
                 </Button>
-                <Button variant="outline" className="flex-1">
+                <Button variant="outline" className="flex-1" onClick={handleEditCustomer}>
                   Edit Customer
                 </Button>
                 <Button variant="outline" className="flex-1">
@@ -456,6 +522,107 @@ export default function Customers() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditCustomerOpen} onOpenChange={setIsEditCustomerOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Company Name *</Label>
+              <Input
+                id="edit-name"
+                value={newCustomer.name}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter company name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-contact">Contact Person</Label>
+              <Input
+                id="edit-contact"
+                value={newCustomer.contactPerson}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, contactPerson: e.target.value }))}
+                placeholder="Enter contact person name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={newCustomer.email}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={newCustomer.phone}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Enter phone number"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-address">Address</Label>
+              <Input
+                id="edit-address"
+                value={newCustomer.address}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="Enter address"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-industry">Industry</Label>
+              <Input
+                id="edit-industry"
+                value={newCustomer.industry}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, industry: e.target.value }))}
+                placeholder="Enter industry"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-country">Country</Label>
+              <Input
+                id="edit-country"
+                value={newCustomer.country}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, country: e.target.value }))}
+                placeholder="Enter country"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-webpage">Website</Label>
+              <Input
+                id="edit-webpage"
+                value={newCustomer.webpage}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, webpage: e.target.value }))}
+                placeholder="Enter website URL"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-notes">Notes</Label>
+              <Input
+                id="edit-notes"
+                value={newCustomer.notes}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Enter any additional notes"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsEditCustomerOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateCustomer}>
+              Update Customer
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
