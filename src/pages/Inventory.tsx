@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -480,12 +480,26 @@ export default function Inventory() {
                                 <div className="min-w-0 flex-1">
                                   <h3 className="font-semibold text-lg truncate">{item.name}</h3>
                                   {item.part_number && (
-                                    <p className="text-sm text-muted-foreground">Part #: {item.part_number}</p>
+                                    <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>
                                   )}
-                                  <p className="text-sm text-muted-foreground">SKU: {item.sku}</p>
+                                  <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
                                 </div>
                                 <AlertDialog>
                                   <div className="flex gap-1 ml-2">
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        toast({
+                                          title: "Work Order Created",
+                                          description: `Work order created for ${item.name}`,
+                                        });
+                                      }}
+                                      title="Create Work Order"
+                                    >
+                                      <ClipboardList className="h-4 w-4" />
+                                    </Button>
                                     <Button
                                       variant="outline"
                                       size="icon"
@@ -537,8 +551,18 @@ export default function Inventory() {
                               </div>
                               
                               <div className="text-xs text-muted-foreground text-right space-y-1">
-                                {item.location && <div>📍 {item.location}</div>}
-                                {item.supplier && <div>🏢 {item.supplier}</div>}
+                                {item.location && (
+                                  <div className="flex items-center justify-end gap-1">
+                                    <MapPin className="h-3 w-3 text-gray-400" />
+                                    <span>{item.location}</span>
+                                  </div>
+                                )}
+                                {item.supplier && (
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Building2 className="h-3 w-3 text-gray-400" />
+                                    <span>{item.supplier}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
