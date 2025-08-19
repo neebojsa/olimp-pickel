@@ -178,6 +178,7 @@ export type Database = {
           id: string
           location: string | null
           name: string
+          part_number: string | null
           photo_url: string | null
           quantity: number
           supplier: string | null
@@ -192,6 +193,7 @@ export type Database = {
           id?: string
           location?: string | null
           name: string
+          part_number?: string | null
           photo_url?: string | null
           quantity?: number
           supplier?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           id?: string
           location?: string | null
           name?: string
+          part_number?: string | null
           photo_url?: string | null
           quantity?: number
           supplier?: string | null
