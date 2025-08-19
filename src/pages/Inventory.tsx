@@ -26,6 +26,7 @@ export default function Inventory() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [currentCategory, setCurrentCategory] = useState("Parts");
   const [formData, setFormData] = useState({
+    part_number: "",
     name: "",
     description: "",
     quantity: "",
@@ -179,6 +180,7 @@ export default function Inventory() {
     const { error } = await supabase
       .from('inventory')
       .insert({
+        part_number: formData.part_number,
         name: formData.name,
         description: formData.description,
         quantity: parseInt(formData.quantity),
@@ -193,6 +195,7 @@ export default function Inventory() {
 
     if (!error) {
       setFormData({
+        part_number: "",
         name: "",
         description: "",
         quantity: "",
@@ -228,6 +231,7 @@ export default function Inventory() {
   const handleOpenEditDialog = (item: any) => {
     setEditingItem(item);
     setFormData({
+      part_number: item.part_number || "",
       name: item.name,
       description: item.description || "",
       quantity: item.quantity.toString(),
@@ -267,6 +271,7 @@ export default function Inventory() {
       const { error } = await supabase
         .from('inventory')
         .update({
+          part_number: formData.part_number,
           name: formData.name,
           description: formData.description,
           quantity: parseInt(formData.quantity) || 0,
@@ -290,6 +295,7 @@ export default function Inventory() {
       
       // Reset form
       setFormData({
+        part_number: "",
         name: "",
         description: "",
         quantity: "",
@@ -575,6 +581,17 @@ export default function Inventory() {
             <DialogTitle>Add New {currentCategory.slice(0, -1)}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {currentCategory === "Parts" && (
+              <div className="grid gap-2">
+                <Label htmlFor="part_number">Part Number</Label>
+                <Input
+                  id="part_number"
+                  value={formData.part_number}
+                  onChange={(e) => setFormData(prev => ({ ...prev, part_number: e.target.value }))}
+                  placeholder="Enter part number"
+                />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="name">Name *</Label>
               <Input
@@ -720,6 +737,17 @@ export default function Inventory() {
             <DialogTitle>Edit {editingItem?.category?.slice(0, -1) || "Item"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {editingItem?.category === "Parts" && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit_part_number">Part Number</Label>
+                <Input
+                  id="edit_part_number"
+                  value={formData.part_number}
+                  onChange={(e) => setFormData(prev => ({ ...prev, part_number: e.target.value }))}
+                  placeholder="Enter part number"
+                />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="edit_name">Name *</Label>
               <Input
