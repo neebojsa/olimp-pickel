@@ -21,6 +21,19 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 
+// Predefined tools and machines for suggestions
+const toolsList = [
+  "CNC Mill", "Drill Press", "Precision Vise", "Laser Cutter", "Press Brake", 
+  "Precision Lathe", "CMM Machine", "Carbide Inserts", "5-Axis CNC Mill", 
+  "Boring Bar Set", "Go/No-Go Gauges", "Horizontal Boring Machine", 
+  "Carbide Tooling Set", "Surface Finish Gauge"
+];
+
+const machinesList = [
+  "CNC Machine #1", "CNC Machine #2", "CNC Machine #3", "Laser Cutting Machine #1",
+  "CNC Lathe #2", "5-Axis CNC Machine #1", "Horizontal Boring Machine #2"
+];
+
 // Shared parts data that will be imported by inventory
 export const mockParts = [
   {
@@ -331,9 +344,14 @@ export default function WorkOrders() {
   const [tools, setTools] = useState([{ name: "", quantity: "" }]);
   const [operatorsAndMachines, setOperatorsAndMachines] = useState([{ name: "", type: "operator" }]);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [staffMembers, setStaffMembers] = useState<any[]>([]);
+  const [selectedPartNumber, setSelectedPartNumber] = useState("");
 
   useEffect(() => {
     fetchWorkOrders();
+    fetchInventoryItems();
+    fetchStaffMembers();
   }, []);
 
   const fetchWorkOrders = async () => {
@@ -353,6 +371,20 @@ export default function WorkOrders() {
         operatorsAndMachines: [] // Placeholder
       }));
       setWorkOrders(formattedWorkOrders);
+    }
+  };
+
+  const fetchInventoryItems = async () => {
+    const { data } = await supabase.from('inventory').select('id, name, description');
+    if (data) {
+      setInventoryItems(data);
+    }
+  };
+
+  const fetchStaffMembers = async () => {
+    const { data } = await supabase.from('staff').select('id, name, position, department');
+    if (data) {
+      setStaffMembers(data);
     }
   };
 
@@ -1078,14 +1110,14 @@ export default function WorkOrders() {
               </div>
               <div>
                 <Label htmlFor="partName">Part Name</Label>
-                <Select>
+                <Select value={selectedPartNumber} onValueChange={setSelectedPartNumber}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select part" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockParts.map((part) => (
-                      <SelectItem key={part.id} value={part.id}>
-                        {part.name} ({part.partNumber})
+                    {inventoryItems.map((item) => (
+                      <SelectItem key={item.id} value={item.name}>
+                        {item.name} - {item.description?.substring(0, 50)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1154,15 +1186,25 @@ export default function WorkOrders() {
                 {tools.map((tool, index) => (
                   <div key={index} className="flex gap-2 items-end">
                     <div className="flex-1">
-                      <Input 
-                        placeholder="Tool name" 
+                      <Select
                         value={tool.name}
-                        onChange={(e) => {
+                        onValueChange={(value) => {
                           const newTools = [...tools];
-                          newTools[index].name = e.target.value;
+                          newTools[index].name = value;
                           setTools(newTools);
                         }}
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select tool" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {toolsList.map((toolName) => (
+                            <SelectItem key={toolName} value={toolName}>
+                              {toolName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="w-24">
                       <Input 
@@ -1211,22 +1253,41 @@ export default function WorkOrders() {
                 {operatorsAndMachines.map((item, index) => (
                   <div key={index} className="flex gap-2 items-end">
                     <div className="flex-1">
-                      <Input 
-                        placeholder="Operator/Machine name"
+                      <Select
                         value={item.name}
-                        onChange={(e) => {
+                        onValueChange={(value) => {
                           const newItems = [...operatorsAndMachines];
-                          newItems[index].name = e.target.value;
+                          newItems[index].name = value;
                           setOperatorsAndMachines(newItems);
                         }}
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={item.type === "operator" ? "Select operator" : "Select machine"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {item.type === "operator" ? (
+                            staffMembers.map((staff) => (
+                              <SelectItem key={staff.id} value={staff.name}>
+                                {staff.name} - {staff.position}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            machinesList.map((machine) => (
+                              <SelectItem key={machine} value={machine}>
+                                {machine}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="w-32">
                       <Select 
                         value={item.type}
                         onValueChange={(value) => {
                           const newItems = [...operatorsAndMachines];
-                          newItems[index].type = value;
+                          newItems[index].type = value as "operator" | "machine";
+                          newItems[index].name = ""; // Clear selection when type changes
                           setOperatorsAndMachines(newItems);
                         }}
                       >
