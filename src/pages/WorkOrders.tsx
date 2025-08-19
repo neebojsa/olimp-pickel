@@ -361,7 +361,7 @@ export default function WorkOrders() {
         ...wo,
         workOrderNumber: `WO-${wo.id}`,
         partName: wo.title,
-        partNumber: `P-${wo.id}`,
+        partNumber: extractPartNumber(wo.description || ""),
         percentageCompletion: 50, // Placeholder
         productionTime: "3.5 hours", // Placeholder
         setupInstructions: "", // Placeholder
@@ -372,6 +372,11 @@ export default function WorkOrders() {
       }));
       setWorkOrders(formattedWorkOrders);
     }
+  };
+
+  const extractPartNumber = (description: string) => {
+    const match = description.match(/Part #([^:]+):/);
+    return match ? match[1] : "";
   };
 
   const fetchInventoryItems = async () => {
