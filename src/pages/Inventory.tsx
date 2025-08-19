@@ -363,11 +363,11 @@ export default function Inventory() {
         reference: item.id
       });
 
-      // 2. Work orders for this part (search by name/part number)
+      // 2. Work orders for this part (using inventory_id foreign key)
       const { data: workOrders } = await supabase
         .from('work_orders')
         .select('*')
-        .or(`title.ilike.%${item.name}%,description.ilike.%${item.name}%${item.part_number ? `,description.ilike.%${item.part_number}%` : ''}`);
+        .eq('inventory_id', item.id);
       
       if (workOrders) {
         workOrders.forEach(wo => {
@@ -1194,15 +1194,32 @@ export default function Inventory() {
                   return;
                 }
 
+                // Generate work order number
+                const { data: workOrderNumber, error: numberError } = await supabase
+                  .rpc('generate_work_order_number');
+
+                if (numberError) {
+                  toast({
+                    title: "Error",
+                    description: "Failed to generate work order number",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+
                 const { data, error } = await supabase
                   .from('work_orders')
                   .insert([{
-                    title: partName,
-                    description: `${partNumber ? `Part #${partNumber}: ` : ''}${description}`,
+                    title: workOrderNumber,
+                    work_order_number: workOrderNumber,
+                    description: description,
                     estimated_hours: productionTime ? parseFloat(productionTime) : null,
                     due_date: dueDate || null,
                     priority: 'medium',
-                    status: 'pending'
+                    status: 'pending',
+                    inventory_id: selectedItemForWorkOrder?.id,
+                    part_name: partName,
+                    part_number: partNumber
                   }])
                   .select();
 
@@ -1216,7 +1233,7 @@ export default function Inventory() {
                   setIsWorkOrderDialogOpen(false);
                   toast({
                     title: "Work Order Created",
-                    description: `Work order created for ${partName}`,
+                    description: `Work order ${workOrderNumber} created for ${partName}`,
                   });
                 }
               }}>
