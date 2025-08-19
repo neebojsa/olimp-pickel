@@ -380,7 +380,7 @@ export default function WorkOrders() {
   };
 
   const fetchInventoryItems = async () => {
-    const { data } = await supabase.from('inventory').select('id, name, description');
+    const { data } = await supabase.from('inventory').select('id, name, description, part_number');
     if (data) {
       setInventoryItems(data);
     }
@@ -1114,15 +1114,15 @@ export default function WorkOrders() {
                 <Input id="workOrderNumber" placeholder="WO-2024-XXX" />
               </div>
               <div>
-                <Label htmlFor="partName">Part Name</Label>
+                <Label htmlFor="partName">Part</Label>
                 <Select value={selectedPartNumber} onValueChange={setSelectedPartNumber}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select part" />
                   </SelectTrigger>
                   <SelectContent>
                     {inventoryItems.map((item) => (
-                      <SelectItem key={item.id} value={item.name}>
-                        {item.name} - {item.description?.substring(0, 50)}
+                      <SelectItem key={item.id} value={`${item.name} - ${item.part_number || 'N/A'}`}>
+                        {item.name} - {item.part_number || 'N/A'}
                       </SelectItem>
                     ))}
                   </SelectContent>
