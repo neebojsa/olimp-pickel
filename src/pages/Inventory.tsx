@@ -32,8 +32,6 @@ export default function Inventory() {
     quantity: "",
     unit_price: "",
     location: "",
-    supplier: "",
-    assigned_to: "",
     category: "Parts",
     photo: null as File | null
   });
@@ -186,7 +184,6 @@ export default function Inventory() {
         quantity: parseInt(formData.quantity),
         unit_price: parseFloat(formData.unit_price),
         location: formData.location,
-        supplier: formData.supplier,
         category: formData.category,
         photo_url: photoUrl
       });
@@ -201,8 +198,6 @@ export default function Inventory() {
         quantity: "",
         unit_price: "",
         location: "",
-        supplier: "",
-        assigned_to: "",
         category: currentCategory,
         photo: null
       });
@@ -237,8 +232,6 @@ export default function Inventory() {
       quantity: item.quantity.toString(),
       unit_price: item.unit_price.toString(),
       location: item.location || "",
-      supplier: item.supplier || "",
-      assigned_to: item.assigned_to || "",
       category: item.category,
       photo: null
     });
@@ -277,7 +270,6 @@ export default function Inventory() {
           quantity: parseInt(formData.quantity) || 0,
           unit_price: parseFloat(formData.unit_price) || 0,
           location: formData.location,
-          supplier: formData.supplier,
           category: formData.category,
           photo_url: photoUrl
         })
@@ -301,8 +293,6 @@ export default function Inventory() {
         quantity: "",
         unit_price: "",
         location: "",
-        supplier: "",
-        assigned_to: "",
         category: "Parts",
         photo: null
       });
@@ -664,36 +654,6 @@ export default function Inventory() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="supplier">Supplier</Label>
-              <Select value={formData.supplier} onValueChange={(value) => setFormData(prev => ({ ...prev, supplier: value }))}>
-                <SelectTrigger id="supplier">
-                  <SelectValue placeholder="Select a supplier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.name}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="assigned_to">Assigned To</Label>
-              <Select value={formData.assigned_to} onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}>
-                <SelectTrigger id="assigned_to">
-                  <SelectValue placeholder="Select staff member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {staff.map((person) => (
-                    <SelectItem key={person.id} value={person.name}>
-                      {person.name} {person.position && `- ${person.position}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
               <Label htmlFor="photo">Photo</Label>
               <div className="space-y-2">
                 {photoPreview ? (
@@ -815,36 +775,6 @@ export default function Inventory() {
                   {stockLocations.map((location) => (
                     <SelectItem key={location.id} value={location.name}>
                       {location.name} {location.description && `- ${location.description}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit_supplier">Supplier</Label>
-              <Select value={formData.supplier} onValueChange={(value) => setFormData(prev => ({ ...prev, supplier: value }))}>
-                <SelectTrigger id="edit_supplier">
-                  <SelectValue placeholder="Select a supplier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.name}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit_assigned_to">Assigned To</Label>
-              <Select value={formData.assigned_to} onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}>
-                <SelectTrigger id="edit_assigned_to">
-                  <SelectValue placeholder="Select staff member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {staff.map((person) => (
-                    <SelectItem key={person.id} value={person.name}>
-                      {person.name} {person.position && `- ${person.position}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
