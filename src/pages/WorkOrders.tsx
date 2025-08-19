@@ -470,6 +470,7 @@ export default function WorkOrders() {
       .from('work_orders')
       .insert([{
         title: workOrderNumber,
+        work_order_number: workOrderNumber,
         description: description,
         estimated_hours: productionTime ? parseFloat(productionTime) : null,
         due_date: dueDate || null,

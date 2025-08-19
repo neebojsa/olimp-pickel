@@ -498,6 +498,7 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          work_order_number: string | null
         }
         Insert: {
           actual_hours?: number | null
@@ -512,6 +513,7 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          work_order_number?: string | null
         }
         Update: {
           actual_hours?: number | null
@@ -526,6 +528,7 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          work_order_number?: string | null
         }
         Relationships: [
           {
