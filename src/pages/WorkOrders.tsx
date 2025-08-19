@@ -347,6 +347,7 @@ export default function WorkOrders() {
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [staffMembers, setStaffMembers] = useState<any[]>([]);
   const [selectedPartNumber, setSelectedPartNumber] = useState("");
+  const [selectedPartId, setSelectedPartId] = useState("");
 
   useEffect(() => {
     fetchWorkOrders();
@@ -360,8 +361,8 @@ export default function WorkOrders() {
       const formattedWorkOrders = data.map(wo => ({
         ...wo,
         workOrderNumber: wo.work_order_number || 'Pending',
-        partName: wo.title,
-        partNumber: extractPartNumber(wo.description || ""),
+        partName: wo.part_name || 'No Part Selected',
+        partNumber: wo.part_number || 'N/A',
         percentageCompletion: 50, // Placeholder
         productionTime: "3.5 hours", // Placeholder
         setupInstructions: "", // Placeholder
@@ -434,6 +435,8 @@ export default function WorkOrders() {
   const handleAddWorkOrder = () => {
     setTools([{ name: "", quantity: "" }]);
     setOperatorsAndMachines([{ name: "", type: "operator" }]);
+    setSelectedPartNumber("");
+    setSelectedPartId("");
     setIsAddWorkOrderOpen(true);
   };
 
@@ -444,10 +447,10 @@ export default function WorkOrders() {
     const dueDate = (document.getElementById('dueDate') as HTMLInputElement)?.value;
     const description = (document.getElementById('description') as HTMLTextAreaElement)?.value;
 
-    if (!description) {
+    if (!description || !selectedPartId) {
       toast({
         title: "Error",
-        description: "Please fill in required fields",
+        description: "Please fill in required fields and select a part",
         variant: "destructive"
       });
       return;
@@ -466,6 +469,9 @@ export default function WorkOrders() {
       return;
     }
 
+    // Get selected part details
+    const selectedPart = inventoryItems.find(item => item.id === selectedPartId);
+    
     const { data, error } = await supabase
       .from('work_orders')
       .insert([{
@@ -475,7 +481,10 @@ export default function WorkOrders() {
         estimated_hours: productionTime ? parseFloat(productionTime) : null,
         due_date: dueDate || null,
         priority: 'medium',
-        status: 'pending'
+        status: 'pending',
+        inventory_id: selectedPartId,
+        part_name: selectedPart?.name,
+        part_number: selectedPart?.part_number
       }])
       .select();
 
@@ -488,6 +497,9 @@ export default function WorkOrders() {
     } else {
       await fetchWorkOrders();
       setIsAddWorkOrderOpen(false);
+      // Reset form
+      setSelectedPartId("");
+      setSelectedPartNumber("");
       toast({
         title: "Work Order Created",
         description: "New work order has been successfully created.",
@@ -1133,13 +1145,17 @@ export default function WorkOrders() {
               </div>
               <div>
                 <Label htmlFor="partName">Part</Label>
-                <Select value={selectedPartNumber} onValueChange={setSelectedPartNumber}>
+                <Select value={selectedPartId} onValueChange={(value) => {
+                  setSelectedPartId(value);
+                  const selectedPart = inventoryItems.find(item => item.id === value);
+                  setSelectedPartNumber(selectedPart ? `${selectedPart.name} - ${selectedPart.part_number || 'N/A'}` : "");
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select part" />
                   </SelectTrigger>
                   <SelectContent>
                     {inventoryItems.map((item) => (
-                      <SelectItem key={item.id} value={`${item.name} - ${item.part_number || 'N/A'}`}>
+                      <SelectItem key={item.id} value={item.id}>
                         {item.name} - {item.part_number || 'N/A'}
                       </SelectItem>
                     ))}

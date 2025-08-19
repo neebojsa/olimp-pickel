@@ -494,6 +494,9 @@ export type Database = {
           due_date: string | null
           estimated_hours: number | null
           id: string
+          inventory_id: string | null
+          part_name: string | null
+          part_number: string | null
           priority: string
           status: string
           title: string
@@ -509,6 +512,9 @@ export type Database = {
           due_date?: string | null
           estimated_hours?: number | null
           id?: string
+          inventory_id?: string | null
+          part_name?: string | null
+          part_number?: string | null
           priority?: string
           status?: string
           title: string
@@ -524,6 +530,9 @@ export type Database = {
           due_date?: string | null
           estimated_hours?: number | null
           id?: string
+          inventory_id?: string | null
+          part_name?: string | null
+          part_number?: string | null
           priority?: string
           status?: string
           title?: string
@@ -536,6 +545,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
             referencedColumns: ["id"]
           },
         ]
