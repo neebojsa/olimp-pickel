@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
+import PartHistoryDialog from "@/components/PartHistoryDialog";
+import { format } from "date-fns";
 
 export default function Inventory() {
   const { toast } = useToast();
@@ -41,6 +43,9 @@ export default function Inventory() {
   const [selectedItemForWorkOrder, setSelectedItemForWorkOrder] = useState<any>(null);
   const [tools, setTools] = useState([{ name: "", quantity: "" }]);
   const [operatorsAndMachines, setOperatorsAndMachines] = useState([{ name: "", type: "operator" }]);
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+  const [selectedItemForHistory, setSelectedItemForHistory] = useState<any>(null);
+  const [historyData, setHistoryData] = useState<any[]>([]);
 
   useEffect(() => {
     fetchInventoryItems();
@@ -342,6 +347,96 @@ export default function Inventory() {
 
   const allLowStockCount = lowStockItems.length;
 
+  const handleViewHistory = async (item: any) => {
+    setSelectedItemForHistory(item);
+    
+    try {
+      // Fetch history data from different sources
+      const historyEntries = [];
+      
+      // 1. Created in system
+      historyEntries.push({
+        date: format(new Date(item.created_at), 'dd/MM/yyyy'),
+        time: format(new Date(item.created_at), 'HH:mm'),
+        activity: 'Created in system',
+        details: `Initial quantity: ${item.quantity}`,
+        reference: item.id
+      });
+
+      // 2. Work orders for this part (search by name/part number)
+      const { data: workOrders } = await supabase
+        .from('work_orders')
+        .select('*')
+        .or(`title.ilike.%${item.name}%,description.ilike.%${item.name}%${item.part_number ? `,description.ilike.%${item.part_number}%` : ''}`);
+      
+      if (workOrders) {
+        workOrders.forEach(wo => {
+          historyEntries.push({
+            date: format(new Date(wo.created_at), 'dd/MM/yyyy'),
+            time: format(new Date(wo.created_at), 'HH:mm'),
+            activity: 'Work Order Created',
+            details: wo.title,
+            reference: `WO-${wo.id.slice(-8)}`
+          });
+          
+          if (wo.status === 'completed') {
+            historyEntries.push({
+              date: format(new Date(wo.updated_at), 'dd/MM/yyyy'),
+              time: format(new Date(wo.updated_at), 'HH:mm'),
+              activity: 'Work Order Completed',
+              details: wo.title,
+              reference: `WO-${wo.id.slice(-8)}`
+            });
+          }
+        });
+      }
+
+      // 3. Sales from invoice items (search by description)
+      const { data: invoiceItems } = await supabase
+        .from('invoice_items')
+        .select(`
+          *,
+          invoices (
+            invoice_number,
+            issue_date,
+            status
+          )
+        `)
+        .ilike('description', `%${item.name}%`);
+        
+      if (invoiceItems) {
+        invoiceItems.forEach((invoiceItem: any) => {
+          if (invoiceItem.invoices) {
+            historyEntries.push({
+              date: format(new Date(invoiceItem.invoices.issue_date), 'dd/MM/yyyy'),
+              time: '09:00', // Default time since we don't have time in date field
+              activity: 'Sold',
+              details: `Quantity: ${invoiceItem.quantity}, Unit Price: €${invoiceItem.unit_price}`,
+              reference: invoiceItem.invoices.invoice_number
+            });
+          }
+        });
+      }
+
+      // Sort by date/time (newest first)
+      historyEntries.sort((a, b) => {
+        const dateTimeA = new Date(`${a.date.split('/').reverse().join('-')} ${a.time}`);
+        const dateTimeB = new Date(`${b.date.split('/').reverse().join('-')} ${b.time}`);
+        return dateTimeB.getTime() - dateTimeA.getTime();
+      });
+
+      setHistoryData(historyEntries);
+      setIsHistoryDialogOpen(true);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load part history. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -480,6 +575,15 @@ export default function Inventory() {
                                 </div>
                                 <AlertDialog>
                                   <div className="flex gap-1 ml-2">
+                                     <Button
+                                       variant="outline"
+                                       size="icon"
+                                       className="h-8 w-8"
+                                       onClick={() => handleViewHistory(item)}
+                                       title="View History"
+                                     >
+                                       <History className="h-4 w-4" />
+                                     </Button>
                                      <Button
                                        variant="outline"
                                        size="icon"
@@ -1116,6 +1220,14 @@ export default function Inventory() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* History Dialog */}
+      <PartHistoryDialog
+        isOpen={isHistoryDialogOpen}
+        onClose={() => setIsHistoryDialogOpen(false)}
+        item={selectedItemForHistory}
+        historyData={historyData}
+      />
     </div>
   );
 }
