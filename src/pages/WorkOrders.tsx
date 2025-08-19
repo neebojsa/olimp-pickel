@@ -359,7 +359,7 @@ export default function WorkOrders() {
     if (data) {
       const formattedWorkOrders = data.map(wo => ({
         ...wo,
-        workOrderNumber: `WO-${wo.id}`,
+        workOrderNumber: wo.work_order_number || `WO-${wo.id}`,
         partName: wo.title,
         partNumber: extractPartNumber(wo.description || ""),
         percentageCompletion: 50, // Placeholder
