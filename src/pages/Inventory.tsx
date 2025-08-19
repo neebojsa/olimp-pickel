@@ -453,114 +453,105 @@ export default function Inventory() {
                 </Button>
               </div>
 
-              {/* Items Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Items List */}
+              <div className="space-y-3">
                 {filteredItems.length > 0 ? (
                   filteredItems.map((item) => (
-                    <Card key={item.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader className="space-y-2">
-                        <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden relative flex items-center justify-center">
-                          {item.image ? (
-                            <img 
-                              src={item.image} 
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <CategoryIcon className="w-16 h-16 text-muted-foreground" />
-                          )}
-                          <AlertDialog>
-                             <div className="absolute top-2 right-2 flex gap-1">
-                               <Button
-                                 variant="outline"
-                                 size="icon"
-                                 className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                                 onClick={() => handleOpenEditDialog(item)}
-                               >
-                                 <Edit className="h-4 w-4" />
-                               </Button>
-                               <AlertDialogTrigger asChild>
-                                 <Button
-                                   variant="destructive"
-                                   size="icon"
-                                   className="h-8 w-8"
-                                 >
-                                   <Trash2 className="h-4 w-4" />
-                                 </Button>
-                               </AlertDialogTrigger>
-                             </div>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Item</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-lg">{item.name}</CardTitle>
-                            <p className="text-sm text-muted-foreground">SKU: {item.sku}</p>
+                    <Card key={item.id} className="h-40 hover:shadow-md transition-shadow">
+                      <CardContent className="p-4 h-full">
+                        <div className="flex h-full gap-4">
+                          {/* Image */}
+                          <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                            {item.image ? (
+                              <img 
+                                src={item.image} 
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <CategoryIcon className="w-12 h-12 text-muted-foreground" />
+                            )}
                           </div>
-                          {item.currentQuantity <= item.minimumQuantity && (
-                            <Badge variant="destructive">Low Stock</Badge>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">Quantity:</span>
-                          <span className={`font-bold ${
-                            item.currentQuantity <= item.minimumQuantity 
-                              ? 'text-destructive' 
-                              : 'text-foreground'
-                          }`}>
-                            {item.currentQuantity} {item.unitOfMeasure}
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">Unit Cost:</span>
-                          <span className="font-bold">${item.unitCost}</span>
-                        </div>
-                        
-                        {item.location && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">Location:</span>
-                            <span className="text-sm">{item.location}</span>
+                          
+                          {/* Content */}
+                          <div className="flex-1 flex flex-col justify-between min-w-0">
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between">
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="font-semibold text-lg truncate">{item.name}</h3>
+                                  {item.part_number && (
+                                    <p className="text-sm text-muted-foreground">Part #: {item.part_number}</p>
+                                  )}
+                                  <p className="text-sm text-muted-foreground">SKU: {item.sku}</p>
+                                </div>
+                                <AlertDialog>
+                                  <div className="flex gap-1 ml-2">
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleOpenEditDialog(item)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                  </div>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                              
+                              {item.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {item.description}
+                                </p>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
+                                  {item.currentQuantity} {item.unitOfMeasure}
+                                </Badge>
+                                <span className="font-semibold text-lg">${item.unitCost}</span>
+                              </div>
+                              
+                              <div className="text-xs text-muted-foreground text-right space-y-1">
+                                {item.location && <div>📍 {item.location}</div>}
+                                {item.supplier && <div>🏢 {item.supplier}</div>}
+                              </div>
+                            </div>
                           </div>
-                        )}
-                        
-                        {item.supplier && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">Supplier:</span>
-                            <span className="text-sm">{item.supplier}</span>
-                          </div>
-                        )}
-                        
-                        {item.description && (
-                          <div className="text-sm text-muted-foreground">
-                            {item.description}
-                          </div>
-                        )}
+                        </div>
                       </CardContent>
                     </Card>
                   ))
                 ) : (
-                  <div className="col-span-full text-center py-8">
+                  <div className="text-center py-12">
                     <CategoryIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No {category.toLowerCase()} found</p>
+                    <p className="text-muted-foreground mb-4">No {category.toLowerCase()} found</p>
                     <Button 
                       variant="outline" 
-                      className="mt-2" 
                       onClick={() => handleOpenAddDialog(category)}
                     >
                       <Plus className="w-4 h-4 mr-2" />
