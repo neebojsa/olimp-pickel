@@ -439,16 +439,28 @@ export default function WorkOrders() {
 
   const handleCreateWorkOrder = async () => {
     // Get form values
-    const workOrderNumber = (document.getElementById('workOrderNumber') as HTMLInputElement)?.value;
     const quantity = (document.getElementById('quantity') as HTMLInputElement)?.value;
     const productionTime = (document.getElementById('productionTime') as HTMLInputElement)?.value;
     const dueDate = (document.getElementById('dueDate') as HTMLInputElement)?.value;
     const description = (document.getElementById('description') as HTMLTextAreaElement)?.value;
 
-    if (!workOrderNumber || !description) {
+    if (!description) {
       toast({
         title: "Error",
         description: "Please fill in required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Generate work order number
+    const { data: workOrderNumber, error: numberError } = await supabase
+      .rpc('generate_work_order_number');
+
+    if (numberError) {
+      toast({
+        title: "Error",
+        description: "Failed to generate work order number",
         variant: "destructive"
       });
       return;
@@ -1111,7 +1123,12 @@ export default function WorkOrders() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="workOrderNumber">Work Order Number</Label>
-                <Input id="workOrderNumber" placeholder="WO-2024-XXX" />
+                <Input 
+                  id="workOrderNumber" 
+                  placeholder="Auto-generated (e.g., 259-01)" 
+                  disabled 
+                  className="bg-muted"
+                />
               </div>
               <div>
                 <Label htmlFor="partName">Part</Label>
