@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,10 @@ export default function Inventory() {
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isWorkOrderDialogOpen, setIsWorkOrderDialogOpen] = useState(false);
+  const [selectedItemForWorkOrder, setSelectedItemForWorkOrder] = useState<any>(null);
+  const [tools, setTools] = useState([{ name: "", quantity: "" }]);
+  const [operatorsAndMachines, setOperatorsAndMachines] = useState([{ name: "", type: "operator" }]);
 
   useEffect(() => {
     fetchInventoryItems();
@@ -476,20 +480,20 @@ export default function Inventory() {
                                 </div>
                                 <AlertDialog>
                                   <div className="flex gap-1 ml-2">
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => {
-                                        toast({
-                                          title: "Work Order Created",
-                                          description: `Work order created for ${item.name}`,
-                                        });
-                                      }}
-                                      title="Create Work Order"
-                                    >
-                                      <ClipboardList className="h-4 w-4" />
-                                    </Button>
+                                     <Button
+                                       variant="outline"
+                                       size="icon"
+                                       className="h-8 w-8"
+                                       onClick={() => {
+                                         setSelectedItemForWorkOrder(item);
+                                         setTools([{ name: "", quantity: "" }]);
+                                         setOperatorsAndMachines([{ name: "", type: "operator" }]);
+                                         setIsWorkOrderDialogOpen(true);
+                                       }}
+                                       title="Create Work Order"
+                                     >
+                                       <ClipboardList className="h-4 w-4" />
+                                     </Button>
                                     <Button
                                       variant="outline"
                                       size="icon"
@@ -828,6 +832,287 @@ export default function Inventory() {
             <Button onClick={handleUpdateItem} disabled={isUploading}>
               {isUploading ? "Updating..." : "Update Item"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Work Order Dialog */}
+      <Dialog open={isWorkOrderDialogOpen} onOpenChange={setIsWorkOrderDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Work Order for {selectedItemForWorkOrder?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="wo_workOrderNumber">Work Order Number</Label>
+                <Input id="wo_workOrderNumber" placeholder="WO-2024-XXX" />
+              </div>
+              <div>
+                <Label htmlFor="wo_partName">Part Name</Label>
+                <Input 
+                  id="wo_partName" 
+                  value={selectedItemForWorkOrder?.name || ""} 
+                  readOnly 
+                  className="bg-muted"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="wo_quantity">Quantity</Label>
+                <Input id="wo_quantity" type="number" placeholder="0" />
+              </div>
+              <div>
+                <Label htmlFor="wo_priority">Priority</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="wo_productionTime">Production Time</Label>
+                <Input id="wo_productionTime" placeholder="e.g. 3.5 hours" />
+              </div>
+              <div>
+                <Label htmlFor="wo_dueDate">Due Date</Label>
+                <Input id="wo_dueDate" type="date" />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="wo_description">Description</Label>
+              <Textarea 
+                id="wo_description" 
+                placeholder="Part description..." 
+                rows={3}
+                defaultValue={selectedItemForWorkOrder?.description || ""}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="wo_setupInstructions">Setup Instructions</Label>
+              <Textarea id="wo_setupInstructions" placeholder="Setup instructions for this work order..." rows={3} />
+            </div>
+
+            <div>
+              <Label htmlFor="wo_qualityRequirements">Quality Requirements</Label>
+              <Textarea id="wo_qualityRequirements" placeholder="Quality requirements and tolerances..." rows={3} />
+            </div>
+
+            <div>
+              <Label htmlFor="wo_productionNotes">Production Notes</Label>
+              <Textarea id="wo_productionNotes" placeholder="Production notes and requirements..." rows={3} />
+            </div>
+
+            {/* Tools Section */}
+            <div>
+              <Label className="flex items-center gap-2 mb-3">
+                <Settings className="w-4 h-4" />
+                Tools Required
+              </Label>
+              <div className="space-y-3">
+                {tools.map((tool, index) => (
+                  <div key={index} className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Select
+                        value={tool.name}
+                        onValueChange={(value) => {
+                          const newTools = [...tools];
+                          newTools[index].name = value;
+                          setTools(newTools);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select tool" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["CNC Mill", "Drill Press", "Precision Vise", "Laser Cutter", "Press Brake", "Precision Lathe", "CMM Machine", "Carbide Inserts", "5-Axis CNC Mill", "Boring Bar Set", "Go/No-Go Gauges", "Horizontal Boring Machine", "Carbide Tooling Set", "Surface Finish Gauge"].map((toolName) => (
+                            <SelectItem key={toolName} value={toolName}>
+                              {toolName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-24">
+                      <Input 
+                        type="number" 
+                        placeholder="Qty"
+                        value={tool.quantity}
+                        onChange={(e) => {
+                          const newTools = [...tools];
+                          newTools[index].quantity = e.target.value;
+                          setTools(newTools);
+                        }}
+                      />
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        if (tools.length > 1) {
+                          setTools(tools.filter((_, i) => i !== index));
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2"
+                  onClick={() => setTools([...tools, { name: "", quantity: "" }])}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Tool
+                </Button>
+              </div>
+            </div>
+
+            {/* Operators and Machines Section */}
+            <div>
+              <Label className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4" />
+                Operators & Machines
+              </Label>
+              <div className="space-y-3">
+                {operatorsAndMachines.map((item, index) => (
+                  <div key={index} className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Select
+                        value={item.name}
+                        onValueChange={(value) => {
+                          const newItems = [...operatorsAndMachines];
+                          newItems[index].name = value;
+                          setOperatorsAndMachines(newItems);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={item.type === "operator" ? "Select operator" : "Select machine"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {item.type === "operator" ? (
+                            staff.map((staffMember) => (
+                              <SelectItem key={staffMember.id} value={staffMember.name}>
+                                {staffMember.name} - {staffMember.position}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            ["CNC Machine #1", "CNC Machine #2", "CNC Machine #3", "Laser Cutting Machine #1", "CNC Lathe #2", "5-Axis CNC Machine #1", "Horizontal Boring Machine #2"].map((machine) => (
+                              <SelectItem key={machine} value={machine}>
+                                {machine}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-32">
+                      <Select 
+                        value={item.type}
+                        onValueChange={(value) => {
+                          const newItems = [...operatorsAndMachines];
+                          newItems[index].type = value as "operator" | "machine";
+                          newItems[index].name = ""; // Clear selection when type changes
+                          setOperatorsAndMachines(newItems);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="operator">Operator</SelectItem>
+                          <SelectItem value="machine">Machine</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        if (operatorsAndMachines.length > 1) {
+                          setOperatorsAndMachines(operatorsAndMachines.filter((_, i) => i !== index));
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2"
+                  onClick={() => setOperatorsAndMachines([...operatorsAndMachines, { name: "", type: "operator" }])}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Operator/Machine
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsWorkOrderDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={async () => {
+                const workOrderNumber = (document.getElementById('wo_workOrderNumber') as HTMLInputElement)?.value;
+                const quantity = (document.getElementById('wo_quantity') as HTMLInputElement)?.value;
+                const productionTime = (document.getElementById('wo_productionTime') as HTMLInputElement)?.value;
+                const dueDate = (document.getElementById('wo_dueDate') as HTMLInputElement)?.value;
+                const description = (document.getElementById('wo_description') as HTMLTextAreaElement)?.value;
+
+                if (!workOrderNumber || !description) {
+                  toast({
+                    title: "Error",
+                    description: "Please fill in required fields",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+
+                const { data, error } = await supabase
+                  .from('work_orders')
+                  .insert([{
+                    title: workOrderNumber,
+                    description: description,
+                    estimated_hours: productionTime ? parseFloat(productionTime) : null,
+                    due_date: dueDate || null,
+                    priority: 'medium',
+                    status: 'pending'
+                  }])
+                  .select();
+
+                if (error) {
+                  toast({
+                    title: "Error",
+                    description: "Failed to create work order",
+                    variant: "destructive"
+                  });
+                } else {
+                  setIsWorkOrderDialogOpen(false);
+                  toast({
+                    title: "Work Order Created",
+                    description: `Work order ${workOrderNumber} created for ${selectedItemForWorkOrder?.name}`,
+                  });
+                }
+              }}>
+                Create Work Order
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
