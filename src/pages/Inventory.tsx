@@ -949,14 +949,19 @@ export default function Inventory() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="wo_workOrderNumber">Work Order Number</Label>
-                <Input id="wo_workOrderNumber" placeholder="WO-2024-XXX" />
-              </div>
-              <div>
                 <Label htmlFor="wo_partName">Part Name</Label>
                 <Input 
                   id="wo_partName" 
                   value={selectedItemForWorkOrder?.name || ""} 
+                  readOnly 
+                  className="bg-muted"
+                />
+              </div>
+              <div>
+                <Label htmlFor="wo_partNumber">Part Number</Label>
+                <Input 
+                  id="wo_partNumber" 
+                  value={selectedItemForWorkOrder?.part_number || ""} 
                   readOnly 
                   className="bg-muted"
                 />
@@ -1173,13 +1178,14 @@ export default function Inventory() {
                 Cancel
               </Button>
               <Button onClick={async () => {
-                const workOrderNumber = (document.getElementById('wo_workOrderNumber') as HTMLInputElement)?.value;
+                const partName = selectedItemForWorkOrder?.name;
+                const partNumber = selectedItemForWorkOrder?.part_number;
                 const quantity = (document.getElementById('wo_quantity') as HTMLInputElement)?.value;
                 const productionTime = (document.getElementById('wo_productionTime') as HTMLInputElement)?.value;
                 const dueDate = (document.getElementById('wo_dueDate') as HTMLInputElement)?.value;
                 const description = (document.getElementById('wo_description') as HTMLTextAreaElement)?.value;
 
-                if (!workOrderNumber || !description) {
+                if (!partName || !description) {
                   toast({
                     title: "Error",
                     description: "Please fill in required fields",
@@ -1191,8 +1197,8 @@ export default function Inventory() {
                 const { data, error } = await supabase
                   .from('work_orders')
                   .insert([{
-                    title: workOrderNumber,
-                    description: description,
+                    title: partName,
+                    description: `${partNumber ? `Part #${partNumber}: ` : ''}${description}`,
                     estimated_hours: productionTime ? parseFloat(productionTime) : null,
                     due_date: dueDate || null,
                     priority: 'medium',
@@ -1210,7 +1216,7 @@ export default function Inventory() {
                   setIsWorkOrderDialogOpen(false);
                   toast({
                     title: "Work Order Created",
-                    description: `Work order ${workOrderNumber} created for ${selectedItemForWorkOrder?.name}`,
+                    description: `Work order created for ${partName}`,
                   });
                 }
               }}>
