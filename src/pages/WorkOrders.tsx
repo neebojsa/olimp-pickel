@@ -409,6 +409,29 @@ export default function WorkOrders() {
     }
   };
 
+  const handleStatusChange = async (workOrderId: string, newStatus: string) => {
+    const { error } = await supabase
+      .from('work_orders')
+      .update({ status: newStatus })
+      .eq('id', workOrderId);
+
+    if (!error) {
+      setWorkOrders(prev => prev.map(wo => 
+        wo.id === workOrderId ? { ...wo, status: newStatus } : wo
+      ));
+      toast({
+        title: "Status Updated",
+        description: `Work order status changed to ${newStatus}`,
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update work order status",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handlePartNameClick = (partNumber: string) => {
     // Would fetch part details from database
     console.log("View part:", partNumber);
@@ -556,12 +579,24 @@ export default function WorkOrders() {
                       {workOrder.partNumber}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={getStatusColor(workOrder.status)}
+                      <Select 
+                        value={workOrder.status} 
+                        onValueChange={(value) => handleStatusChange(workOrder.id, value)}
                       >
-                        {workOrder.status}
-                      </Badge>
+                        <SelectTrigger 
+                          className={`w-32 ${getStatusColor(workOrder.status)}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="Not Started">Not Started</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="On Hold">On Hold</SelectItem>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <Badge
