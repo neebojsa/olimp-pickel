@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar, Clock } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar, Clock, Eye, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +51,8 @@ export default function Inventory() {
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [materialsList, setMaterialsList] = useState<any[]>([]);
   const [toolsList, setToolsList] = useState<any[]>([]);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [selectedViewItem, setSelectedViewItem] = useState<any>(null);
 
   useEffect(() => {
     fetchInventoryItems();
@@ -635,7 +637,14 @@ export default function Inventory() {
               <div className="space-y-3">
                 {filteredItems.length > 0 ? (
                   filteredItems.map((item) => (
-                    <Card key={item.id} className="h-40 hover:shadow-md transition-shadow">
+                    <Card 
+                      key={item.id} 
+                      className="h-40 hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => {
+                        setSelectedViewItem(item);
+                        setIsViewDialogOpen(true);
+                      }}
+                    >
                       <CardContent className="p-4 h-full">
                         <div className="flex h-full gap-4">
                           {/* Image */}
@@ -662,48 +671,69 @@ export default function Inventory() {
                                   )}
                                   <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
                                 </div>
-                                <AlertDialog>
-                                  <div className="flex gap-1 ml-2">
-                                     <Button
-                                       variant="outline"
-                                       size="icon"
-                                       className="h-8 w-8"
-                                       onClick={() => handleViewHistory(item)}
-                                       title="View History"
-                                     >
-                                       <History className="h-4 w-4" />
-                                     </Button>
-                                     <Button
-                                       variant="outline"
-                                       size="icon"
-                                       className="h-8 w-8"
-                                       onClick={() => {
-                                         setSelectedItemForWorkOrder(item);
-                                         setTools([{ name: "", quantity: "" }]);
-                                         setOperatorsAndMachines([{ name: "", type: "operator" }]);
-                                         setIsWorkOrderDialogOpen(true);
-                                       }}
-                                       title="Create Work Order"
-                                     >
-                                       <ClipboardList className="h-4 w-4" />
-                                     </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => handleOpenEditDialog(item)}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <AlertDialogTrigger asChild>
+                                 <AlertDialog>
+                                   <div className="flex gap-1 ml-2">
                                       <Button
-                                        variant="destructive"
+                                        variant="outline"
                                         size="icon"
                                         className="h-8 w-8"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedViewItem(item);
+                                          setIsViewDialogOpen(true);
+                                        }}
+                                        title="View Details"
                                       >
-                                        <Trash2 className="h-4 w-4" />
+                                        <Eye className="h-4 w-4" />
                                       </Button>
-                                    </AlertDialogTrigger>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleViewHistory(item);
+                                        }}
+                                        title="View History"
+                                      >
+                                        <History className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedItemForWorkOrder(item);
+                                          setTools([{ name: "", quantity: "" }]);
+                                          setOperatorsAndMachines([{ name: "", type: "operator" }]);
+                                          setIsWorkOrderDialogOpen(true);
+                                        }}
+                                        title="Create Work Order"
+                                      >
+                                        <ClipboardList className="h-4 w-4" />
+                                      </Button>
+                                     <Button
+                                       variant="outline"
+                                       size="icon"
+                                       className="h-8 w-8"
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         handleOpenEditDialog(item);
+                                       }}
+                                     >
+                                       <Edit className="h-4 w-4" />
+                                     </Button>
+                                     <AlertDialogTrigger asChild>
+                                       <Button
+                                         variant="destructive"
+                                         size="icon"
+                                         className="h-8 w-8"
+                                         onClick={(e) => e.stopPropagation()}
+                                       >
+                                         <Trash2 className="h-4 w-4" />
+                                       </Button>
+                                     </AlertDialogTrigger>
                                   </div>
                                   <AlertDialogContent>
                                     <AlertDialogHeader>
@@ -1543,6 +1573,148 @@ export default function Inventory() {
         item={selectedItemForHistory}
         historyData={historyData}
       />
+
+      {/* View Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5" />
+              Part Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedViewItem && (
+            <div className="space-y-6">
+              {/* Photo and Basic Info */}
+              <div className="flex gap-6">
+                <div className="w-48 h-48 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                  {selectedViewItem.photo_url ? (
+                    <img 
+                      src={selectedViewItem.photo_url} 
+                      alt={selectedViewItem.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Package className="w-16 h-16 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Part Name</Label>
+                    <p className="text-lg font-semibold">{selectedViewItem.name}</p>
+                  </div>
+                  {selectedViewItem.part_number && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Part Number</Label>
+                      <p className="font-medium">{selectedViewItem.part_number}</p>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Location</Label>
+                    <p className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      {selectedViewItem.location || "Not specified"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Quantity</Label>
+                    <p className="font-medium">{selectedViewItem.quantity} pieces</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Unit Price</Label>
+                    <p className="font-medium">${selectedViewItem.unit_price}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              {selectedViewItem.description && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                  <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedViewItem.description}</p>
+                </div>
+              )}
+
+              {/* Materials Used */}
+              {selectedViewItem.materials_used && selectedViewItem.materials_used.length > 0 && (
+                <div>
+                  <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
+                    <Package className="w-4 h-4" />
+                    Materials Used
+                  </Label>
+                  <div className="space-y-2">
+                    {selectedViewItem.materials_used.filter((material: any) => material.name).map((material: any, index: number) => (
+                      <div key={index} className="p-3 bg-muted rounded-md">
+                        <p className="font-medium">{material.name}</p>
+                        {material.notes && (
+                          <p className="text-sm text-muted-foreground mt-1">{material.notes}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tools Used */}
+              {selectedViewItem.tools_used && selectedViewItem.tools_used.length > 0 && (
+                <div>
+                  <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
+                    <Wrench className="w-4 h-4" />
+                    Tools Used
+                  </Label>
+                  <div className="space-y-2">
+                    {selectedViewItem.tools_used.filter((tool: any) => tool.name).map((tool: any, index: number) => (
+                      <div key={index} className="p-3 bg-muted rounded-md">
+                        <p className="font-medium">{tool.name}</p>
+                        {tool.notes && (
+                          <p className="text-sm text-muted-foreground mt-1">{tool.notes}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Downloadable Files */}
+              {selectedViewItem.drawings_files && selectedViewItem.drawings_files.length > 0 && (
+                <div>
+                  <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
+                    <FileText className="w-4 h-4" />
+                    Downloadable Files
+                  </Label>
+                  <div className="space-y-2">
+                    {selectedViewItem.drawings_files.map((file: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-md">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          <span className="font-medium">{file.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = file.url;
+                            link.download = file.name;
+                            link.click();
+                          }}
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          Download
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
