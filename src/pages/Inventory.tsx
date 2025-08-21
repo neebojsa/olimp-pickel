@@ -1599,31 +1599,23 @@ export default function Inventory() {
                     <Package className="w-16 h-16 text-muted-foreground" />
                   )}
                 </div>
-                <div className="flex-1 space-y-3">
+                <div className="flex-1 space-y-4">
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Part Name</Label>
-                    <p className="text-lg font-semibold">{selectedViewItem.name}</p>
+                    <p className="text-xl font-semibold">{selectedViewItem.name}</p>
                   </div>
                   {selectedViewItem.part_number && (
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">Part Number</Label>
-                      <p className="font-medium">{selectedViewItem.part_number}</p>
+                      <p className="text-lg font-medium">{selectedViewItem.part_number}</p>
                     </div>
                   )}
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Location</Label>
-                    <p className="flex items-center gap-1">
+                    <p className="flex items-center gap-2 text-base">
                       <MapPin className="w-4 h-4" />
                       {selectedViewItem.location || "Not specified"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Quantity</Label>
-                    <p className="font-medium">{selectedViewItem.quantity} pieces</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Unit Price</Label>
-                    <p className="font-medium">${selectedViewItem.unit_price}</p>
                   </div>
                 </div>
               </div>
