@@ -381,7 +381,7 @@ export default function WorkOrders() {
   };
 
   const fetchInventoryItems = async () => {
-    const { data } = await supabase.from('inventory').select('id, name, description, part_number');
+    const { data } = await supabase.from('inventory').select('id, name, description, part_number, category').eq('category', 'Parts');
     if (data) {
       setInventoryItems(data);
     }
