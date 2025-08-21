@@ -348,11 +348,14 @@ export default function WorkOrders() {
   const [staffMembers, setStaffMembers] = useState<any[]>([]);
   const [selectedPartNumber, setSelectedPartNumber] = useState("");
   const [selectedPartId, setSelectedPartId] = useState("");
+  const [materials, setMaterials] = useState([{ name: "", notes: "" }]);
+  const [materialItems, setMaterialItems] = useState<any[]>([]);
 
   useEffect(() => {
     fetchWorkOrders();
     fetchInventoryItems();
     fetchStaffMembers();
+    fetchMaterialItems();
   }, []);
 
   const fetchWorkOrders = async () => {
@@ -391,6 +394,13 @@ export default function WorkOrders() {
     const { data } = await supabase.from('staff').select('id, name, position, department');
     if (data) {
       setStaffMembers(data);
+    }
+  };
+
+  const fetchMaterialItems = async () => {
+    const { data } = await supabase.from('inventory').select('id, name, description, part_number').eq('category', 'Materials');
+    if (data) {
+      setMaterialItems(data);
     }
   };
 
@@ -458,6 +468,7 @@ export default function WorkOrders() {
   const handleAddWorkOrder = () => {
     setTools([{ name: "", quantity: "" }]);
     setOperatorsAndMachines([{ name: "", type: "operator" }]);
+    setMaterials([{ name: "", notes: "" }]);
     setSelectedPartNumber("");
     setSelectedPartId("");
     setIsAddWorkOrderOpen(true);
@@ -1313,6 +1324,73 @@ export default function WorkOrders() {
                 >
                   <Plus className="w-4 h-4" />
                   Add Tool
+                </Button>
+              </div>
+            </div>
+
+            {/* Materials Section */}
+            <div>
+              <Label className="flex items-center gap-2 mb-3">
+                <Package className="w-4 h-4" />
+                Materials
+              </Label>
+              <div className="space-y-3">
+                {materials.map((material, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <Select
+                          value={material.name}
+                          onValueChange={(value) => {
+                            const newMaterials = [...materials];
+                            newMaterials[index].name = value;
+                            setMaterials(newMaterials);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select material" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {materialItems.map((item) => (
+                              <SelectItem key={item.id} value={item.name}>
+                                {item.name} {item.part_number && `(${item.part_number})`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          if (materials.length > 1) {
+                            setMaterials(materials.filter((_, i) => i !== index));
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <Input 
+                      placeholder="Material notes (optional)"
+                      value={material.notes}
+                      onChange={(e) => {
+                        const newMaterials = [...materials];
+                        newMaterials[index].notes = e.target.value;
+                        setMaterials(newMaterials);
+                      }}
+                      className="text-sm"
+                    />
+                  </div>
+                ))}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2"
+                  onClick={() => setMaterials([...materials, { name: "", notes: "" }])}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Material
                 </Button>
               </div>
             </div>
