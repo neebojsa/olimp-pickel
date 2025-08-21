@@ -46,12 +46,18 @@ export default function Inventory() {
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [selectedItemForHistory, setSelectedItemForHistory] = useState<any>(null);
   const [historyData, setHistoryData] = useState<any[]>([]);
+  const [materialsUsed, setMaterialsUsed] = useState([{ name: "", notes: "" }]);
+  const [toolsUsed, setToolsUsed] = useState([{ name: "", notes: "" }]);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [materialsList, setMaterialsList] = useState<any[]>([]);
+  const [toolsList, setToolsList] = useState<any[]>([]);
 
   useEffect(() => {
     fetchInventoryItems();
     fetchSuppliers();
     fetchStockLocations();
     fetchStaff();
+    fetchMaterialsAndTools();
   }, []);
 
   const fetchInventoryItems = async () => {
@@ -89,6 +95,14 @@ export default function Inventory() {
     if (data) {
       setStaff(data);
     }
+  };
+
+  const fetchMaterialsAndTools = async () => {
+    const { data: materials } = await supabase.from('inventory').select('id, name, part_number').eq('category', 'Materials');
+    const { data: tools } = await supabase.from('inventory').select('id, name, part_number').eq('category', 'Tools');
+    
+    if (materials) setMaterialsList(materials);
+    if (tools) setToolsList(tools);
   };
 
   const handleDeleteInventoryItem = async (itemId: string) => {
@@ -156,6 +170,53 @@ export default function Inventory() {
       .getPublicUrl(filePath);
 
     return data.publicUrl;
+  };
+
+  const uploadPartFile = async (file: File): Promise<{ name: string; url: string; size: number } | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${file.name}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('part-files')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error('File upload error:', uploadError);
+      return null;
+    }
+
+    const { data } = supabase.storage
+      .from('part-files')
+      .getPublicUrl(filePath);
+
+    return {
+      name: file.name,
+      url: data.publicUrl,
+      size: file.size
+    };
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newFiles = [];
+    setIsUploading(true);
+
+    for (const file of files) {
+      const uploadedFile = await uploadPartFile(file);
+      if (uploadedFile) {
+        newFiles.push(uploadedFile);
+      }
+    }
+
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setIsUploading(false);
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveItem = async () => {
@@ -247,6 +308,28 @@ export default function Inventory() {
     if (item.photo_url) {
       setPhotoPreview(item.photo_url);
     }
+    
+    // Populate materials used
+    if (item.materials_used && Array.isArray(item.materials_used)) {
+      setMaterialsUsed(item.materials_used);
+    } else {
+      setMaterialsUsed([{ name: "", notes: "" }]);
+    }
+    
+    // Populate tools used
+    if (item.tools_used && Array.isArray(item.tools_used)) {
+      setToolsUsed(item.tools_used);
+    } else {
+      setToolsUsed([{ name: "", notes: "" }]);
+    }
+    
+    // Populate uploaded files
+    if (item.drawings_files && Array.isArray(item.drawings_files)) {
+      setUploadedFiles(item.drawings_files);
+    } else {
+      setUploadedFiles([]);
+    }
+    
     setIsEditDialogOpen(true);
   };
 
@@ -280,7 +363,10 @@ export default function Inventory() {
           unit_price: parseFloat(formData.unit_price) || 0,
           location: formData.location,
           category: formData.category,
-          photo_url: photoUrl
+          photo_url: photoUrl,
+          materials_used: materialsUsed.filter(m => m.name),
+          tools_used: toolsUsed.filter(t => t.name), 
+          drawings_files: uploadedFiles
         })
         .eq('id', editingItem.id);
 
@@ -307,6 +393,9 @@ export default function Inventory() {
       });
       setPhotoPreview(null);
       setEditingItem(null);
+      setMaterialsUsed([{ name: "", notes: "" }]);
+      setToolsUsed([{ name: "", notes: "" }]);
+      setUploadedFiles([]);
       setIsEditDialogOpen(false);
     } catch (error) {
       console.error('Error updating item:', error);
@@ -928,9 +1017,212 @@ export default function Inventory() {
                 )}
               </div>
             </div>
+            
+            {editingItem?.category === "Parts" && (
+              <>
+                {/* Materials Used Section */}
+                <div>
+                  <Label className="flex items-center gap-2 mb-3">
+                    <Package className="w-4 h-4" />
+                    Materials Used
+                  </Label>
+                  <div className="space-y-3">
+                    {materialsUsed.map((material, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex gap-2 items-end">
+                          <div className="flex-1">
+                            <Select
+                              value={material.name}
+                              onValueChange={(value) => {
+                                const newMaterials = [...materialsUsed];
+                                newMaterials[index].name = value;
+                                setMaterialsUsed(newMaterials);
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select material" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {materialsList.map((item) => (
+                                  <SelectItem key={item.id} value={item.name}>
+                                    {item.name} {item.part_number && `(${item.part_number})`}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              if (materialsUsed.length > 1) {
+                                setMaterialsUsed(materialsUsed.filter((_, i) => i !== index));
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <Input 
+                          placeholder="Material notes (optional)"
+                          value={material.notes}
+                          onChange={(e) => {
+                            const newMaterials = [...materialsUsed];
+                            newMaterials[index].notes = e.target.value;
+                            setMaterialsUsed(newMaterials);
+                          }}
+                          className="text-sm"
+                        />
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex items-center gap-2"
+                      onClick={() => setMaterialsUsed([...materialsUsed, { name: "", notes: "" }])}
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Material
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Tools Used Section */}
+                <div>
+                  <Label className="flex items-center gap-2 mb-3">
+                    <Wrench className="w-4 h-4" />
+                    Tools Used
+                  </Label>
+                  <div className="space-y-3">
+                    {toolsUsed.map((tool, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex gap-2 items-end">
+                          <div className="flex-1">
+                            <Select
+                              value={tool.name}
+                              onValueChange={(value) => {
+                                const newTools = [...toolsUsed];
+                                newTools[index].name = value;
+                                setToolsUsed(newTools);
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select tool" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {toolsList.map((item) => (
+                                  <SelectItem key={item.id} value={item.name}>
+                                    {item.name} {item.part_number && `(${item.part_number})`}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              if (toolsUsed.length > 1) {
+                                setToolsUsed(toolsUsed.filter((_, i) => i !== index));
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <Input 
+                          placeholder="Tool notes (optional)"
+                          value={tool.notes}
+                          onChange={(e) => {
+                            const newTools = [...toolsUsed];
+                            newTools[index].notes = e.target.value;
+                            setToolsUsed(newTools);
+                          }}
+                          className="text-sm"
+                        />
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex items-center gap-2"
+                      onClick={() => setToolsUsed([...toolsUsed, { name: "", notes: "" }])}
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Tool
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Files Upload Section */}
+                <div>
+                  <Label className="flex items-center gap-2 mb-3">
+                    <FileText className="w-4 h-4" />
+                    Drawings & Other Files
+                  </Label>
+                  <div className="space-y-3">
+                    <div className="border-2 border-dashed border-muted-foreground rounded-lg p-4">
+                      <div className="text-center">
+                        <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground mb-2">Upload drawings, documents, or other files</p>
+                        <Input
+                          type="file"
+                          multiple
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          id="file-upload"
+                          accept=".pdf,.dwg,.dxf,.doc,.docx,.jpg,.png,.jpeg"
+                        />
+                        <Label htmlFor="file-upload" className="cursor-pointer">
+                          <Button type="button" variant="outline" size="sm" asChild>
+                            <span>Choose Files</span>
+                          </Button>
+                        </Label>
+                      </div>
+                    </div>
+                    {uploadedFiles.length > 0 && (
+                      <div className="space-y-2">
+                        {uploadedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4" />
+                              <span className="text-sm">{file.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                ({(file.size / 1024).toFixed(1)} KB)
+                              </span>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(file.url, '_blank')}
+                              >
+                                View
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRemoveFile(index)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setMaterialsUsed([{ name: "", notes: "" }]);
+              setToolsUsed([{ name: "", notes: "" }]);
+              setUploadedFiles([]);
+              setIsEditDialogOpen(false);
+            }}>
               Cancel
             </Button>
             <Button onClick={handleUpdateItem} disabled={isUploading}>

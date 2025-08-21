@@ -175,13 +175,16 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          drawings_files: Json | null
           id: string
           location: string | null
+          materials_used: Json | null
           name: string
           part_number: string | null
           photo_url: string | null
           quantity: number
           supplier: string | null
+          tools_used: Json | null
           unit_price: number
           updated_at: string
           weight: number | null
@@ -190,13 +193,16 @@ export type Database = {
           category: string
           created_at?: string
           description?: string | null
+          drawings_files?: Json | null
           id?: string
           location?: string | null
+          materials_used?: Json | null
           name: string
           part_number?: string | null
           photo_url?: string | null
           quantity?: number
           supplier?: string | null
+          tools_used?: Json | null
           unit_price?: number
           updated_at?: string
           weight?: number | null
@@ -205,13 +211,16 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          drawings_files?: Json | null
           id?: string
           location?: string | null
+          materials_used?: Json | null
           name?: string
           part_number?: string | null
           photo_url?: string | null
           quantity?: number
           supplier?: string | null
+          tools_used?: Json | null
           unit_price?: number
           updated_at?: string
           weight?: number | null
