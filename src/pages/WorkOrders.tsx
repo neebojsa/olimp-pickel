@@ -1179,27 +1179,21 @@ export default function WorkOrders() {
                 />
               </div>
               <div>
-                <Label htmlFor="partName">Part from Inventory</Label>
+                <Label htmlFor="partName">Part</Label>
                 <Select value={selectedPartId} onValueChange={(value) => {
                   setSelectedPartId(value);
                   const selectedPart = inventoryItems.find(item => item.id === value);
                   setSelectedPartNumber(selectedPart ? `${selectedPart.name} - ${selectedPart.part_number || 'N/A'}` : "");
                 }}>
                   <SelectTrigger>
-                    <SelectValue placeholder={inventoryItems.length > 0 ? "Select from inventory parts" : "No parts in inventory"} />
+                    <SelectValue placeholder="Select part" />
                   </SelectTrigger>
                   <SelectContent>
-                    {inventoryItems.length > 0 ? (
-                      inventoryItems.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.name} {item.part_number ? `(${item.part_number})` : ''}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-parts" disabled>
-                        No parts available in inventory
+                    {inventoryItems.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} - {item.part_number || 'N/A'}
                       </SelectItem>
-                    )}
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
