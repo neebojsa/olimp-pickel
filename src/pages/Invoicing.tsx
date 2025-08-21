@@ -84,7 +84,7 @@ export default function Invoicing() {
   };
 
   const fetchInventoryItems = async () => {
-    const { data } = await supabase.from('inventory').select('*');
+    const { data } = await supabase.from('inventory').select('*').eq('category', 'Parts');
     if (data) setInventoryItems(data);
   };
 
