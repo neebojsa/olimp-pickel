@@ -174,6 +174,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          customer_id: string | null
           description: string | null
           drawings_files: Json | null
           id: string
@@ -192,6 +193,7 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string
+          customer_id?: string | null
           description?: string | null
           drawings_files?: Json | null
           id?: string
@@ -210,6 +212,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          customer_id?: string | null
           description?: string | null
           drawings_files?: Json | null
           id?: string
@@ -225,7 +228,15 @@ export type Database = {
           updated_at?: string
           weight?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inventory_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_items: {
         Row: {
