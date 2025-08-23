@@ -510,9 +510,6 @@ export default function Customers() {
 
               {/* Actions */}
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1">
-                  Create Work Order
-                </Button>
                 <Button variant="outline" className="flex-1" onClick={handleEditCustomer}>
                   Edit Customer
                 </Button>
