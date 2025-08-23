@@ -26,7 +26,6 @@ export default function Inventory() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [currentCategory, setCurrentCategory] = useState("Parts");
   const [formData, setFormData] = useState({
     part_number: "",
     name: "",
@@ -34,7 +33,6 @@ export default function Inventory() {
     quantity: "",
     unit_price: "",
     location: "",
-    category: "Parts",
     photo: null as File | null
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -100,8 +98,8 @@ export default function Inventory() {
   };
 
   const fetchMaterialsAndTools = async () => {
-    const { data: materials } = await supabase.from('inventory').select('id, name, part_number').eq('category', 'Materials');
-    const { data: tools } = await supabase.from('inventory').select('id, name, part_number').eq('category', 'Tools');
+    const { data: materials } = await supabase.from('inventory').select('id, name, part_number').ilike('name', '%material%');
+    const { data: tools } = await supabase.from('inventory').select('id, name, part_number').ilike('name', '%tool%');
     
     if (materials) setMaterialsList(materials);
     if (tools) setToolsList(tools);
@@ -256,7 +254,7 @@ export default function Inventory() {
         quantity: parseInt(formData.quantity),
         unit_price: parseFloat(formData.unit_price),
         location: formData.location,
-        category: formData.category,
+        category: "Parts",
         photo_url: photoUrl
       });
 
@@ -270,7 +268,6 @@ export default function Inventory() {
         quantity: "",
         unit_price: "",
         location: "",
-        category: currentCategory,
         photo: null
       });
       setPhotoPreview(null);
@@ -289,9 +286,7 @@ export default function Inventory() {
     }
   };
 
-  const handleOpenAddDialog = (category: string) => {
-    setCurrentCategory(category);
-    setFormData(prev => ({ ...prev, category }));
+  const handleOpenAddDialog = () => {
     setIsAddDialogOpen(true);
   };
 
@@ -304,7 +299,6 @@ export default function Inventory() {
       quantity: item.quantity.toString(),
       unit_price: item.unit_price.toString(),
       location: item.location || "",
-      category: item.category,
       photo: null
     });
     if (item.photo_url) {
@@ -364,7 +358,7 @@ export default function Inventory() {
           quantity: parseInt(formData.quantity) || 0,
           unit_price: parseFloat(formData.unit_price) || 0,
           location: formData.location,
-          category: formData.category,
+          category: editingItem.category || "Parts",
           photo_url: photoUrl,
           materials_used: materialsUsed.filter(m => m.name),
           tools_used: toolsUsed.filter(t => t.name), 
@@ -390,7 +384,6 @@ export default function Inventory() {
         quantity: "",
         unit_price: "",
         location: "",
-        category: "Parts",
         photo: null
       });
       setPhotoPreview(null);
@@ -411,22 +404,12 @@ export default function Inventory() {
     }
   };
 
-  const getFilteredItems = (category: string) => {
+  const getFilteredItems = () => {
     return inventoryItems.filter(item => 
-      item.category === category && 
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "Parts": return Package;
-      case "Materials": return Settings;
-      case "Tools": return Wrench;
-      case "Machines": return Cog;
-      default: return Package;
-    }
-  };
 
   const lowStockItems = inventoryItems.filter(
     item => item.currentQuantity <= item.minimumQuantity
@@ -538,7 +521,7 @@ export default function Inventory() {
             Track materials, tools, and stock levels
           </p>
         </div>
-        <Button onClick={() => handleOpenAddDialog(currentCategory)}>
+        <Button onClick={handleOpenAddDialog}>
           <Plus className="w-4 h-4 mr-2" />
           Add Item
         </Button>
@@ -602,218 +585,202 @@ export default function Inventory() {
       </div>
 
       {/* Main Content */}
-      <Tabs defaultValue="Parts" className="space-y-4" onValueChange={setCurrentCategory}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="Parts">Parts</TabsTrigger>
-          <TabsTrigger value="Materials">Materials</TabsTrigger>
-          <TabsTrigger value="Tools">Tools</TabsTrigger>
-          <TabsTrigger value="Machines">Machines</TabsTrigger>
-        </TabsList>
+      <div className="space-y-4">
+        {/* Search and Add */}
+        <div className="flex items-center justify-between space-x-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Search inventory..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Button onClick={handleOpenAddDialog}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Item
+          </Button>
+        </div>
 
-        {["Parts", "Materials", "Tools", "Machines"].map((category) => {
-          const CategoryIcon = getCategoryIcon(category);
-          const filteredItems = getFilteredItems(category);
-
-          return (
-            <TabsContent key={category} value={category} className="space-y-4">
-              {/* Search and Add */}
-              <div className="flex items-center justify-between space-x-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    placeholder={`Search ${category.toLowerCase()}...`}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Button onClick={() => handleOpenAddDialog(category)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add {category.slice(0, -1)}
-                </Button>
-              </div>
-
-              {/* Items List */}
-              <div className="space-y-3">
-                {filteredItems.length > 0 ? (
-                  filteredItems.map((item) => (
-                    <Card 
-                      key={item.id} 
-                      className="h-40 hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => {
-                        setSelectedViewItem(item);
-                        setIsViewDialogOpen(true);
-                      }}
-                    >
-                      <CardContent className="p-4 h-full">
-                        <div className="flex h-full gap-4">
-                          {/* Image */}
-                          <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                            {item.image ? (
-                              <img 
-                                src={item.image} 
-                                alt={item.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <CategoryIcon className="w-12 h-12 text-muted-foreground" />
+        {/* Items List */}
+        <div className="space-y-3">
+          {getFilteredItems().length > 0 ? (
+            getFilteredItems().map((item) => (
+              <Card 
+                key={item.id} 
+                className="h-40 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => {
+                  setSelectedViewItem(item);
+                  setIsViewDialogOpen(true);
+                }}
+              >
+                <CardContent className="p-4 h-full">
+                  <div className="flex h-full gap-4">
+                    {/* Image */}
+                    <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                      {item.image ? (
+                        <img 
+                          src={item.image} 
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Package className="w-12 h-12 text-muted-foreground" />
+                      )}
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="flex-1 flex flex-col justify-between min-w-0">
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-lg truncate">{item.name}</h3>
+                            {item.part_number && (
+                              <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>
                             )}
+                            <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
                           </div>
-                          
-                          {/* Content */}
-                          <div className="flex-1 flex flex-col justify-between min-w-0">
-                            <div className="space-y-2">
-                              <div className="flex items-start justify-between">
-                                <div className="min-w-0 flex-1">
-                                  <h3 className="font-semibold text-lg truncate">{item.name}</h3>
-                                  {item.part_number && (
-                                    <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>
-                                  )}
-                                  <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
-                                </div>
-                                 <AlertDialog>
-                                   <div className="flex gap-1 ml-2">
-                                      <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedViewItem(item);
-                                          setIsViewDialogOpen(true);
-                                        }}
-                                        title="View Details"
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleViewHistory(item);
-                                        }}
-                                        title="View History"
-                                      >
-                                        <History className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedItemForWorkOrder(item);
-                                          setTools([{ name: "", quantity: "" }]);
-                                          setOperatorsAndMachines([{ name: "", type: "operator" }]);
-                                          setIsWorkOrderDialogOpen(true);
-                                        }}
-                                        title="Create Work Order"
-                                      >
-                                        <ClipboardList className="h-4 w-4" />
-                                      </Button>
-                                     <Button
-                                       variant="outline"
-                                       size="icon"
-                                       className="h-8 w-8"
-                                       onClick={(e) => {
-                                         e.stopPropagation();
-                                         handleOpenEditDialog(item);
-                                       }}
-                                     >
-                                       <Edit className="h-4 w-4" />
-                                     </Button>
-                                     <AlertDialogTrigger asChild>
-                                       <Button
-                                         variant="destructive"
-                                         size="icon"
-                                         className="h-8 w-8"
-                                         onClick={(e) => e.stopPropagation()}
-                                       >
-                                         <Trash2 className="h-4 w-4" />
-                                       </Button>
-                                     </AlertDialogTrigger>
-                                  </div>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete Item</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                              
-                              {item.description && (
-                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                  {item.description}
-                                </p>
-                              )}
+                           <AlertDialog>
+                             <div className="flex gap-1 ml-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedViewItem(item);
+                                    setIsViewDialogOpen(true);
+                                  }}
+                                  title="View Details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewHistory(item);
+                                  }}
+                                  title="View History"
+                                >
+                                  <History className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedItemForWorkOrder(item);
+                                    setTools([{ name: "", quantity: "" }]);
+                                    setOperatorsAndMachines([{ name: "", type: "operator" }]);
+                                    setIsWorkOrderDialogOpen(true);
+                                  }}
+                                  title="Create Work Order"
+                                >
+                                  <ClipboardList className="h-4 w-4" />
+                                </Button>
+                               <Button
+                                 variant="outline"
+                                 size="icon"
+                                 className="h-8 w-8"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   handleOpenEditDialog(item);
+                                 }}
+                               >
+                                 <Edit className="h-4 w-4" />
+                               </Button>
+                               <AlertDialogTrigger asChild>
+                                 <Button
+                                   variant="destructive"
+                                   size="icon"
+                                   className="h-8 w-8"
+                                   onClick={(e) => e.stopPropagation()}
+                                 >
+                                   <Trash2 className="h-4 w-4" />
+                                 </Button>
+                               </AlertDialogTrigger>
                             </div>
-                            
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
-                                  {item.currentQuantity} {item.unitOfMeasure}
-                                </Badge>
-                                <span className="font-semibold text-lg">${item.unitCost}</span>
-                              </div>
-                              
-                              <div className="text-xs text-muted-foreground text-right space-y-1">
-                                {item.location && (
-                                  <div className="flex items-center justify-end gap-1">
-                                    <MapPin className="h-3 w-3 text-gray-400" />
-                                    <span>{item.location}</span>
-                                  </div>
-                                )}
-                                {item.supplier && (
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Building2 className="h-3 w-3 text-gray-400" />
-                                    <span>{item.supplier}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="text-center py-12">
-                    <CategoryIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground mb-4">No {category.toLowerCase()} found</p>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => handleOpenAddDialog(category)}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add First {category.slice(0, -1)}
-                    </Button>
+                        
+                        {item.description && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
+                            {item.currentQuantity} {item.unitOfMeasure}
+                          </Badge>
+                          <span className="font-semibold text-lg">${item.unitCost}</span>
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground text-right space-y-1">
+                          {item.location && (
+                            <div className="flex items-center justify-end gap-1">
+                              <MapPin className="h-3 w-3 text-gray-400" />
+                              <span>{item.location}</span>
+                            </div>
+                          )}
+                          {item.supplier && (
+                            <div className="flex items-center justify-end gap-1">
+                              <Building2 className="h-3 w-3 text-gray-400" />
+                              <span>{item.supplier}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-            </TabsContent>
-          );
-        })}
-      </Tabs>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground mb-4">No items found</p>
+              <Button 
+                variant="outline" 
+                onClick={handleOpenAddDialog}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add First Item
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Add Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add New {currentCategory.slice(0, -1)}</DialogTitle>
+            <DialogTitle>Add New Item</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {currentCategory === "Parts" && (
+            {formData.name && (
               <div className="grid gap-2">
                 <Label htmlFor="part_number">Part Number</Label>
                 <Input
@@ -926,7 +893,7 @@ export default function Inventory() {
               Cancel
             </Button>
             <Button onClick={handleSaveItem} disabled={isUploading}>
-              {isUploading ? "Uploading..." : `Save ${currentCategory.slice(0, -1)}`}
+              {isUploading ? "Uploading..." : "Save Item"}
             </Button>
           </div>
         </DialogContent>
@@ -936,10 +903,10 @@ export default function Inventory() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit {editingItem?.category?.slice(0, -1) || "Item"}</DialogTitle>
+            <DialogTitle>Edit Item</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {editingItem?.category === "Parts" && (
+            {editingItem?.part_number !== undefined && (
               <div className="grid gap-2">
                 <Label htmlFor="edit_part_number">Part Number</Label>
                 <Input
