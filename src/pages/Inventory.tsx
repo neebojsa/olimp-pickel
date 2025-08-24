@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar, Clock, Eye, Download } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -507,6 +507,125 @@ export default function Inventory() {
     }
   };
 
+  // Helper functions for materials
+  const getMaterialColor = (material: string) => {
+    const colors = {
+      's355': 'hsl(var(--chart-1))', // Blue
+      's235': 'hsl(var(--chart-2))', // Green  
+      'C45': 'hsl(var(--chart-3))', // Purple
+      'AlSiMg1': 'hsl(var(--chart-4))', // Orange
+      'X153CrMoV12': 'hsl(var(--chart-5))', // Pink
+      '16MnCr5': 'hsl(var(--chart-6))', // Cyan
+      '1.4305': 'hsl(var(--chart-7))', // Amber
+      '1.4301': 'hsl(var(--chart-8))', // Indigo
+    };
+    return colors[material] || 'hsl(var(--muted-foreground))';
+  };
+
+  const getMaterialShapeIcon = (shape: string) => {
+    if (shape?.includes("Round")) return Circle;
+    if (shape?.includes("Square")) return Square;
+    if (shape?.includes("Hex")) return Hexagon;
+    if (shape?.includes("Rectangular")) return Square;
+    if (shape?.includes("tube")) return Cylinder;
+    if (shape?.includes("Sheet")) return Square;
+    return Circle;
+  };
+
+  const calculateMaterialWeight = (materialInfo: any) => {
+    if (!materialInfo?.material || !materialInfo?.dimensions) return 0;
+    
+    // Material densities (kg/m³)
+    const densities = {
+      's355': 7850, 's235': 7850, 'C45': 7850, // Steel
+      'AlSiMg1': 2700, // Aluminum
+      'X153CrMoV12': 7700, '16MnCr5': 7850, // Tool steel
+      '1.4305': 8000, '1.4301': 8000, // Stainless steel
+    };
+    
+    const density = densities[materialInfo.material] || 7850;
+    const dims = materialInfo.dimensions;
+    let volume = 0; // in m³
+    
+    // Convert mm to m and calculate volume
+    const toMeters = (mm) => (parseFloat(mm) || 0) / 1000;
+    
+    switch (materialInfo.shape) {
+      case "Round bar":
+        if (dims.diameter && dims.length) {
+          const radius = toMeters(dims.diameter) / 2;
+          volume = Math.PI * radius * radius * toMeters(dims.length);
+        }
+        break;
+      case "Square bar":
+        if (dims.side && dims.length) {
+          volume = toMeters(dims.side) * toMeters(dims.side) * toMeters(dims.length);
+        }
+        break;
+      case "Rectangular bar":
+        if (dims.width && dims.height && dims.length) {
+          volume = toMeters(dims.width) * toMeters(dims.height) * toMeters(dims.length);
+        }
+        break;
+      case "Hex bar":
+        if (dims.diameter && dims.length) {
+          // Hexagon area = 3√3/2 * (diameter/2)²
+          const s = toMeters(dims.diameter) / 2;
+          const area = (3 * Math.sqrt(3) / 2) * s * s;
+          volume = area * toMeters(dims.length);
+        }
+        break;
+      case "Round tube":
+        if (dims.outerDiameter && dims.wallThickness && dims.length) {
+          const outerRadius = toMeters(dims.outerDiameter) / 2;
+          const innerRadius = outerRadius - toMeters(dims.wallThickness);
+          volume = Math.PI * (outerRadius * outerRadius - innerRadius * innerRadius) * toMeters(dims.length);
+        }
+        break;
+      case "Square tube":
+        if (dims.side && dims.wallThickness && dims.length) {
+          const outer = toMeters(dims.side);
+          const inner = outer - 2 * toMeters(dims.wallThickness);
+          volume = (outer * outer - inner * inner) * toMeters(dims.length);
+        }
+        break;
+      case "Rectangular tube":
+        if (dims.width && dims.height && dims.wallThickness && dims.length) {
+          const w = toMeters(dims.width);
+          const h = toMeters(dims.height);
+          const t = toMeters(dims.wallThickness);
+          volume = (w * h - (w - 2*t) * (h - 2*t)) * toMeters(dims.length);
+        }
+        break;
+      case "Sheet":
+        if (dims.thickness && dims.width && dims.length) {
+          volume = toMeters(dims.thickness) * toMeters(dims.width) * toMeters(dims.length);
+        }
+        break;
+    }
+    
+    return volume * density; // kg
+  };
+
+  const formatMaterialQuantity = (materialInfo: any, quantity: number) => {
+    if (!materialInfo?.shape || !materialInfo?.dimensions) return `${quantity} pcs`;
+    
+    const dims = materialInfo.dimensions;
+    
+    if (materialInfo.shape === "Sheet") {
+      const width = dims.width || 0;
+      const length = dims.length || 0;
+      return `${quantity} pieces ${width}×${length} mm`;
+    } else if (materialInfo.shape?.includes("bar") || materialInfo.shape?.includes("tube")) {
+      const lengthInMm = parseFloat(dims.length) || 0;
+      const lengthInMeters = lengthInMm / 1000;
+      const totalMeters = (lengthInMeters * quantity).toFixed(2);
+      return `${totalMeters} m`;
+    }
+    
+    return `${quantity} pcs`;
+  };
+
   const lowStockItems = inventoryItems.filter(
     item => item.currentQuantity <= item.minimumQuantity
   );
@@ -716,42 +835,61 @@ export default function Inventory() {
               <div className="space-y-3">
                 {filteredItems.length > 0 ? (
                   filteredItems.map((item) => (
-                    <Card 
+                     <Card 
                       key={item.id} 
-                      className="h-40 hover:shadow-md transition-shadow cursor-pointer"
+                      className={`${category === "Materials" ? "h-20" : "h-40"} hover:shadow-md transition-shadow cursor-pointer`}
                       onClick={() => {
                         setSelectedViewItem(item);
                         setIsViewDialogOpen(true);
                       }}
                     >
-                      <CardContent className="p-4 h-full">
-                        <div className="flex h-full gap-4">
-                          {/* Image */}
-                          {item.category !== "Materials" && (
-                            <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                              {item.image ? (
-                                <img 
-                                  src={item.image} 
-                                  alt={item.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <CategoryIcon className="w-12 h-12 text-muted-foreground" />
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Content */}
-                          <div className="flex-1 flex flex-col justify-between min-w-0">
-                            <div className="space-y-2">
-                              <div className="flex items-start justify-between">
-                                <div className="min-w-0 flex-1">
-                                  <h3 className="font-semibold text-lg truncate">{item.name}</h3>
-                                  {item.part_number && (
-                                    <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>
-                                  )}
-                                  <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
-                                </div>
+                       <CardContent className="p-4 h-full">
+                         <div className="flex h-full gap-4">
+                           {/* Material Shape Icon or Regular Image */}
+                           {item.category === "Materials" ? (
+                             (() => {
+                               let materialInfo = null;
+                               try {
+                                 materialInfo = item.description ? JSON.parse(item.description) : null;
+                               } catch (e) {
+                                 materialInfo = null;
+                               }
+                               const ShapeIcon = getMaterialShapeIcon(materialInfo?.shape);
+                               const color = getMaterialColor(materialInfo?.material);
+                               
+                               return (
+                                 <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                                   <ShapeIcon 
+                                     className="w-10 h-10" 
+                                     style={{ color }}
+                                   />
+                                 </div>
+                               );
+                             })()
+                           ) : (
+                             <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                               {item.image ? (
+                                 <img 
+                                   src={item.image} 
+                                   alt={item.name}
+                                   className="w-full h-full object-cover"
+                                 />
+                               ) : (
+                                 <CategoryIcon className="w-12 h-12 text-muted-foreground" />
+                               )}
+                             </div>
+                           )}
+                           
+                           {/* Content */}
+                           <div className="flex-1 flex flex-col justify-between min-w-0">
+                             <div className="space-y-2">
+                               <div className="flex items-start justify-between">
+                                 <div className="min-w-0 flex-1">
+                                   <h3 className="font-semibold text-lg truncate">{item.name}</h3>
+                                   {item.part_number && item.category !== "Materials" && (
+                                     <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>
+                                   )}
+                                 </div>
                                  <AlertDialog>
                                    <div className="flex gap-1 ml-2">
                                       <Button
@@ -831,22 +969,45 @@ export default function Inventory() {
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
-                              </div>
-                              
-                              {item.description && (
-                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                  {item.description}
-                                </p>
-                              )}
-                            </div>
+                               </div>
+                             </div>
                             
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
-                                  {item.currentQuantity} {item.unitOfMeasure}
-                                </Badge>
-                                <span className="font-semibold text-lg">${item.unitCost}</span>
-                              </div>
+                             <div className="flex items-center justify-between">
+                               <div className="flex items-center gap-4">
+                                 {item.category === "Materials" ? (
+                                   (() => {
+                                     let materialInfo = null;
+                                     try {
+                                       materialInfo = item.description ? JSON.parse(item.description) : null;
+                                     } catch (e) {
+                                       materialInfo = null;
+                                     }
+                                     const quantity = formatMaterialQuantity(materialInfo, item.currentQuantity);
+                                     const weight = calculateMaterialWeight(materialInfo);
+                                     
+                                     return (
+                                       <>
+                                         <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
+                                           {quantity}
+                                         </Badge>
+                                         {weight > 0 && (
+                                           <span className="text-sm text-muted-foreground">
+                                             {weight.toFixed(1)} kg
+                                           </span>
+                                         )}
+                                         <span className="font-semibold text-lg">${item.unitCost}</span>
+                                       </>
+                                     );
+                                   })()
+                                 ) : (
+                                   <>
+                                     <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
+                                       {item.currentQuantity} {item.unitOfMeasure}
+                                     </Badge>
+                                     <span className="font-semibold text-lg">${item.unitCost}</span>
+                                   </>
+                                 )}
+                               </div>
                               
                               <div className="text-xs text-muted-foreground text-right space-y-1">
                                 {item.location && (
