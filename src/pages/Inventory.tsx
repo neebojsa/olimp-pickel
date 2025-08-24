@@ -278,20 +278,22 @@ export default function Inventory() {
       .insert({
         part_number: formData.part_number,
         name: itemName,
-        description: currentCategory === "Materials" && materialData 
-          ? JSON.stringify({
-              surfaceFinish: materialData.surfaceFinish,
-              shape: materialData.shape,
-              material: materialData.material,
-              dimensions: materialData.dimensions
-            })
-          : formData.description,
+        description: formData.description || null,
         quantity: parseInt(formData.quantity),
         unit_price: parseFloat(formData.unit_price),
         location: formData.location,
         category: formData.category,
         supplier: formData.supplier || null,
-        photo_url: photoUrl
+        photo_url: photoUrl,
+        materials_used: currentCategory === "Materials" && materialData 
+          ? {
+              surfaceFinish: materialData.surfaceFinish,
+              shape: materialData.shape,
+              material: materialData.material,
+              dimensions: materialData.dimensions,
+              priceUnit: materialData.priceUnit
+            }
+          : null
       });
 
     setIsUploading(false);
@@ -430,13 +432,8 @@ export default function Inventory() {
         .update({
           part_number: formData.part_number,
           name: itemName,
-          description: editingItem.category === "Materials" && materialData 
-            ? JSON.stringify({
-                surfaceFinish: materialData.surfaceFinish,
-                shape: materialData.shape,
-                material: materialData.material,
-                dimensions: materialData.dimensions
-              })
+          description: editingItem.category === "Materials" 
+            ? formData.description || null
             : formData.description,
           quantity: parseInt(formData.quantity) || 0,
           unit_price: parseFloat(formData.unit_price) || 0,
@@ -444,7 +441,15 @@ export default function Inventory() {
           category: formData.category,
           supplier: formData.supplier || null,
           photo_url: photoUrl,
-          materials_used: materialsUsed.filter(m => m.name),
+        materials_used: editingItem.category === "Materials" && materialData 
+          ? {
+              surfaceFinish: materialData.surfaceFinish,
+              shape: materialData.shape,
+              material: materialData.material,
+              dimensions: materialData.dimensions,
+              priceUnit: materialData.priceUnit
+            }
+          : materialsUsed.filter(m => m.name),
           tools_used: toolsUsed.filter(t => t.name), 
           drawings_files: uploadedFiles
         })
@@ -847,27 +852,22 @@ export default function Inventory() {
                        <CardContent className="p-4 h-full">
                          <div className="flex h-full gap-4">
                            {/* Material Shape Icon or Regular Image */}
-                           {item.category === "Materials" ? (
-                             (() => {
-                               let materialInfo = null;
-                               try {
-                                 materialInfo = item.description ? JSON.parse(item.description) : null;
-                               } catch (e) {
-                                 materialInfo = null;
-                               }
-                               const ShapeIcon = getMaterialShapeIcon(materialInfo?.shape);
-                               const color = getMaterialColor(materialInfo?.material);
-                               
-                               return (
-                                 <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-                                   <ShapeIcon 
-                                     className="w-10 h-10" 
-                                     style={{ color }}
-                                   />
-                                 </div>
-                               );
-                             })()
-                           ) : (
+                            {item.category === "Materials" ? (
+                              (() => {
+                                const materialInfo = item.materials_used || {};
+                                const ShapeIcon = getMaterialShapeIcon(materialInfo?.shape);
+                                const color = getMaterialColor(materialInfo?.material);
+                                
+                                return (
+                                  <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                                    <ShapeIcon 
+                                      className="w-10 h-10" 
+                                      style={{ color }}
+                                    />
+                                  </div>
+                                );
+                              })()
+                            ) : (
                              <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                                {item.image ? (
                                  <img 
@@ -975,32 +975,28 @@ export default function Inventory() {
                             
                              <div className="flex items-center justify-between">
                                <div className="flex items-center gap-4">
-                                 {item.category === "Materials" ? (
-                                   (() => {
-                                     let materialInfo = null;
-                                     try {
-                                       materialInfo = item.description ? JSON.parse(item.description) : null;
-                                     } catch (e) {
-                                       materialInfo = null;
-                                     }
-                                     const quantity = formatMaterialQuantity(materialInfo, item.currentQuantity);
-                                     const weight = calculateMaterialWeight(materialInfo);
-                                     
-                                     return (
-                                       <>
-                                         <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
-                                           {quantity}
-                                         </Badge>
-                                         {weight > 0 && (
-                                           <span className="text-sm text-muted-foreground">
-                                             {weight.toFixed(1)} kg
-                                           </span>
-                                         )}
-                                         <span className="font-semibold text-lg">${item.unitCost}</span>
-                                       </>
-                                     );
-                                   })()
-                                 ) : (
+                                  {item.category === "Materials" ? (
+                                    (() => {
+                                      const materialInfo = item.materials_used || {};
+                                      const quantity = formatMaterialQuantity(materialInfo, item.currentQuantity);
+                                      const weight = calculateMaterialWeight(materialInfo);
+                                      const priceUnit = materialInfo.priceUnit === 'per_kg' ? 'kg' : 'm';
+                                      
+                                      return (
+                                        <>
+                                          <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
+                                            {quantity}
+                                          </Badge>
+                                          {weight > 0 && (
+                                            <span className="text-sm text-muted-foreground">
+                                              {weight.toFixed(1)} kg
+                                            </span>
+                                          )}
+                                          <span className="font-semibold text-lg">${item.unitCost.toFixed(2)}/${priceUnit}</span>
+                                        </>
+                                      );
+                                    })()
+                                  ) : (
                                    <>
                                      <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
                                        {item.currentQuantity} {item.unitOfMeasure}
@@ -1871,7 +1867,7 @@ export default function Inventory() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5" />
-              Part Details
+              {selectedViewItem.category === "Materials" ? "Material Details" : "Part Details"}
             </DialogTitle>
           </DialogHeader>
           
@@ -1914,7 +1910,15 @@ export default function Inventory() {
               </div>
 
               {/* Description */}
-              {selectedViewItem.description && (
+              {selectedViewItem.description && selectedViewItem.description.trim() && selectedViewItem.category !== "Materials" && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                  <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedViewItem.description}</p>
+                </div>
+              )}
+              
+              {/* Material Description - only if user entered something */}
+              {selectedViewItem.category === "Materials" && selectedViewItem.description && selectedViewItem.description.trim() && (
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Description</Label>
                   <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedViewItem.description}</p>
