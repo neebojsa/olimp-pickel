@@ -1713,12 +1713,12 @@ export default function Inventory() {
                 </div>
               )}
 
-              {/* Downloadable Files */}
+              {/* Files */}
               {selectedViewItem.drawings_files && selectedViewItem.drawings_files.length > 0 && (
                 <div>
                   <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
                     <FileText className="w-4 h-4" />
-                    Downloadable Files
+                    Files
                   </Label>
                   <div className="space-y-2">
                     {selectedViewItem.drawings_files.map((file: any, index: number) => (
@@ -1733,11 +1733,31 @@ export default function Inventory() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = file.url;
-                            link.download = file.name;
-                            link.click();
+                          onClick={async () => {
+                            try {
+                              // Fetch the file and create a blob URL for download
+                              const response = await fetch(file.url);
+                              const blob = await response.blob();
+                              const blobUrl = URL.createObjectURL(blob);
+                              
+                              const link = document.createElement('a');
+                              link.href = blobUrl;
+                              link.download = file.name;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              
+                              // Clean up the blob URL
+                              URL.revokeObjectURL(blobUrl);
+                            } catch (error) {
+                              console.error('Download failed:', error);
+                              // Fallback to original method
+                              const link = document.createElement('a');
+                              link.href = file.url;
+                              link.download = file.name;
+                              link.target = '_blank';
+                              link.click();
+                            }
                           }}
                         >
                           <Download className="w-4 h-4 mr-1" />
