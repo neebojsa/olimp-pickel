@@ -347,22 +347,20 @@ export default function Inventory() {
       photo: null
     });
     
-    // For materials, parse the structured data from description
-    if (item.category === "Materials" && item.description) {
-      try {
-        const materialInfo = JSON.parse(item.description);
-        setMaterialData({
-          surfaceFinish: materialInfo.surfaceFinish || "",
-          shape: materialInfo.shape || "",
-          material: materialInfo.material || "",
-          dimensions: materialInfo.dimensions || {},
-          generatedName: item.name,
-          priceUnit: materialInfo.priceUnit || "per_meter"
-        });
-      } catch {
-        // If parsing fails, reset material data
-        setMaterialData(null);
-      }
+    // For materials, parse the structured data from materials_used
+    if (item?.category === "Materials" && item.materials_used) {
+      const materialInfo = item.materials_used;
+      setMaterialData({
+        surfaceFinish: materialInfo.surfaceFinish || "",
+        shape: materialInfo.shape || "",
+        material: materialInfo.material || "",
+        dimensions: materialInfo.dimensions || {},
+        generatedName: item.name,
+        priceUnit: materialInfo.priceUnit || "per_meter"
+      });
+    } else {
+      // Reset material data for non-materials
+      setMaterialData(null);
     }
     
     if (item.photo_url) {
@@ -395,7 +393,7 @@ export default function Inventory() {
 
   const handleUpdateItem = async () => {
     // For materials, validate material data instead of name
-    if (editingItem.category === "Materials") {
+    if (editingItem?.category === "Materials") {
       if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material) {
         toast({
           title: "Error",
@@ -423,7 +421,7 @@ export default function Inventory() {
         photoUrl = await uploadPhoto(formData.photo);
       }
 
-      const itemName = editingItem.category === "Materials" && materialData 
+      const itemName = editingItem?.category === "Materials" && materialData 
         ? materialData.generatedName 
         : formData.name;
 
@@ -432,7 +430,7 @@ export default function Inventory() {
         .update({
           part_number: formData.part_number,
           name: itemName,
-          description: editingItem.category === "Materials" 
+          description: editingItem?.category === "Materials" 
             ? formData.description || null
             : formData.description,
           quantity: parseInt(formData.quantity) || 0,
@@ -441,7 +439,7 @@ export default function Inventory() {
           category: formData.category,
           supplier: formData.supplier || null,
           photo_url: photoUrl,
-        materials_used: editingItem.category === "Materials" && materialData 
+        materials_used: editingItem?.category === "Materials" && materialData 
           ? {
               surfaceFinish: materialData.surfaceFinish,
               shape: materialData.shape,
@@ -498,8 +496,8 @@ export default function Inventory() {
 
   const getFilteredItems = (category: string) => {
     return inventoryItems.filter(item => 
-      item.category === category && 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      item && item?.category === category && 
+      item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
@@ -841,7 +839,8 @@ export default function Inventory() {
               <div className="space-y-3">
                 {filteredItems.length > 0 ? (
                   filteredItems.map((item) => (
-                     <Card 
+                    item && ( // Add null check for the entire item
+                      <Card
                       key={item.id} 
                       className={`${category === "Materials" ? "h-20" : "h-40"} hover:shadow-md transition-shadow cursor-pointer`}
                       onClick={() => {
@@ -852,7 +851,7 @@ export default function Inventory() {
                        <CardContent className="p-4 h-full">
                          <div className="flex h-full gap-4">
                            {/* Material Shape Icon or Regular Image */}
-                            {item.category === "Materials" ? (
+                             {item?.category === "Materials" ? (
                               (() => {
                                 const materialInfo = item.materials_used || {};
                                 const ShapeIcon = getMaterialShapeIcon(materialInfo?.shape);
@@ -887,7 +886,7 @@ export default function Inventory() {
                                <div className="flex items-start justify-between">
                                  <div className="min-w-0 flex-1">
                                    <h3 className="font-semibold text-lg truncate">{item.name}</h3>
-                                   {item.part_number && item.category !== "Materials" && (
+                                   {item.part_number && item?.category !== "Materials" && (
                                      <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>
                                    )}
                                  </div>
@@ -975,7 +974,7 @@ export default function Inventory() {
                             
                              <div className="flex items-center justify-between">
                                <div className="flex items-center gap-4">
-                                  {item.category === "Materials" ? (
+                                  {item?.category === "Materials" ? (
                                     (() => {
                                       const materialInfo = item.materials_used || {};
                                       const quantity = formatMaterialQuantity(materialInfo, item.currentQuantity);
@@ -1024,7 +1023,8 @@ export default function Inventory() {
                           </div>
                         </div>
                       </CardContent>
-                    </Card>
+                     </Card>
+                    )
                   ))
                 ) : (
                   <div className="text-center py-12">
@@ -1875,7 +1875,7 @@ export default function Inventory() {
             <div className="space-y-6">
               {/* Photo and Basic Info */}
               <div className="flex gap-6">
-                {selectedViewItem.category !== "Materials" && (
+                {selectedViewItem?.category !== "Materials" && (
                   <div className="w-48 h-48 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                     {selectedViewItem.photo_url ? (
                       <img 
@@ -1910,7 +1910,7 @@ export default function Inventory() {
               </div>
 
               {/* Description */}
-              {selectedViewItem.description && selectedViewItem.description.trim() && selectedViewItem.category !== "Materials" && (
+              {selectedViewItem?.description && selectedViewItem.description.trim() && selectedViewItem?.category !== "Materials" && (
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Description</Label>
                   <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedViewItem.description}</p>
@@ -1918,7 +1918,7 @@ export default function Inventory() {
               )}
               
               {/* Material Description - only if user entered something */}
-              {selectedViewItem.category === "Materials" && selectedViewItem.description && selectedViewItem.description.trim() && (
+              {selectedViewItem?.category === "Materials" && selectedViewItem?.description && selectedViewItem.description.trim() && (
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Description</Label>
                   <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedViewItem.description}</p>
