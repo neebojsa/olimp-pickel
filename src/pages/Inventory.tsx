@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
 import PartHistoryDialog from "@/components/PartHistoryDialog";
+import { MaterialForm, MaterialData } from "@/components/MaterialForm";
 import { format } from "date-fns";
 
 export default function Inventory() {
@@ -55,6 +56,7 @@ export default function Inventory() {
   const [toolsList, setToolsList] = useState<any[]>([]);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedViewItem, setSelectedViewItem] = useState<any>(null);
+  const [materialData, setMaterialData] = useState<MaterialData | null>(null);
 
   useEffect(() => {
     fetchInventoryItems();
@@ -232,7 +234,17 @@ export default function Inventory() {
   };
 
   const handleSaveItem = async () => {
-    if (!formData.name || !formData.quantity || !formData.unit_price) {
+    // For materials, validate material data instead of name
+    if (currentCategory === "Materials") {
+      if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material || !formData.quantity || !formData.unit_price) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required material fields.",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (!formData.name || !formData.quantity || !formData.unit_price) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields.",
@@ -257,12 +269,23 @@ export default function Inventory() {
       }
     }
 
+    const itemName = currentCategory === "Materials" && materialData 
+      ? materialData.generatedName 
+      : formData.name;
+
     const { error } = await supabase
       .from('inventory')
       .insert({
         part_number: formData.part_number,
-        name: formData.name,
-        description: formData.description,
+        name: itemName,
+        description: currentCategory === "Materials" && materialData 
+          ? JSON.stringify({
+              surfaceFinish: materialData.surfaceFinish,
+              shape: materialData.shape,
+              material: materialData.material,
+              dimensions: materialData.dimensions
+            })
+          : formData.description,
         quantity: parseInt(formData.quantity),
         unit_price: parseFloat(formData.unit_price),
         location: formData.location,
@@ -286,6 +309,7 @@ export default function Inventory() {
         photo: null
       });
       setPhotoPreview(null);
+      setMaterialData(null);
       setIsAddDialogOpen(false);
       fetchInventoryItems();
       toast({
@@ -320,6 +344,24 @@ export default function Inventory() {
       customer_id: item.customer_id || "",
       photo: null
     });
+    
+    // For materials, parse the structured data from description
+    if (item.category === "Materials" && item.description) {
+      try {
+        const materialInfo = JSON.parse(item.description);
+        setMaterialData({
+          surfaceFinish: materialInfo.surfaceFinish || "",
+          shape: materialInfo.shape || "",
+          material: materialInfo.material || "",
+          dimensions: materialInfo.dimensions || {},
+          generatedName: item.name
+        });
+      } catch {
+        // If parsing fails, reset material data
+        setMaterialData(null);
+      }
+    }
+    
     if (item.photo_url) {
       setPhotoPreview(item.photo_url);
     }
@@ -349,7 +391,17 @@ export default function Inventory() {
   };
 
   const handleUpdateItem = async () => {
-    if (!formData.name.trim()) {
+    // For materials, validate material data instead of name
+    if (editingItem.category === "Materials") {
+      if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required material fields",
+          variant: "destructive"
+        });
+        return;
+      }
+    } else if (!formData.name.trim()) {
       toast({
         title: "Error",
         description: "Item name is required",
@@ -368,12 +420,23 @@ export default function Inventory() {
         photoUrl = await uploadPhoto(formData.photo);
       }
 
+      const itemName = editingItem.category === "Materials" && materialData 
+        ? materialData.generatedName 
+        : formData.name;
+
       const { error } = await supabase
         .from('inventory')
         .update({
           part_number: formData.part_number,
-          name: formData.name,
-          description: formData.description,
+          name: itemName,
+          description: editingItem.category === "Materials" && materialData 
+            ? JSON.stringify({
+                surfaceFinish: materialData.surfaceFinish,
+                shape: materialData.shape,
+                material: materialData.material,
+                dimensions: materialData.dimensions
+              })
+            : formData.description,
           quantity: parseInt(formData.quantity) || 0,
           unit_price: parseFloat(formData.unit_price) || 0,
           location: formData.location,
@@ -413,6 +476,7 @@ export default function Inventory() {
       setMaterialsUsed([{ name: "", notes: "" }]);
       setToolsUsed([{ name: "", notes: "" }]);
       setUploadedFiles([]);
+      setMaterialData(null);
       setIsEditDialogOpen(false);
     } catch (error) {
       console.error('Error updating item:', error);
@@ -841,15 +905,22 @@ export default function Inventory() {
                 />
               </div>
             )}
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter item name"
+            {currentCategory === "Materials" ? (
+              <MaterialForm 
+                onMaterialChange={setMaterialData}
+                initialData={materialData || undefined}
               />
-            </div>
+            ) : (
+              <div className="grid gap-2">
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter item name"
+                />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -984,15 +1055,22 @@ export default function Inventory() {
                 />
               </div>
             )}
-            <div className="grid gap-2">
-              <Label htmlFor="edit_name">Name *</Label>
-              <Input
-                id="edit_name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter item name"
+            {editingItem?.category === "Materials" ? (
+              <MaterialForm 
+                onMaterialChange={setMaterialData}
+                initialData={materialData || undefined}
               />
-            </div>
+            ) : (
+              <div className="grid gap-2">
+                <Label htmlFor="edit_name">Name *</Label>
+                <Input
+                  id="edit_name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter item name"
+                />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="edit_description">Description</Label>
               <Textarea
