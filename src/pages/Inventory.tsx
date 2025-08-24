@@ -37,7 +37,7 @@ export default function Inventory() {
     unit_price: "",
     location: "",
     category: "Parts",
-    customer_id: "",
+    supplier: "",
     photo: null as File | null
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -290,7 +290,7 @@ export default function Inventory() {
         unit_price: parseFloat(formData.unit_price),
         location: formData.location,
         category: formData.category,
-        customer_id: formData.customer_id || null,
+        supplier: formData.supplier || null,
         photo_url: photoUrl
       });
 
@@ -305,7 +305,7 @@ export default function Inventory() {
         unit_price: "",
         location: "",
         category: currentCategory,
-        customer_id: "",
+        supplier: "",
         photo: null
       });
       setPhotoPreview(null);
@@ -341,7 +341,7 @@ export default function Inventory() {
       unit_price: item.unit_price.toString(),
       location: item.location || "",
       category: item.category,
-      customer_id: item.customer_id || "",
+      supplier: item.supplier || "",
       photo: null
     });
     
@@ -354,7 +354,8 @@ export default function Inventory() {
           shape: materialInfo.shape || "",
           material: materialInfo.material || "",
           dimensions: materialInfo.dimensions || {},
-          generatedName: item.name
+          generatedName: item.name,
+          priceUnit: materialInfo.priceUnit || "per_meter"
         });
       } catch {
         // If parsing fails, reset material data
@@ -441,7 +442,7 @@ export default function Inventory() {
           unit_price: parseFloat(formData.unit_price) || 0,
           location: formData.location,
           category: formData.category,
-          customer_id: formData.customer_id || null,
+          supplier: formData.supplier || null,
           photo_url: photoUrl,
           materials_used: materialsUsed.filter(m => m.name),
           tools_used: toolsUsed.filter(t => t.name), 
@@ -468,7 +469,7 @@ export default function Inventory() {
         unit_price: "",
         location: "",
         category: "Parts",
-        customer_id: "",
+        supplier: "",
         photo: null
       });
       setPhotoPreview(null);
@@ -1130,15 +1131,15 @@ export default function Inventory() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="customer">Customer</Label>
-              <Select value={formData.customer_id} onValueChange={(value) => setFormData(prev => ({ ...prev, customer_id: value }))}>
-                <SelectTrigger id="customer">
-                  <SelectValue placeholder="Select a customer" />
+              <Label htmlFor="supplier">Supplier</Label>
+              <Select value={formData.supplier} onValueChange={(value) => setFormData(prev => ({ ...prev, supplier: value }))}>
+                <SelectTrigger id="supplier">
+                  <SelectValue placeholder="Select a supplier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.name}>
+                      {supplier.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1281,15 +1282,15 @@ export default function Inventory() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit_customer">Customer</Label>
-              <Select value={formData.customer_id} onValueChange={(value) => setFormData(prev => ({ ...prev, customer_id: value }))}>
-                <SelectTrigger id="edit_customer">
-                  <SelectValue placeholder="Select a customer" />
+              <Label htmlFor="edit_supplier">Supplier</Label>
+              <Select value={formData.supplier} onValueChange={(value) => setFormData(prev => ({ ...prev, supplier: value }))}>
+                <SelectTrigger id="edit_supplier">
+                  <SelectValue placeholder="Select a supplier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.name}>
+                      {supplier.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

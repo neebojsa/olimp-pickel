@@ -16,6 +16,7 @@ export interface MaterialData {
   material: string;
   dimensions: { [key: string]: string };
   generatedName: string;
+  priceUnit: string;
 }
 
 const surfaceFinishOptions = [
@@ -132,6 +133,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
   const [shape, setShape] = useState(initialData?.shape || "");
   const [material, setMaterial] = useState(initialData?.material || "");
   const [dimensions, setDimensions] = useState(initialData?.dimensions || {});
+  const [priceUnit, setPriceUnit] = useState(initialData?.priceUnit || "per_meter");
   const [customSurfaceFinish, setCustomSurfaceFinish] = useState("");
   const [customShape, setCustomShape] = useState("");
   const [customMaterial, setCustomMaterial] = useState("");
@@ -141,6 +143,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
     const newShape = updates.shape ?? shape;
     const newMaterial = updates.material ?? material;
     const newDimensions = updates.dimensions ?? dimensions;
+    const newPriceUnit = updates.priceUnit ?? priceUnit;
     
     const generatedName = generateMaterialName(newSurfaceFinish, newShape, newMaterial, newDimensions);
     
@@ -149,7 +152,8 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
       shape: newShape,
       material: newMaterial,
       dimensions: newDimensions,
-      generatedName
+      generatedName,
+      priceUnit: newPriceUnit
     });
   };
 
@@ -294,6 +298,23 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
           </Card>
         </div>
       )}
+
+      {/* Price Unit Selection */}
+      <div className="grid gap-2">
+        <Label htmlFor="price_unit">Price Per Unit *</Label>
+        <Select value={priceUnit} onValueChange={(value) => {
+          setPriceUnit(value);
+          updateMaterialData({ priceUnit: value });
+        }}>
+          <SelectTrigger id="price_unit">
+            <SelectValue placeholder="Select pricing unit" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="per_meter">Per Meter</SelectItem>
+            <SelectItem value="per_kg">Per Kg</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Generated Name Preview */}
       {surfaceFinish && shape && material && (

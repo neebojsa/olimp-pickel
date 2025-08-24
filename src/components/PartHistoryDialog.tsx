@@ -50,7 +50,7 @@ export default function PartHistoryDialog({ isOpen, onClose, item, historyData }
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Part History - {item?.name}
+              {item?.category === "Materials" ? "Material Details" : "Part History"} - {item?.name}
             </DialogTitle>
           </DialogHeader>
           
@@ -61,7 +61,9 @@ export default function PartHistoryDialog({ isOpen, onClose, item, historyData }
                 {item?.part_number && (
                   <p className="text-sm text-muted-foreground">Part #: {item.part_number}</p>
                 )}
-                <p className="text-xs text-muted-foreground">SKU: SKU-{item?.id}</p>
+                {item?.description && item.description.trim() && (
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                )}
               </div>
               <Button onClick={handlePrint} variant="outline" className="no-print">
                 <Printer className="h-4 w-4 mr-2" />
