@@ -663,17 +663,19 @@ export default function Inventory() {
                       <CardContent className="p-4 h-full">
                         <div className="flex h-full gap-4">
                           {/* Image */}
-                          <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                            {item.image ? (
-                              <img 
-                                src={item.image} 
-                                alt={item.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <CategoryIcon className="w-12 h-12 text-muted-foreground" />
-                            )}
-                          </div>
+                          {item.category !== "Materials" && (
+                            <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                              {item.image ? (
+                                <img 
+                                  src={item.image} 
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <CategoryIcon className="w-12 h-12 text-muted-foreground" />
+                              )}
+                            </div>
+                          )}
                           
                           {/* Content */}
                           <div className="flex-1 flex flex-col justify-between min-w-0">
@@ -910,46 +912,48 @@ export default function Inventory() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="photo">Photo</Label>
-              <div className="space-y-2">
-                {photoPreview ? (
-                  <div className="relative">
-                    <img 
-                      src={photoPreview} 
-                      alt="Preview" 
-                      className="w-32 h-32 object-cover rounded-lg border"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute -top-2 -right-2 h-6 w-6"
-                      onClick={handleRemovePhoto}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
-                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground mb-2">Click to upload photo</p>
-                    <Input
-                      id="photo"
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                    />
-                    <Label htmlFor="photo" className="cursor-pointer">
-                      <Button type="button" variant="outline" size="sm" asChild>
-                        <span>Choose File</span>
+            {formData.category !== "Materials" && (
+              <div className="grid gap-2">
+                <Label htmlFor="photo">Photo</Label>
+                <div className="space-y-2">
+                  {photoPreview ? (
+                    <div className="relative">
+                      <img 
+                        src={photoPreview} 
+                        alt="Preview" 
+                        className="w-32 h-32 object-cover rounded-lg border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={handleRemovePhoto}
+                      >
+                        <X className="h-3 w-3" />
                       </Button>
-                    </Label>
-                  </div>
-                )}
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
+                      <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">Click to upload photo</p>
+                      <Input
+                        id="photo"
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                      />
+                      <Label htmlFor="photo" className="cursor-pointer">
+                        <Button type="button" variant="outline" size="sm" asChild>
+                          <span>Choose File</span>
+                        </Button>
+                      </Label>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <div className="flex justify-end space-x-2">
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
@@ -1052,46 +1056,48 @@ export default function Inventory() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit_photo">Photo</Label>
-              <div className="space-y-2">
-                {photoPreview ? (
-                  <div className="relative">
-                    <img 
-                      src={photoPreview} 
-                      alt="Preview" 
-                      className="w-32 h-32 object-cover rounded-lg border"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute -top-2 -right-2 h-6 w-6"
-                      onClick={handleRemovePhoto}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
-                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground mb-2">Click to upload photo</p>
-                    <Input
-                      id="edit_photo"
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                    />
-                    <Label htmlFor="edit_photo" className="cursor-pointer">
-                      <Button type="button" variant="outline" size="sm" asChild>
-                        <span>Choose File</span>
+            {formData.category !== "Materials" && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit_photo">Photo</Label>
+                <div className="space-y-2">
+                  {photoPreview ? (
+                    <div className="relative">
+                      <img 
+                        src={photoPreview} 
+                        alt="Preview" 
+                        className="w-32 h-32 object-cover rounded-lg border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={handleRemovePhoto}
+                      >
+                        <X className="h-3 w-3" />
                       </Button>
-                    </Label>
-                  </div>
-                )}
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
+                      <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">Click to upload photo</p>
+                      <Input
+                        id="edit_photo"
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                      />
+                      <Label htmlFor="edit_photo" className="cursor-pointer">
+                        <Button type="button" variant="outline" size="sm" asChild>
+                          <span>Choose File</span>
+                        </Button>
+                      </Label>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
             
             {editingItem?.category === "Parts" && (
               <>
@@ -1633,17 +1639,19 @@ export default function Inventory() {
             <div className="space-y-6">
               {/* Photo and Basic Info */}
               <div className="flex gap-6">
-                <div className="w-48 h-48 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                  {selectedViewItem.photo_url ? (
-                    <img 
-                      src={selectedViewItem.photo_url} 
-                      alt={selectedViewItem.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Package className="w-16 h-16 text-muted-foreground" />
-                  )}
-                </div>
+                {selectedViewItem.category !== "Materials" && (
+                  <div className="w-48 h-48 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {selectedViewItem.photo_url ? (
+                      <img 
+                        src={selectedViewItem.photo_url} 
+                        alt={selectedViewItem.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Package className="w-16 h-16 text-muted-foreground" />
+                    )}
+                  </div>
+                )}
                 <div className="flex-1 space-y-4">
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Part Name</Label>
