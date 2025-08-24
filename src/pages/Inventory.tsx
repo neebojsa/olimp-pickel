@@ -1867,7 +1867,7 @@ export default function Inventory() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5" />
-              {selectedViewItem.category === "Materials" ? "Material Details" : "Part Details"}
+              {selectedViewItem?.category === "Materials" ? "Material Details" : "Part Details"}
             </DialogTitle>
           </DialogHeader>
           
