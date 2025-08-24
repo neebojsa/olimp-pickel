@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Eye, Edit, Trash2 } from 'lucide-react';
-import MaterialForm from '@/components/MaterialForm';
+import AddMaterialDialog from '@/components/AddMaterialDialog';
 import ViewMaterialDialog from '@/components/ViewMaterialDialog';
 import EditMaterialDialog from '@/components/EditMaterialDialog';
 import { useToast } from "@/components/ui/use-toast"
@@ -138,7 +138,7 @@ const Inventory = () => {
         </div>
       </div>
 
-      <MaterialForm open={isFormOpen} setOpen={setIsFormOpen} onMaterialAdded={fetchMaterials} />
+      <AddMaterialDialog open={isFormOpen} setOpen={setIsFormOpen} onMaterialAdded={fetchMaterials} />
       <ViewMaterialDialog open={isViewOpen} setOpen={setIsViewOpen} item={selectedItem} />
       <EditMaterialDialog open={isEditOpen} setOpen={setIsEditOpen} item={selectedItem} onMaterialUpdated={fetchMaterials} />
     </div>
