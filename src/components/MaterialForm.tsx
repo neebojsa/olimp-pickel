@@ -391,16 +391,22 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
             {generateMaterialName(surfaceFinish, shape, material, dimensions, materialLibraryItem)}
           </p>
           {materialLibraryItem && (
-            <div className="mt-3 space-y-1">
-              <p className="text-sm">
-                <span className="font-medium">Material Number:</span> {materialLibraryItem.material_number}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Density:</span> {materialLibraryItem.density} g/cm³
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Type:</span> {materialLibraryItem.material_type}
-              </p>
+            <div className="mt-3 space-y-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm">
+                    <span className="font-medium">Material Number:</span> {materialLibraryItem.material_number}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-medium">Type:</span> {materialLibraryItem.material_type}
+                  </p>
+                </div>
+                <div className="bg-primary/5 p-3 rounded border">
+                  <p className="text-sm font-medium text-primary mb-1">Specific Density</p>
+                  <p className="text-lg font-bold text-primary">{materialLibraryItem.density} g/cm³</p>
+                  <p className="text-xs text-muted-foreground">Used for weight calculations</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
