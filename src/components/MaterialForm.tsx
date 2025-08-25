@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -7,17 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Circle, Square, Hexagon, Cylinder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Box, 
-  Circle, 
-  Square, 
-  Triangle,
-  Cylinder,
-  Hexagon
-} from "lucide-react";
 
 interface MaterialFormProps {
   onMaterialChange: (materialData: MaterialData) => void;
@@ -188,7 +180,15 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
     }
   }, [selectedMaterialType, materialsLibrary]);
 
-  const updateMaterialData = () => {
+  // Memoized callback to prevent unnecessary re-renders
+  const handleMaterialDataChange = useCallback((
+    surfaceFinish: string,
+    shape: string,
+    material: string,
+    materialLibraryItem: MaterialLibraryItem | undefined,
+    dimensions: { [key: string]: string },
+    priceUnit: 'per_kg' | 'per_meter'
+  ) => {
     const generatedName = generateMaterialName(surfaceFinish, shape, material, dimensions, materialLibraryItem);
     const materialData: MaterialData = {
       surfaceFinish,
@@ -200,11 +200,11 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
       priceUnit
     };
     onMaterialChange(materialData);
-  };
+  }, [onMaterialChange]);
 
   useEffect(() => {
-    updateMaterialData();
-  }, [surfaceFinish, shape, material, materialLibraryItem, dimensions, priceUnit]);
+    handleMaterialDataChange(surfaceFinish, shape, material, materialLibraryItem, dimensions, priceUnit);
+  }, [surfaceFinish, shape, material, materialLibraryItem, dimensions, priceUnit, handleMaterialDataChange]);
 
   const handleMaterialChange = (value: string) => {
     setMaterial(value);
