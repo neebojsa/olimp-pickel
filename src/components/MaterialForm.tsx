@@ -1,335 +1,417 @@
-import { useState } from "react";
-import { Label } from "@/components/ui/label";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Circle, Square, Hexagon, Cylinder } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { 
+  Box, 
+  Circle, 
+  Square, 
+  Triangle,
+  Cylinder,
+  Hexagon
+} from "lucide-react";
 
 interface MaterialFormProps {
   onMaterialChange: (materialData: MaterialData) => void;
   initialData?: Partial<MaterialData>;
 }
 
+interface MaterialLibraryItem {
+  id: string;
+  material_type: string;
+  grade: string;
+  material_number: string;
+  density: number;
+  description: string;
+}
+
 export interface MaterialData {
   surfaceFinish: string;
   shape: string;
   material: string;
+  materialLibraryItem?: MaterialLibraryItem;
   dimensions: { [key: string]: string };
   generatedName: string;
-  priceUnit: string;
+  priceUnit: 'per_kg' | 'per_meter';
 }
 
+// Surface finish options
 const surfaceFinishOptions = [
-  "Cold Drawn",
-  "Hot Rolled", 
-  "Polished",
-  "Chromed",
-  "Hardened+Chromed"
+  'Cold Drawn',
+  'Hot Rolled',
+  'Polished',
+  'Chromed',
+  'Hardened+Chromed',
+  'Anodized',
+  'Galvanized',
+  'Custom'
 ];
 
+// Shape options
 const shapeOptions = [
-  "Round bar",
-  "Rectangular bar",
-  "Square bar", 
-  "Hex bar",
-  "Round tube",
-  "Rectangular tube",
-  "Square tube",
-  "Sheet"
+  'Round bar',
+  'Rectangular bar',
+  'Square bar',
+  'Hex bar',
+  'Round tube',
+  'Rectangular tube',
+  'Square tube',
+  'Sheet',
+  'Custom'
 ];
 
-const materialOptions = [
-  "s355",
-  "s235",
-  "C45",
-  "AlSiMg1", 
-  "X153CrMoV12",
-  "16MnCr5",
-  "1.4305",
-  "1.4301"
-];
+// Material types for filtering
+const materialTypes = ['Steel', 'Bronze', 'Aluminium'];
 
 const getShapeIcon = (shape: string) => {
-  if (shape.includes("Round")) return Circle;
-  if (shape.includes("Square")) return Square;  
-  if (shape.includes("Hex")) return Hexagon;
-  if (shape.includes("Rectangular")) return Square;
-  if (shape.includes("Sheet")) return Square;
+  if (shape.includes('Round')) return Circle;
+  if (shape.includes('Square')) return Square;
+  if (shape.includes('Hex')) return Hexagon;
+  if (shape.includes('Rectangular')) return Square;
+  if (shape.includes('Sheet')) return Square;
   return Circle;
 };
 
 const getSizeFields = (shape: string) => {
   switch (shape) {
-    case "Round bar":
+    case 'Round bar':
       return [
-        { key: "diameter", label: "Diameter (mm)", placeholder: "e.g. 20" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: 'diameter', label: 'Diameter (mm)', placeholder: 'e.g. 20' },
+        { key: 'length', label: 'Length (mm)', placeholder: 'e.g. 3000' }
       ];
-    case "Rectangular bar":
+    case 'Rectangular bar':
       return [
-        { key: "width", label: "Width (mm)", placeholder: "e.g. 40" },
-        { key: "height", label: "Height (mm)", placeholder: "e.g. 20" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: 'width', label: 'Width (mm)', placeholder: 'e.g. 40' },
+        { key: 'height', label: 'Height (mm)', placeholder: 'e.g. 20' },
+        { key: 'length', label: 'Length (mm)', placeholder: 'e.g. 3000' }
       ];
-    case "Square bar":
+    case 'Square bar':
       return [
-        { key: "side", label: "Side (mm)", placeholder: "e.g. 25" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: 'side', label: 'Side (mm)', placeholder: 'e.g. 25' },
+        { key: 'length', label: 'Length (mm)', placeholder: 'e.g. 3000' }
       ];
-    case "Hex bar":
+    case 'Hex bar':
       return [
-        { key: "diameter", label: "Across Flats (mm)", placeholder: "e.g. 19" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: 'diameter', label: 'Across Flats (mm)', placeholder: 'e.g. 19' },
+        { key: 'length', label: 'Length (mm)', placeholder: 'e.g. 3000' }
       ];
-    case "Round tube":
+    case 'Round tube':
       return [
-        { key: "outerDiameter", label: "Outer Ø (mm)", placeholder: "e.g. 25" },
-        { key: "wallThickness", label: "Wall Thickness (mm)", placeholder: "e.g. 2" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: 'outerDiameter', label: 'Outer Ø (mm)', placeholder: 'e.g. 25' },
+        { key: 'wallThickness', label: 'Wall Thickness (mm)', placeholder: 'e.g. 2' },
+        { key: 'length', label: 'Length (mm)', placeholder: 'e.g. 3000' }
       ];
-    case "Rectangular tube":
+    case 'Rectangular tube':
       return [
-        { key: "width", label: "Width (mm)", placeholder: "e.g. 40" },
-        { key: "height", label: "Height (mm)", placeholder: "e.g. 20" },
-        { key: "wallThickness", label: "Wall Thickness (mm)", placeholder: "e.g. 2" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: 'width', label: 'Width (mm)', placeholder: 'e.g. 40' },
+        { key: 'height', label: 'Height (mm)', placeholder: 'e.g. 20' },
+        { key: 'wallThickness', label: 'Wall Thickness (mm)', placeholder: 'e.g. 2' },
+        { key: 'length', label: 'Length (mm)', placeholder: 'e.g. 3000' }
       ];
-    case "Square tube":
+    case 'Square tube':
       return [
-        { key: "side", label: "Side (mm)", placeholder: "e.g. 25" },
-        { key: "wallThickness", label: "Wall Thickness (mm)", placeholder: "e.g. 2" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: 'side', label: 'Side (mm)', placeholder: 'e.g. 25' },
+        { key: 'wallThickness', label: 'Wall Thickness (mm)', placeholder: 'e.g. 2' },
+        { key: 'length', label: 'Length (mm)', placeholder: 'e.g. 3000' }
       ];
-    case "Sheet":
+    case 'Sheet':
       return [
-        { key: "thickness", label: "Thickness (mm)", placeholder: "e.g. 5" },
-        { key: "width", label: "Width (mm)", placeholder: "e.g. 1000" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 2000" }
+        { key: 'thickness', label: 'Thickness (mm)', placeholder: 'e.g. 5' },
+        { key: 'width', label: 'Width (mm)', placeholder: 'e.g. 1000' },
+        { key: 'length', label: 'Length (mm)', placeholder: 'e.g. 2000' }
       ];
     default:
       return [];
   }
 };
 
-const generateMaterialName = (surfaceFinish: string, shape: string, material: string, dimensions: { [key: string]: string }) => {
-  const parts = [material, shape, surfaceFinish];
-  
-  // Add key dimensions to name
-  const sizeFields = getSizeFields(shape);
-  const sizeParts = sizeFields
-    .filter(field => dimensions[field.key])
-    .map(field => `${dimensions[field.key]}${field.key === 'length' ? 'L' : ''}`)
-    .slice(0, 2); // Only show first 2 dimensions to keep name short
-  
-  if (sizeParts.length > 0) {
-    parts.splice(1, 0, sizeParts.join('x'));
-  }
-  
-  return parts.filter(Boolean).join(' - ');
-};
-
-export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProps) {
-  const [surfaceFinish, setSurfaceFinish] = useState(initialData?.surfaceFinish || "");
-  const [shape, setShape] = useState(initialData?.shape || "");
-  const [material, setMaterial] = useState(initialData?.material || "");
-  const [dimensions, setDimensions] = useState(initialData?.dimensions || {});
-  const [priceUnit, setPriceUnit] = useState(initialData?.priceUnit || "per_meter");
-  const [customSurfaceFinish, setCustomSurfaceFinish] = useState("");
-  const [customShape, setCustomShape] = useState("");
-  const [customMaterial, setCustomMaterial] = useState("");
-
-  const updateMaterialData = (updates: Partial<MaterialData>) => {
-    const newSurfaceFinish = updates.surfaceFinish ?? surfaceFinish;
-    const newShape = updates.shape ?? shape;
-    const newMaterial = updates.material ?? material;
-    const newDimensions = updates.dimensions ?? dimensions;
-    const newPriceUnit = updates.priceUnit ?? priceUnit;
-    
-    const generatedName = generateMaterialName(newSurfaceFinish, newShape, newMaterial, newDimensions);
-    
-    onMaterialChange({
-      surfaceFinish: newSurfaceFinish,
-      shape: newShape,
-      material: newMaterial,
-      dimensions: newDimensions,
-      generatedName,
-      priceUnit: newPriceUnit
+function generateMaterialName(surfaceFinish: string, shape: string, material: string, dimensions: { [key: string]: string }, materialLibraryItem?: MaterialLibraryItem): string {
+  const dimArray = Object.entries(dimensions)
+    .filter(([_, value]) => value)
+    .map(([key, value]) => {
+      if (key === 'length') return `${value}L`;
+      return value;
     });
+  
+  const dimString = dimArray.join('x');
+  
+  // Use grade from library if available, otherwise use material input
+  const materialName = materialLibraryItem ? materialLibraryItem.grade : material;
+  
+  return `${materialName} - ${dimString} - ${shape} - ${surfaceFinish}`;
+}
+
+export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, initialData }) => {
+  const [surfaceFinish, setSurfaceFinish] = useState(initialData?.surfaceFinish || '');
+  const [shape, setShape] = useState(initialData?.shape || '');
+  const [material, setMaterial] = useState(initialData?.material || '');
+  const [materialLibraryItem, setMaterialLibraryItem] = useState<MaterialLibraryItem | undefined>(initialData?.materialLibraryItem);
+  const [dimensions, setDimensions] = useState<{ [key: string]: string }>(initialData?.dimensions || {});
+  const [priceUnit, setPriceUnit] = useState<'per_kg' | 'per_meter'>(initialData?.priceUnit || 'per_kg');
+  const [materialsLibrary, setMaterialsLibrary] = useState<MaterialLibraryItem[]>([]);
+  const [filteredMaterials, setFilteredMaterials] = useState<MaterialLibraryItem[]>([]);
+  const [selectedMaterialType, setSelectedMaterialType] = useState<string>('');
+  const [materialSearchOpen, setMaterialSearchOpen] = useState(false);
+
+  // Fetch materials library on component mount
+  useEffect(() => {
+    const fetchMaterialsLibrary = async () => {
+      const { data, error } = await supabase
+        .from('materials_library')
+        .select('*')
+        .order('material_type', { ascending: true })
+        .order('grade', { ascending: true });
+      
+      if (data && !error) {
+        setMaterialsLibrary(data);
+        setFilteredMaterials(data);
+      }
+    };
+    
+    fetchMaterialsLibrary();
+  }, []);
+
+  // Filter materials by type
+  useEffect(() => {
+    if (selectedMaterialType) {
+      setFilteredMaterials(materialsLibrary.filter(m => m.material_type === selectedMaterialType));
+    } else {
+      setFilteredMaterials(materialsLibrary);
+    }
+  }, [selectedMaterialType, materialsLibrary]);
+
+  const updateMaterialData = () => {
+    const generatedName = generateMaterialName(surfaceFinish, shape, material, dimensions, materialLibraryItem);
+    const materialData: MaterialData = {
+      surfaceFinish,
+      shape,
+      material,
+      materialLibraryItem,
+      dimensions,
+      generatedName,
+      priceUnit
+    };
+    onMaterialChange(materialData);
   };
 
-  const handleSurfaceFinishChange = (value: string) => {
-    setSurfaceFinish(value);
-    updateMaterialData({ surfaceFinish: value });
-  };
-
-  const handleShapeChange = (value: string) => {
-    setShape(value);
-    setDimensions({}); // Reset dimensions when shape changes
-    updateMaterialData({ shape: value, dimensions: {} });
-  };
+  useEffect(() => {
+    updateMaterialData();
+  }, [surfaceFinish, shape, material, materialLibraryItem, dimensions, priceUnit]);
 
   const handleMaterialChange = (value: string) => {
     setMaterial(value);
-    updateMaterialData({ material: value });
+    // Clear library selection if user types custom material
+    if (materialLibraryItem && value !== materialLibraryItem.grade) {
+      setMaterialLibraryItem(undefined);
+    }
+  };
+
+  const handleMaterialLibrarySelect = (libraryItem: MaterialLibraryItem) => {
+    setMaterialLibraryItem(libraryItem);
+    setMaterial(libraryItem.grade);
+    setMaterialSearchOpen(false);
   };
 
   const handleDimensionChange = (key: string, value: string) => {
-    const newDimensions = { ...dimensions, [key]: value };
-    setDimensions(newDimensions);
-    updateMaterialData({ dimensions: newDimensions });
+    setDimensions(prev => ({ ...prev, [key]: value }));
   };
 
   const ShapeIcon = getShapeIcon(shape);
   const sizeFields = getSizeFields(shape);
 
   return (
-    <div className="space-y-4">
-      {/* Surface Finish */}
-      <div className="grid gap-2">
-        <Label htmlFor="surface_finish">Surface Finish *</Label>
-        <Select value={surfaceFinish} onValueChange={handleSurfaceFinishChange}>
-          <SelectTrigger id="surface_finish">
-            <SelectValue placeholder="Select surface finish" />
-          </SelectTrigger>
-          <SelectContent>
-            {surfaceFinishOptions.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-            <SelectItem value="custom">+ Add Custom</SelectItem>
-          </SelectContent>
-        </Select>
-        {surfaceFinish === "custom" && (
-          <Input
-            value={customSurfaceFinish}
-            onChange={(e) => {
-              setCustomSurfaceFinish(e.target.value);
-              updateMaterialData({ surfaceFinish: e.target.value });
-            }}
-            placeholder="Enter custom surface finish"
-          />
-        )}
-      </div>
-
-      {/* Shape */}
-      <div className="grid gap-2">
-        <Label htmlFor="shape">Shape *</Label>
-        <Select value={shape} onValueChange={handleShapeChange}>
-          <SelectTrigger id="shape">
-            <SelectValue placeholder="Select shape" />
-          </SelectTrigger>
-          <SelectContent>
-            {shapeOptions.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-            <SelectItem value="custom">+ Add Custom</SelectItem>
-          </SelectContent>
-        </Select>
-        {shape === "custom" && (
-          <Input
-            value={customShape}
-            onChange={(e) => {
-              setCustomShape(e.target.value);
-              updateMaterialData({ shape: e.target.value });
-            }}
-            placeholder="Enter custom shape"
-          />
-        )}
-      </div>
-
-      {/* Material */}
-      <div className="grid gap-2">
-        <Label htmlFor="material_type">Material *</Label>
-        <Select value={material} onValueChange={handleMaterialChange}>
-          <SelectTrigger id="material_type">
-            <SelectValue placeholder="Select material" />
-          </SelectTrigger>
-          <SelectContent>
-            {materialOptions.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-            <SelectItem value="custom">+ Add Custom</SelectItem>
-          </SelectContent>
-        </Select>
-        {material === "custom" && (
-          <Input
-            value={customMaterial}
-            onChange={(e) => {
-              setCustomMaterial(e.target.value);
-              updateMaterialData({ material: e.target.value });
-            }}
-            placeholder="Enter custom material"
-          />
-        )}
-      </div>
-
-      {/* Dynamic Size Fields */}
-      {shape && shape !== "custom" && sizeFields.length > 0 && (
-        <div className="grid gap-2">
-          <Label className="flex items-center gap-2">
-            <ShapeIcon className="w-4 h-4" />
-            Dimensions
-          </Label>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="grid gap-3">
-                {sizeFields.map((field) => (
-                  <div key={field.key} className="grid gap-1">
-                    <Label htmlFor={field.key} className="text-sm">
-                      {field.label}
-                    </Label>
-                    <Input
-                      id={field.key}
-                      type="number"
-                      step="0.1"
-                      value={dimensions[field.key] || ""}
-                      onChange={(e) => handleDimensionChange(field.key, e.target.value)}
-                      placeholder={field.placeholder}
-                    />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+    <Card>
+      <CardHeader>
+        <CardTitle>Material Specification</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Surface Finish */}
+        <div className="space-y-2">
+          <Label htmlFor="surface-finish">Surface Finish</Label>
+          <Select value={surfaceFinish} onValueChange={setSurfaceFinish}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select surface finish" />
+            </SelectTrigger>
+            <SelectContent>
+              {surfaceFinishOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      )}
 
-      {/* Price Unit Selection */}
-      <div className="grid gap-2">
-        <Label htmlFor="price_unit">Price Per Unit *</Label>
-        <Select value={priceUnit} onValueChange={(value) => {
-          setPriceUnit(value);
-          updateMaterialData({ priceUnit: value });
-        }}>
-          <SelectTrigger id="price_unit">
-            <SelectValue placeholder="Select pricing unit" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="per_meter">Per Meter</SelectItem>
-            <SelectItem value="per_kg">Per Kg</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        {/* Shape */}
+        <div className="space-y-2">
+          <Label htmlFor="shape">Shape</Label>
+          <Select value={shape} onValueChange={setShape}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select shape" />
+            </SelectTrigger>
+            <SelectContent>
+              {shapeOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      {/* Generated Name Preview */}
-      {surfaceFinish && shape && material && (
-        <div className="grid gap-2">
-          <Label>Generated Material Name</Label>
-          <div className="p-3 bg-muted rounded-md text-sm font-medium">
-            {generateMaterialName(
-              surfaceFinish === "custom" ? customSurfaceFinish : surfaceFinish,
-              shape === "custom" ? customShape : shape,
-              material === "custom" ? customMaterial : material,
-              dimensions
+        {/* Material Selection */}
+        <div className="space-y-2">
+          <Label htmlFor="material">Material</Label>
+          <div className="space-y-2">
+            <Select value={selectedMaterialType} onValueChange={setSelectedMaterialType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by material type (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Materials</SelectItem>
+                {materialTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Popover open={materialSearchOpen} onOpenChange={setMaterialSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={materialSearchOpen}
+                  className="w-full justify-between"
+                >
+                  {materialLibraryItem 
+                    ? `${materialLibraryItem.grade} (${materialLibraryItem.material_number})`
+                    : material || "Search materials..."
+                  }
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Search materials by grade or number..." />
+                  <CommandEmpty>No material found.</CommandEmpty>
+                  <CommandGroup className="max-h-64 overflow-auto">
+                    {filteredMaterials.map((item) => (
+                      <CommandItem
+                        key={item.id}
+                        onSelect={() => handleMaterialLibrarySelect(item)}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            materialLibraryItem?.id === item.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        <div className="flex flex-col">
+                          <span className="font-medium">{item.grade} ({item.material_number})</span>
+                          <span className="text-sm text-muted-foreground">{item.description}</span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            
+            <Input
+              placeholder="Or enter custom material"
+              value={materialLibraryItem ? '' : material}
+              onChange={(e) => handleMaterialChange(e.target.value)}
+              className={materialLibraryItem ? 'opacity-50' : ''}
+              disabled={!!materialLibraryItem}
+            />
+            {materialLibraryItem && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setMaterialLibraryItem(undefined);
+                  setMaterial('');
+                }}
+                className="w-full"
+              >
+                Clear selection and use custom material
+              </Button>
             )}
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Dynamic Size Fields */}
+        {shape && shape !== 'Custom' && sizeFields.length > 0 && (
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <ShapeIcon className="w-4 h-4" />
+              Dimensions
+            </Label>
+            <div className="grid gap-3">
+              {sizeFields.map((field) => (
+                <div key={field.key} className="grid gap-1">
+                  <Label htmlFor={field.key} className="text-sm">
+                    {field.label}
+                  </Label>
+                  <Input
+                    id={field.key}
+                    type="number"
+                    step="0.1"
+                    value={dimensions[field.key] || ''}
+                    onChange={(e) => handleDimensionChange(field.key, e.target.value)}
+                    placeholder={field.placeholder}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Price Unit */}
+        <div className="space-y-2">
+          <Label htmlFor="price-unit">Price Unit</Label>
+          <Select value={priceUnit} onValueChange={(value: 'per_kg' | 'per_meter') => setPriceUnit(value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select price unit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="per_kg">Per Kilogram</SelectItem>
+              <SelectItem value="per_meter">Per Meter</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Generated Name Preview */}
+        <div className="mt-6 p-4 bg-muted rounded-lg">
+          <h3 className="font-medium mb-2">Generated Material Name:</h3>
+          <p className="text-sm text-muted-foreground">
+            {generateMaterialName(surfaceFinish, shape, material, dimensions, materialLibraryItem)}
+          </p>
+          {materialLibraryItem && (
+            <div className="mt-3 space-y-1">
+              <p className="text-sm">
+                <span className="font-medium">Material Number:</span> {materialLibraryItem.material_number}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Density:</span> {materialLibraryItem.density} g/cm³
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Type:</span> {materialLibraryItem.material_type}
+              </p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
-}
+};
