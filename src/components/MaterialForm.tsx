@@ -174,9 +174,10 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
   // Filter materials by type
   useEffect(() => {
     if (selectedMaterialType && selectedMaterialType !== 'all') {
-      setFilteredMaterials(materialsLibrary.filter(m => m.material_type === selectedMaterialType));
+      const filtered = materialsLibrary.filter(m => m.material_type === selectedMaterialType);
+      setFilteredMaterials(filtered || []);
     } else {
-      setFilteredMaterials(materialsLibrary);
+      setFilteredMaterials(materialsLibrary || []);
     }
   }, [selectedMaterialType, materialsLibrary]);
 
@@ -305,7 +306,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
                   <CommandInput placeholder="Search materials by grade or number..." />
                   <CommandEmpty>No material found.</CommandEmpty>
                   <CommandGroup className="max-h-64 overflow-auto">
-                    {filteredMaterials.map((item) => (
+                    {filteredMaterials && filteredMaterials.length > 0 ? filteredMaterials.map((item) => (
                       <CommandItem
                         key={item.id}
                         onSelect={() => handleMaterialLibrarySelect(item)}
@@ -321,7 +322,11 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
                           <span className="text-sm text-muted-foreground">{item.description}</span>
                         </div>
                       </CommandItem>
-                    ))}
+                    )) : (
+                      <CommandItem disabled>
+                        <span className="text-sm text-muted-foreground">Loading materials...</span>
+                      </CommandItem>
+                    )}
                   </CommandGroup>
                 </Command>
               </PopoverContent>
