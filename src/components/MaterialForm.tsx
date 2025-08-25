@@ -285,7 +285,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
             <Select 
               value={materialLibraryItem?.id || ''} 
               onValueChange={(value) => {
-                if (value) {
+                if (value && value !== "clear") {
                   const selectedItem = filteredMaterials.find(item => item.id === value);
                   if (selectedItem) {
                     handleMaterialLibrarySelect(selectedItem);
@@ -302,7 +302,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
                 />
               </SelectTrigger>
               <SelectContent className="max-h-64">
-                <SelectItem value="">Clear Selection</SelectItem>
+                <SelectItem value="clear">Clear Selection</SelectItem>
                 {filteredMaterials && filteredMaterials.length > 0 ? (
                   filteredMaterials.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
