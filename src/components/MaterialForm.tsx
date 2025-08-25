@@ -3,11 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, Circle, Square, Hexagon, Cylinder } from "lucide-react";
+import { Circle, Square, Hexagon, Cylinder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -150,8 +147,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
   const [priceUnit, setPriceUnit] = useState<'per_kg' | 'per_meter'>(initialData?.priceUnit || 'per_kg');
   const [materialsLibrary, setMaterialsLibrary] = useState<MaterialLibraryItem[]>([]);
   const [filteredMaterials, setFilteredMaterials] = useState<MaterialLibraryItem[]>([]);
-  const [selectedMaterialType, setSelectedMaterialType] = useState<string>('');
-  const [materialSearchOpen, setMaterialSearchOpen] = useState(false);
+  const [selectedMaterialType, setSelectedMaterialType] = useState<string>('all');
 
   // Fetch materials library on component mount
   useEffect(() => {
@@ -218,7 +214,6 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
   const handleMaterialLibrarySelect = (libraryItem: MaterialLibraryItem) => {
     setMaterialLibraryItem(libraryItem);
     setMaterial(libraryItem.grade);
-    setMaterialSearchOpen(false);
   };
 
   const handleDimensionChange = (key: string, value: string) => {
@@ -286,57 +281,44 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
               </SelectContent>
             </Select>
             
-            <Popover open={materialSearchOpen} onOpenChange={setMaterialSearchOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={materialSearchOpen}
-                  className="w-full justify-between"
-                >
-                  {materialLibraryItem 
-                    ? `${materialLibraryItem.grade} (${materialLibraryItem.material_number})`
-                    : material || "Search materials..."
+            {/* Simple Select instead of Command */}
+            <Select 
+              value={materialLibraryItem?.id || ''} 
+              onValueChange={(value) => {
+                if (value) {
+                  const selectedItem = filteredMaterials.find(item => item.id === value);
+                  if (selectedItem) {
+                    handleMaterialLibrarySelect(selectedItem);
                   }
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0">
-                {materialsLibrary.length > 0 ? (
-                  <Command>
-                    <CommandInput placeholder="Search materials by grade or number..." />
-                    <CommandEmpty>No material found.</CommandEmpty>
-                    <CommandGroup className="max-h-64 overflow-auto">
-                      {filteredMaterials && filteredMaterials.length > 0 ? filteredMaterials.map((item) => (
-                        <CommandItem
-                          key={item.id}
-                          onSelect={() => handleMaterialLibrarySelect(item)}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              materialLibraryItem?.id === item.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          <div className="flex flex-col">
-                            <span className="font-medium">{item.grade} ({item.material_number})</span>
-                            <span className="text-sm text-muted-foreground">{item.description}</span>
-                          </div>
-                        </CommandItem>
-                      )) : (
-                        <CommandItem disabled>
-                          <span className="text-sm text-muted-foreground">No materials found</span>
-                        </CommandItem>
-                      )}
-                    </CommandGroup>
-                  </Command>
+                } else {
+                  setMaterialLibraryItem(undefined);
+                  setMaterial('');
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue 
+                  placeholder={materialsLibrary.length > 0 ? "Select from materials library..." : "Loading materials..."}
+                />
+              </SelectTrigger>
+              <SelectContent className="max-h-64">
+                <SelectItem value="">Clear Selection</SelectItem>
+                {filteredMaterials && filteredMaterials.length > 0 ? (
+                  filteredMaterials.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{item.grade} ({item.material_number})</span>
+                        <span className="text-xs text-muted-foreground">{item.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))
                 ) : (
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    Loading materials...
-                  </div>
+                  <SelectItem value="no-materials" disabled>
+                    {materialsLibrary.length === 0 ? 'Loading materials...' : 'No materials found'}
+                  </SelectItem>
                 )}
-              </PopoverContent>
-            </Popover>
+              </SelectContent>
+            </Select>
             
             <Input
               placeholder="Or enter custom material"
