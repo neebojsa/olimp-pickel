@@ -173,7 +173,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
 
   // Filter materials by type
   useEffect(() => {
-    if (selectedMaterialType) {
+    if (selectedMaterialType && selectedMaterialType !== 'all') {
       setFilteredMaterials(materialsLibrary.filter(m => m.material_type === selectedMaterialType));
     } else {
       setFilteredMaterials(materialsLibrary);
@@ -276,7 +276,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
                 <SelectValue placeholder="Filter by material type (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Materials</SelectItem>
+                <SelectItem value="all">All Materials</SelectItem>
                 {materialTypes.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
