@@ -302,33 +302,39 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ onMaterialChange, in
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0">
-                <Command>
-                  <CommandInput placeholder="Search materials by grade or number..." />
-                  <CommandEmpty>No material found.</CommandEmpty>
-                  <CommandGroup className="max-h-64 overflow-auto">
-                    {filteredMaterials && filteredMaterials.length > 0 ? filteredMaterials.map((item) => (
-                      <CommandItem
-                        key={item.id}
-                        onSelect={() => handleMaterialLibrarySelect(item)}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            materialLibraryItem?.id === item.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        <div className="flex flex-col">
-                          <span className="font-medium">{item.grade} ({item.material_number})</span>
-                          <span className="text-sm text-muted-foreground">{item.description}</span>
-                        </div>
-                      </CommandItem>
-                    )) : (
-                      <CommandItem disabled>
-                        <span className="text-sm text-muted-foreground">Loading materials...</span>
-                      </CommandItem>
-                    )}
-                  </CommandGroup>
-                </Command>
+                {materialsLibrary.length > 0 ? (
+                  <Command>
+                    <CommandInput placeholder="Search materials by grade or number..." />
+                    <CommandEmpty>No material found.</CommandEmpty>
+                    <CommandGroup className="max-h-64 overflow-auto">
+                      {filteredMaterials && filteredMaterials.length > 0 ? filteredMaterials.map((item) => (
+                        <CommandItem
+                          key={item.id}
+                          onSelect={() => handleMaterialLibrarySelect(item)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              materialLibraryItem?.id === item.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-medium">{item.grade} ({item.material_number})</span>
+                            <span className="text-sm text-muted-foreground">{item.description}</span>
+                          </div>
+                        </CommandItem>
+                      )) : (
+                        <CommandItem disabled>
+                          <span className="text-sm text-muted-foreground">No materials found</span>
+                        </CommandItem>
+                      )}
+                    </CommandGroup>
+                  </Command>
+                ) : (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    Loading materials...
+                  </div>
+                )}
               </PopoverContent>
             </Popover>
             
