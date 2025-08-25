@@ -993,7 +993,7 @@ export default function Inventory() {
                                           )}
                                            <span className="font-semibold text-lg">${item.unitCost.toFixed(2)}/{priceUnit}</span>
                                            <span className="text-sm text-muted-foreground ml-2">
-                                             (Total: ${(item.currentQuantity * item.unitCost).toFixed(2)})
+                                             (Total: ${(materialInfo.priceUnit === 'per_kg' ? weight * item.unitCost : item.currentQuantity * item.unitCost).toFixed(2)})
                                            </span>
                                         </>
                                       );
