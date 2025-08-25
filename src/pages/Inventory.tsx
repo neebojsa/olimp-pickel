@@ -842,7 +842,7 @@ export default function Inventory() {
                     item && ( // Add null check for the entire item
                       <Card
                       key={item.id} 
-                      className={`${category === "Materials" ? "h-20" : "h-40"} hover:shadow-md transition-shadow cursor-pointer`}
+                      className={`${category === "Materials" ? "h-[90px]" : "h-40"} hover:shadow-md transition-shadow cursor-pointer`}
                       onClick={() => {
                         setSelectedViewItem(item);
                         setIsViewDialogOpen(true);
@@ -991,7 +991,10 @@ export default function Inventory() {
                                               {weight.toFixed(1)} kg
                                             </span>
                                           )}
-                                          <span className="font-semibold text-lg">${item.unitCost.toFixed(2)}/${priceUnit}</span>
+                                           <span className="font-semibold text-lg">${item.unitCost.toFixed(2)}/{priceUnit}</span>
+                                           <span className="text-sm text-muted-foreground ml-2">
+                                             (Total: ${(item.currentQuantity * item.unitCost).toFixed(2)})
+                                           </span>
                                         </>
                                       );
                                     })()
