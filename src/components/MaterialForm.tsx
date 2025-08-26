@@ -15,6 +15,7 @@ export interface MaterialData {
   surfaceFinish: string;
   shape: string;
   material: string;
+  materialDescription?: string;
   dimensions: { [key: string]: string };
   generatedName: string;
   priceUnit: string;
@@ -124,6 +125,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
   const [surfaceFinish, setSurfaceFinish] = useState(initialData?.surfaceFinish || "");
   const [shape, setShape] = useState(initialData?.shape || "");
   const [material, setMaterial] = useState(initialData?.material || "");
+  const [materialDescription, setMaterialDescription] = useState(initialData?.materialDescription || "");
   const [dimensions, setDimensions] = useState(initialData?.dimensions || {});
   const [priceUnit, setPriceUnit] = useState(initialData?.priceUnit || "per_meter");
   const [customSurfaceFinish, setCustomSurfaceFinish] = useState("");
@@ -134,6 +136,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
     const newSurfaceFinish = updates.surfaceFinish ?? surfaceFinish;
     const newShape = updates.shape ?? shape;
     const newMaterial = updates.material ?? material;
+    const newMaterialDescription = updates.materialDescription ?? materialDescription;
     const newDimensions = updates.dimensions ?? dimensions;
     const newPriceUnit = updates.priceUnit ?? priceUnit;
     
@@ -143,6 +146,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
       surfaceFinish: newSurfaceFinish,
       shape: newShape,
       material: newMaterial,
+      materialDescription: newMaterialDescription,
       dimensions: newDimensions,
       generatedName,
       priceUnit: newPriceUnit
@@ -160,9 +164,14 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
     updateMaterialData({ shape: value, dimensions: {} });
   };
 
-  const handleMaterialChange = (value: string) => {
+  const handleMaterialChange = (value: string, description?: string) => {
     setMaterial(value);
-    updateMaterialData({ material: value });
+    if (description !== undefined) {
+      setMaterialDescription(description);
+      updateMaterialData({ material: value, materialDescription: description });
+    } else {
+      updateMaterialData({ material: value });
+    }
   };
 
   const handleDimensionChange = (key: string, value: string) => {
@@ -240,6 +249,22 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
           onValueChange={handleMaterialChange}
           placeholder="Search for material grade (e.g., C45, 1.4301, AlMg3)..."
         />
+        
+        {/* Material Description */}
+        <div className="grid gap-1 mt-2">
+          <Label htmlFor="material_description" className="text-sm">
+            Material Description
+          </Label>
+          <Input
+            id="material_description"
+            value={materialDescription}
+            onChange={(e) => {
+              setMaterialDescription(e.target.value);
+              updateMaterialData({ materialDescription: e.target.value });
+            }}
+            placeholder="Enter or edit material description..."
+          />
+        </div>
       </div>
 
       {/* Dynamic Size Fields */}
