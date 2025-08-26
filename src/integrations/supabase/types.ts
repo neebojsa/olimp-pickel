@@ -183,6 +183,7 @@ export type Database = {
           name: string
           part_number: string | null
           photo_url: string | null
+          production_status: string | null
           quantity: number
           supplier: string | null
           tools_used: Json | null
@@ -202,6 +203,7 @@ export type Database = {
           name: string
           part_number?: string | null
           photo_url?: string | null
+          production_status?: string | null
           quantity?: number
           supplier?: string | null
           tools_used?: Json | null
@@ -221,6 +223,7 @@ export type Database = {
           name?: string
           part_number?: string | null
           photo_url?: string | null
+          production_status?: string | null
           quantity?: number
           supplier?: string | null
           tools_used?: Json | null
