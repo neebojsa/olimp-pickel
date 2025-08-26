@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Circle, Square, Hexagon, Cylinder } from "lucide-react";
+import { MaterialSearch } from "./MaterialSearch";
 
 interface MaterialFormProps {
   onMaterialChange: (materialData: MaterialData) => void;
@@ -38,16 +39,7 @@ const shapeOptions = [
   "Sheet"
 ];
 
-const materialOptions = [
-  "s355",
-  "s235",
-  "C45",
-  "AlSiMg1", 
-  "X153CrMoV12",
-  "16MnCr5",
-  "1.4305",
-  "1.4301"
-];
+// Remove static material options - now using database-driven search
 
 const getShapeIcon = (shape: string) => {
   if (shape.includes("Round")) return Circle;
@@ -242,30 +234,12 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
 
       {/* Material */}
       <div className="grid gap-2">
-        <Label htmlFor="material_type">Material *</Label>
-        <Select value={material} onValueChange={handleMaterialChange}>
-          <SelectTrigger id="material_type">
-            <SelectValue placeholder="Select material" />
-          </SelectTrigger>
-          <SelectContent>
-            {materialOptions.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-            <SelectItem value="custom">+ Add Custom</SelectItem>
-          </SelectContent>
-        </Select>
-        {material === "custom" && (
-          <Input
-            value={customMaterial}
-            onChange={(e) => {
-              setCustomMaterial(e.target.value);
-              updateMaterialData({ material: e.target.value });
-            }}
-            placeholder="Enter custom material"
-          />
-        )}
+        <Label>Material *</Label>
+        <MaterialSearch
+          value={material}
+          onValueChange={handleMaterialChange}
+          placeholder="Search for material grade (e.g., C45, 1.4301, AlMg3)..."
+        />
       </div>
 
       {/* Dynamic Size Fields */}
