@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
 import PartHistoryDialog from "@/components/PartHistoryDialog";
 import { MaterialForm, MaterialData } from "@/components/MaterialForm";
+import { ProductionStatusDialog } from "@/components/ProductionStatusDialog";
 import { format } from "date-fns";
 export default function Inventory() {
   const {
@@ -70,6 +71,8 @@ export default function Inventory() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedViewItem, setSelectedViewItem] = useState<any>(null);
   const [materialData, setMaterialData] = useState<MaterialData | null>(null);
+  const [isProductionStatusDialogOpen, setIsProductionStatusDialogOpen] = useState(false);
+  const [selectedItemForProductionStatus, setSelectedItemForProductionStatus] = useState<any>(null);
   useEffect(() => {
     fetchInventoryItems();
     fetchSuppliers();
@@ -710,6 +713,40 @@ export default function Inventory() {
       toast({
         title: "Error",
         description: "Failed to load part history. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSaveProductionStatus = async (status: string) => {
+    if (!selectedItemForProductionStatus) return;
+    
+    try {
+      const { error } = await supabase
+        .from('inventory')
+        .update({ production_status: status })
+        .eq('id', selectedItemForProductionStatus.id);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setInventoryItems(prev => 
+        prev.map(item => 
+          item.id === selectedItemForProductionStatus.id 
+            ? { ...item, production_status: status }
+            : item
+        )
+      );
+      
+      toast({
+        title: "Production Status Updated",
+        description: `Status updated for ${selectedItemForProductionStatus.name}.`
+      });
+    } catch (error) {
+      console.error('Error updating production status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update production status. Please try again.",
         variant: "destructive"
       });
     }
