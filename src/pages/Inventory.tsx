@@ -724,7 +724,7 @@ export default function Inventory() {
     try {
       const { error } = await supabase
         .from('inventory')
-        .update({ production_status: status })
+        .update({ production_status: status } as any)
         .eq('id', selectedItemForProductionStatus.id);
         
       if (error) throw error;
