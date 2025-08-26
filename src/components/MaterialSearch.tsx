@@ -8,7 +8,7 @@ import { Search, ChevronDown, ChevronUp } from "lucide-react";
 
 interface MaterialSearchProps {
   value: string;
-  onValueChange: (value: string, description?: string) => void;
+  onValueChange: (value: string) => void;
   placeholder?: string;
 }
 
@@ -101,7 +101,7 @@ export function MaterialSearch({ value, onValueChange, placeholder = "Search mat
     setSearchTerm(material.grade);
     setSelectedMaterial(material);
     setShowSuggestions(false);
-    onValueChange(material.grade, material.description || "");
+    onValueChange(material.grade);
   };
 
   const handleInputFocus = () => {
@@ -195,6 +195,41 @@ export function MaterialSearch({ value, onValueChange, placeholder = "Search mat
         )}
       </div>
 
+      {/* Selected Material Details */}
+      {selectedMaterial && (
+        <Card>
+          <CardContent className="pt-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label className="font-semibold">Selected Material:</Label>
+                <Badge className="bg-primary/10 text-primary">{selectedMaterial.grade}</Badge>
+                <Badge variant="secondary">{selectedMaterial.material_type}</Badge>
+                {selectedMaterial.material_number && (
+                  <Badge variant="outline">{selectedMaterial.material_number}</Badge>
+                )}
+              </div>
+              
+              {selectedMaterial.description && (
+                <div>
+                  <Label className="text-sm font-medium">Description:</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMaterial.description}</p>
+                </div>
+              )}
+
+              {selectedMaterial.density && (
+                <div className="flex items-center gap-4 p-3 bg-accent/50 rounded-lg">
+                  <div className="flex flex-col items-center">
+                    <Label className="text-sm font-medium">Density</Label>
+                    <div className="text-lg font-bold text-primary">
+                      {selectedMaterial.density} g/cm³
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

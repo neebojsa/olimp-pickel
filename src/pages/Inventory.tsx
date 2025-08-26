@@ -354,7 +354,6 @@ export default function Inventory() {
         surfaceFinish: materialInfo.surfaceFinish || "",
         shape: materialInfo.shape || "",
         material: materialInfo.material || "",
-        description: materialInfo.description || "",
         dimensions: materialInfo.dimensions || {},
         generatedName: item.name,
         priceUnit: materialInfo.priceUnit || "per_meter"
