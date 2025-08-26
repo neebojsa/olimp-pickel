@@ -393,39 +393,6 @@ export type Database = {
         }
         Relationships: []
       }
-      materials_library: {
-        Row: {
-          created_at: string
-          density: number | null
-          description: string | null
-          grade: string
-          id: string
-          material_number: string | null
-          material_type: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          density?: number | null
-          description?: string | null
-          grade: string
-          id?: string
-          material_number?: string | null
-          material_type: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          density?: number | null
-          description?: string | null
-          grade?: string
-          id?: string
-          material_number?: string | null
-          material_type?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       staff: {
         Row: {
           created_at: string
