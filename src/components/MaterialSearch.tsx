@@ -8,7 +8,7 @@ import { Search, ChevronDown, ChevronUp } from "lucide-react";
 
 interface MaterialSearchProps {
   value: string;
-  onValueChange: (value: string, description?: string) => void;
+  onValueChange: (value: string) => void;
   placeholder?: string;
 }
 
@@ -101,7 +101,7 @@ export function MaterialSearch({ value, onValueChange, placeholder = "Search mat
     setSearchTerm(material.grade);
     setSelectedMaterial(material);
     setShowSuggestions(false);
-    onValueChange(material.grade, material.description || "");
+    onValueChange(material.grade);
   };
 
   const handleInputFocus = () => {
