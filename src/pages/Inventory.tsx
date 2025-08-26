@@ -867,7 +867,8 @@ export default function Inventory() {
                                <div className="flex items-start justify-between">
                                  <div className="min-w-0 flex-1">
                                    <h3 className="font-semibold text-lg truncate">{item.name}</h3>
-                                   {item.part_number && item?.category !== "Materials" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
+                                    {item.part_number && item?.category !== "Materials" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
+                                    {item.production_status && <p className="text-sm text-black font-medium">{item.production_status}</p>}
                                  </div>
                                  <AlertDialog>
                                    <div className="flex gap-1 ml-2">
@@ -878,12 +879,19 @@ export default function Inventory() {
                             }} title="View Details">
                                         <Eye className="h-4 w-4" />
                                       </Button>
-                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                              e.stopPropagation();
-                              handleViewHistory(item);
-                            }} title="View History">
-                                        <History className="h-4 w-4" />
-                                      </Button>
+                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                               e.stopPropagation();
+                               handleViewHistory(item);
+                             }} title="View History">
+                                         <History className="h-4 w-4" />
+                                       </Button>
+                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                               e.stopPropagation();
+                               setSelectedItemForProductionStatus(item);
+                               setIsProductionStatusDialogOpen(true);
+                             }} title="Production Status">
+                                         <PlayCircle className="h-4 w-4" />
+                                       </Button>
                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                               e.stopPropagation();
                               setSelectedItemForWorkOrder(item);
@@ -1600,6 +1608,15 @@ export default function Inventory() {
 
       {/* History Dialog */}
       <PartHistoryDialog isOpen={isHistoryDialogOpen} onClose={() => setIsHistoryDialogOpen(false)} item={selectedItemForHistory} historyData={historyData} />
+
+      {/* Production Status Dialog */}
+      <ProductionStatusDialog 
+        isOpen={isProductionStatusDialogOpen}
+        onOpenChange={setIsProductionStatusDialogOpen}
+        currentStatus={selectedItemForProductionStatus?.production_status || ""}
+        onSave={handleSaveProductionStatus}
+        itemName={selectedItemForProductionStatus?.name || ""}
+      />
 
       {/* View Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
