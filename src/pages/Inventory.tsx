@@ -861,91 +861,91 @@ export default function Inventory() {
                                {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : <CategoryIcon className="w-12 h-12 text-muted-foreground" />}
                              </div>}
                            
-                            {/* Content */}
-                            <div className="flex-1 flex flex-col min-w-0">
-                              <div className="space-y-2">
-                                <div className="flex items-start justify-between">
-                                  <div className="min-w-0 flex-1">
-                                    <h3 className="font-semibold text-lg truncate">{item.name}</h3>
-                                     {item.part_number && item?.category !== "Materials" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
-                                     {item.production_status && <p className="text-sm text-black font-medium">{item.production_status}</p>}
-                                  </div>
-                                  <AlertDialog>
-                                    <div className="flex gap-1 ml-2">
+                           {/* Content */}
+                           <div className="flex-1 flex flex-col justify-between min-w-0">
+                             <div className="space-y-2">
+                               <div className="flex items-start justify-between">
+                                 <div className="min-w-0 flex-1">
+                                   <h3 className="font-semibold text-lg truncate">{item.name}</h3>
+                                    {item.part_number && item?.category !== "Materials" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
+                                    {item.production_status && <p className="text-sm text-black font-medium">{item.production_status}</p>}
+                                 </div>
+                                 <AlertDialog>
+                                   <div className="flex gap-1 ml-2">
+                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                              e.stopPropagation();
+                              setSelectedViewItem(item);
+                              setIsViewDialogOpen(true);
+                            }} title="View Details">
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                                e.stopPropagation();
-                               setSelectedViewItem(item);
-                               setIsViewDialogOpen(true);
-                             }} title="View Details">
-                                         <Eye className="h-4 w-4" />
+                               handleViewHistory(item);
+                             }} title="View History">
+                                         <History className="h-4 w-4" />
                                        </Button>
-                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                                e.stopPropagation();
-                                handleViewHistory(item);
-                              }} title="View History">
-                                          <History className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                                e.stopPropagation();
-                                setSelectedItemForProductionStatus(item);
-                                setIsProductionStatusDialogOpen(true);
-                              }} title="Production Status">
-                                          <PlayCircle className="h-4 w-4" />
-                                        </Button>
                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                                e.stopPropagation();
-                               setSelectedItemForWorkOrder(item);
-                               setTools([{
-                                 name: "",
-                                 quantity: ""
-                               }]);
-                               setOperatorsAndMachines([{
-                                 name: "",
-                                 type: "operator"
-                               }]);
-                               setIsWorkOrderDialogOpen(true);
-                             }} title="Create Work Order">
-                                         <ClipboardList className="h-4 w-4" />
+                               setSelectedItemForProductionStatus(item);
+                               setIsProductionStatusDialogOpen(true);
+                             }} title="Production Status">
+                                         <PlayCircle className="h-4 w-4" />
                                        </Button>
                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                               e.stopPropagation();
-                               handleOpenEditDialog(item);
-                             }}>
-                                        <Edit className="h-4 w-4" />
+                              e.stopPropagation();
+                              setSelectedItemForWorkOrder(item);
+                              setTools([{
+                                name: "",
+                                quantity: ""
+                              }]);
+                              setOperatorsAndMachines([{
+                                name: "",
+                                type: "operator"
+                              }]);
+                              setIsWorkOrderDialogOpen(true);
+                            }} title="Create Work Order">
+                                        <ClipboardList className="h-4 w-4" />
                                       </Button>
-                                      <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                   </div>
-                                   <AlertDialogContent>
-                                     <AlertDialogHeader>
-                                       <AlertDialogTitle>Delete Item</AlertDialogTitle>
-                                       <AlertDialogDescription>
-                                         Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                                       </AlertDialogDescription>
-                                     </AlertDialogHeader>
-                                     <AlertDialogFooter>
-                                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                       <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
-                                         Delete
-                                       </AlertDialogAction>
-                                     </AlertDialogFooter>
-                                   </AlertDialogContent>
-                                 </AlertDialog>
-                                </div>
-                              </div>
-                              
-                              {/* Quantity and Price below buttons */}
-                              <div className="flex items-center gap-4 pt-3 border-t">
-                                   {item?.category === "Materials" ? (() => {
+                                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                              e.stopPropagation();
+                              handleOpenEditDialog(item);
+                            }}>
+                                       <Edit className="h-4 w-4" />
+                                     </Button>
+                                     <AlertDialogTrigger asChild>
+                                       <Button variant="destructive" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
+                                         <Trash2 className="h-4 w-4" />
+                                       </Button>
+                                     </AlertDialogTrigger>
+                                  </div>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                               </div>
+                             </div>
+                            
+                             <div className="flex items-center justify-between">
+                               <div className="flex items-center gap-4">
+                                  {item?.category === "Materials" ? (() => {
                           const materialInfo = item.materials_used || {};
                           const quantity = formatMaterialQuantity(materialInfo, item.currentQuantity);
                           const weight = calculateMaterialWeight(materialInfo);
                           const priceUnit = materialInfo.priceUnit === 'per_kg' ? 'kg' : 'm';
                           return <>
-                                          <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"} className="text-lg">
+                                          <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
                                             {quantity}
                                           </Badge>
                                           {weight > 0 && <span className="text-sm text-muted-foreground">
@@ -957,24 +957,25 @@ export default function Inventory() {
                                            </span>
                                         </>;
                         })() : <>
-                                     <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"} className="text-lg">
+                                     <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
                                        {item.currentQuantity} {item.unitOfMeasure}
                                      </Badge>
                                      <span className="font-semibold text-lg">${item.unitCost}</span>
                                    </>}
-                                </div>
-                                
-                               <div className="text-xs text-muted-foreground text-right space-y-1 pt-2">
-                                 {item.location && <div className="flex items-center justify-end gap-1">
-                                     <MapPin className="h-3 w-3 text-gray-400" />
-                                     <span>{item.location}</span>
-                                   </div>}
-                                 {item.supplier && <div className="flex items-center justify-end gap-1">
-                                     <Building2 className="h-3 w-3 text-gray-400" />
-                                     <span>{item.supplier}</span>
-                                   </div>}
                                </div>
-                           </div>
+                              
+                              <div className="text-xs text-muted-foreground text-right space-y-1">
+                                {item.location && <div className="flex items-center justify-end gap-1">
+                                    <MapPin className="h-3 w-3 text-gray-400" />
+                                    <span>{item.location}</span>
+                                  </div>}
+                                {item.supplier && <div className="flex items-center justify-end gap-1">
+                                    <Building2 className="h-3 w-3 text-gray-400" />
+                                    <span>{item.supplier}</span>
+                                  </div>}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </CardContent>
                      </Card>) : <div className="text-center py-12">
