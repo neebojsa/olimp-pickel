@@ -110,36 +110,45 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          contact_person: string | null
           country: string | null
           created_at: string
           declaration_numbers: string[] | null
           email: string | null
           id: string
+          industry: string | null
           name: string
           phone: string | null
           updated_at: string
+          webpage: string | null
         }
         Insert: {
           address?: string | null
+          contact_person?: string | null
           country?: string | null
           created_at?: string
           declaration_numbers?: string[] | null
           email?: string | null
           id?: string
+          industry?: string | null
           name: string
           phone?: string | null
           updated_at?: string
+          webpage?: string | null
         }
         Update: {
           address?: string | null
+          contact_person?: string | null
           country?: string | null
           created_at?: string
           declaration_numbers?: string[] | null
           email?: string | null
           id?: string
+          industry?: string | null
           name?: string
           phone?: string | null
           updated_at?: string
+          webpage?: string | null
         }
         Relationships: []
       }

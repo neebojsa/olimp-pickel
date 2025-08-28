@@ -60,16 +60,15 @@ export default function Customers() {
     if (data) {
       const formattedCustomers = data.map(customer => ({
         ...customer,
-        contactPerson: customer.name, // Placeholder mapping
-        industry: "General", // Placeholder
+        contactPerson: customer.contact_person || customer.name,
+        industry: customer.industry || "General",
         status: "Active", // Placeholder
         totalOrders: 0, // Would calculate from invoices
         totalValue: 0, // Would calculate from invoices
         lastOrderDate: new Date().toISOString().split('T')[0],
         paymentTerms: "Net 30", // Placeholder
         notes: "", // Placeholder
-        webpage: "", // Placeholder
-        country: "USA" // Placeholder
+        webpage: customer.webpage || ""
       }));
       setCustomers(formattedCustomers);
     }
@@ -106,7 +105,11 @@ export default function Customers() {
         name: newCustomer.name,
         email: newCustomer.email,
         phone: newCustomer.phone,
-        address: newCustomer.address
+        address: newCustomer.address,
+        country: newCustomer.country,
+        contact_person: newCustomer.contactPerson,
+        industry: newCustomer.industry,
+        webpage: newCustomer.webpage
       }])
       .select();
 
@@ -175,7 +178,10 @@ export default function Customers() {
         email: newCustomer.email,
         phone: newCustomer.phone,
         address: newCustomer.address,
-        country: newCustomer.country
+        country: newCustomer.country,
+        contact_person: newCustomer.contactPerson,
+        industry: newCustomer.industry,
+        webpage: newCustomer.webpage
       })
       .eq('id', selectedCustomer.id);
 
