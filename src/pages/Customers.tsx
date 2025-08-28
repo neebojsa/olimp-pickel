@@ -12,7 +12,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2 } from "lucide-react";
+import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, FileText } from "lucide-react";
+import jsPDF from 'jspdf';
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +40,7 @@ export default function Customers() {
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
   const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
     contactPerson: '',
@@ -53,7 +55,15 @@ export default function Customers() {
 
   useEffect(() => {
     fetchCustomers();
+    fetchCompanyInfo();
   }, []);
+
+  const fetchCompanyInfo = async () => {
+    const { data } = await supabase.from('company_info').select('*').single();
+    if (data) {
+      setCompanyInfo(data);
+    }
+  };
 
   const fetchCustomers = async () => {
     const { data } = await supabase.from('customers').select('*');
@@ -230,6 +240,157 @@ export default function Customers() {
     }
   };
 
+  const generateStockReport = async (customer: any) => {
+    try {
+      // Fetch inventory items for this customer
+      const { data: inventoryItems } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('customer_id', customer.id);
+
+      if (!inventoryItems || inventoryItems.length === 0) {
+        toast({
+          title: "No Stock Items",
+          description: `No stock items found for ${customer.name}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Create PDF
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.width;
+      const pageHeight = pdf.internal.pageSize.height;
+      let yPosition = 20;
+
+      // Header with company info
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(companyInfo?.company_name || 'Stock Report', pageWidth / 2, yPosition, { align: 'center' });
+      
+      yPosition += 10;
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('STOCK REPORT', pageWidth / 2, yPosition, { align: 'center' });
+      
+      yPosition += 20;
+      
+      // Customer info
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Customer: ${customer.name}`, 20, yPosition);
+      
+      yPosition += 8;
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      if (customer.contact_person) {
+        pdf.text(`Contact: ${customer.contact_person}`, 20, yPosition);
+        yPosition += 6;
+      }
+      if (customer.email) {
+        pdf.text(`Email: ${customer.email}`, 20, yPosition);
+        yPosition += 6;
+      }
+      if (customer.address) {
+        pdf.text(`Address: ${customer.address}`, 20, yPosition);
+        yPosition += 6;
+      }
+      
+      yPosition += 10;
+      
+      // Report date
+      pdf.setFontSize(10);
+      pdf.text(`Report Generated: ${new Date().toLocaleDateString()}`, pageWidth - 20, yPosition, { align: 'right' });
+      
+      yPosition += 15;
+
+      // Table header
+      const tableStartY = yPosition;
+      const rowHeight = 8;
+      const colWidths = [80, 40, 30, 30];
+      const colX = [20, 100, 140, 170];
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      
+      // Draw table header
+      pdf.rect(20, yPosition - 2, pageWidth - 40, rowHeight);
+      pdf.text('Part Name & Number', colX[0] + 2, yPosition + 4);
+      pdf.text('Production Status', colX[1] + 2, yPosition + 4);
+      pdf.text('Quantity', colX[2] + 2, yPosition + 4);
+      pdf.text('Category', colX[3] + 2, yPosition + 4);
+      
+      yPosition += rowHeight;
+      
+      // Table data
+      pdf.setFont('helvetica', 'normal');
+      
+      inventoryItems.forEach((item, index) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 40) {
+          pdf.addPage();
+          yPosition = 20;
+          
+          // Redraw header on new page
+          pdf.setFont('helvetica', 'bold');
+          pdf.rect(20, yPosition - 2, pageWidth - 40, rowHeight);
+          pdf.text('Part Name & Number', colX[0] + 2, yPosition + 4);
+          pdf.text('Production Status', colX[1] + 2, yPosition + 4);
+          pdf.text('Quantity', colX[2] + 2, yPosition + 4);
+          pdf.text('Category', colX[3] + 2, yPosition + 4);
+          
+          yPosition += rowHeight;
+          pdf.setFont('helvetica', 'normal');
+        }
+        
+        // Draw row
+        if (index % 2 === 0) {
+          pdf.setFillColor(245, 245, 245);
+          pdf.rect(20, yPosition - 2, pageWidth - 40, rowHeight, 'F');
+        }
+        
+        // Part name and number
+        const partText = item.part_number ? `${item.name} (${item.part_number})` : item.name;
+        const wrappedText = pdf.splitTextToSize(partText, colWidths[0] - 4);
+        pdf.text(wrappedText, colX[0] + 2, yPosition + 4);
+        
+        // Production status
+        pdf.text(item.production_status || 'N/A', colX[1] + 2, yPosition + 4);
+        
+        // Quantity
+        pdf.text(item.quantity?.toString() || '0', colX[2] + 2, yPosition + 4);
+        
+        // Category
+        pdf.text(item.category || 'N/A', colX[3] + 2, yPosition + 4);
+        
+        yPosition += rowHeight;
+      });
+      
+      // Footer
+      yPosition += 10;
+      pdf.setFontSize(8);
+      pdf.text(`Total Items: ${inventoryItems.length}`, 20, yPosition);
+      pdf.text(`Page ${pdf.getNumberOfPages()}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
+      
+      // Save PDF
+      const fileName = `Stock_Report_${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+      
+      toast({
+        title: "Report Generated",
+        description: `Stock report for ${customer.name} has been generated and downloaded.`,
+      });
+      
+    } catch (error) {
+      console.error('Error generating report:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate stock report",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -348,7 +509,7 @@ export default function Customers() {
                   <TableHead>Status</TableHead>
                   <TableHead>Total Orders</TableHead>
                   <TableHead>Total Value</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
+                  <TableHead className="w-32">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -384,27 +545,37 @@ export default function Customers() {
                       ${customer.totalValue.toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Customer</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{customer.name}"? This action cannot be undone and will remove all associated data.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteCustomer(customer.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => generateStockReport(customer)}
+                          title="Generate Stock Report"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" title="Delete Customer">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{customer.name}"? This action cannot be undone and will remove all associated data.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteCustomer(customer.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
