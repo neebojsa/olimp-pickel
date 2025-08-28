@@ -964,16 +964,16 @@ export default function Inventory() {
                                    </>}
                                </div>
                               
-                              <div className="text-xs text-muted-foreground text-right space-y-1">
-                                {item.location && <div className="flex items-center justify-end gap-1">
-                                    <MapPin className="h-3 w-3 text-gray-400" />
-                                    <span>{item.location}</span>
-                                  </div>}
-                                {item.customer_id && <div className="flex items-center justify-end gap-1">
-                                    <Users className="h-3 w-3 text-gray-400" />
-                                    <span>{customers.find(c => c.id === item.customer_id)?.name}</span>
-                                  </div>}
-                              </div>
+                               <div className="text-xs text-muted-foreground text-right space-y-1">
+                                 {item.customer_id && <div className="flex items-center justify-end gap-1">
+                                     <Users className="h-3 w-3 text-gray-400" />
+                                     <span>{customers.find(c => c.id === item.customer_id)?.name}</span>
+                                   </div>}
+                                 {item.location && <div className="flex items-center justify-end gap-1">
+                                     <MapPin className="h-3 w-3 text-gray-400" />
+                                     <span>{item.location}</span>
+                                   </div>}
+                               </div>
                             </div>
                           </div>
                         </div>
