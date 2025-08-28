@@ -242,135 +242,141 @@ export default function Customers() {
 
   const generateStockReport = async (customer: any) => {
     try {
-      // Fetch inventory items for this customer
+      // Fetch inventory items for this customer (only Parts category)
       const { data: inventoryItems } = await supabase
         .from('inventory')
         .select('*')
-        .eq('customer_id', customer.id);
+        .eq('customer_id', customer.id)
+        .eq('category', 'Parts');
 
       if (!inventoryItems || inventoryItems.length === 0) {
         toast({
           title: "No Stock Items",
-          description: `No stock items found for ${customer.name}`,
+          description: `No parts found for ${customer.name}`,
           variant: "destructive"
         });
         return;
       }
 
-      // Create PDF
       const pdf = new jsPDF();
       const pageWidth = pdf.internal.pageSize.width;
       const pageHeight = pdf.internal.pageSize.height;
-      let yPosition = 20;
-
-      // Header with company info
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(companyInfo?.company_name || 'Stock Report', pageWidth / 2, yPosition, { align: 'center' });
       
-      yPosition += 10;
+      // Date at top
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'normal');
-      pdf.text('STOCK REPORT', pageWidth / 2, yPosition, { align: 'center' });
+      const currentDate = new Date().toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      });
+      pdf.text(currentDate, 20, 25);
       
-      yPosition += 20;
+      let yPosition = 40;
+      const rowHeight = 25;
+      const imageSize = 20;
       
-      // Customer info
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`Customer: ${customer.name}`, 20, yPosition);
-      
-      yPosition += 8;
+      // Table headers
       pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      if (customer.contact_person) {
-        pdf.text(`Contact: ${customer.contact_person}`, 20, yPosition);
-        yPosition += 6;
-      }
-      if (customer.email) {
-        pdf.text(`Email: ${customer.email}`, 20, yPosition);
-        yPosition += 6;
-      }
-      if (customer.address) {
-        pdf.text(`Address: ${customer.address}`, 20, yPosition);
-        yPosition += 6;
-      }
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Description', 50, yPosition - 5);
+      pdf.text('Art.Nr.', 120, yPosition - 5);
+      pdf.text('Action', 150, yPosition - 5);
+      pdf.text('inStock', 175, yPosition - 5);
+      
+      // Header underline
+      pdf.setLineWidth(0.5);
+      pdf.line(20, yPosition, 190, yPosition);
       
       yPosition += 10;
-      
-      // Report date
-      pdf.setFontSize(10);
-      pdf.text(`Report Generated: ${new Date().toLocaleDateString()}`, pageWidth - 20, yPosition, { align: 'right' });
-      
-      yPosition += 15;
-
-      // Table header
-      const tableStartY = yPosition;
-      const rowHeight = 8;
-      const colWidths = [80, 40, 30, 30];
-      const colX = [20, 100, 140, 170];
-
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'bold');
-      
-      // Draw table header
-      pdf.rect(20, yPosition - 2, pageWidth - 40, rowHeight);
-      pdf.text('Part Name & Number', colX[0] + 2, yPosition + 4);
-      pdf.text('Production Status', colX[1] + 2, yPosition + 4);
-      pdf.text('Quantity', colX[2] + 2, yPosition + 4);
-      pdf.text('Category', colX[3] + 2, yPosition + 4);
-      
-      yPosition += rowHeight;
-      
-      // Table data
-      pdf.setFont('helvetica', 'normal');
       
       inventoryItems.forEach((item, index) => {
-        // Check if we need a new page
+        // Check for new page
         if (yPosition > pageHeight - 40) {
           pdf.addPage();
-          yPosition = 20;
+          yPosition = 30;
           
-          // Redraw header on new page
+          // Redraw headers
           pdf.setFont('helvetica', 'bold');
-          pdf.rect(20, yPosition - 2, pageWidth - 40, rowHeight);
-          pdf.text('Part Name & Number', colX[0] + 2, yPosition + 4);
-          pdf.text('Production Status', colX[1] + 2, yPosition + 4);
-          pdf.text('Quantity', colX[2] + 2, yPosition + 4);
-          pdf.text('Category', colX[3] + 2, yPosition + 4);
-          
-          yPosition += rowHeight;
-          pdf.setFont('helvetica', 'normal');
+          pdf.text('Description', 50, yPosition - 5);
+          pdf.text('Art.Nr.', 120, yPosition - 5);
+          pdf.text('Action', 150, yPosition - 5);
+          pdf.text('inStock', 175, yPosition - 5);
+          pdf.line(20, yPosition, 190, yPosition);
+          yPosition += 10;
         }
         
-        // Draw row
-        if (index % 2 === 0) {
-          pdf.setFillColor(245, 245, 245);
-          pdf.rect(20, yPosition - 2, pageWidth - 40, rowHeight, 'F');
+        // Row border
+        pdf.setLineWidth(0.2);
+        pdf.setDrawColor(200, 200, 200);
+        pdf.rect(20, yPosition - 5, 170, rowHeight);
+        
+        // Image placeholder box
+        pdf.setFillColor(240, 240, 240);
+        pdf.rect(22, yPosition - 3, imageSize, imageSize, 'F');
+        pdf.setDrawColor(180, 180, 180);
+        pdf.rect(22, yPosition - 3, imageSize, imageSize);
+        
+        // "IMG" text in placeholder
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(120, 120, 120);
+        pdf.text('IMG', 27, yPosition + 8);
+        
+        // Reset text color
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        
+        // Part name
+        const partName = item.name || '';
+        if (partName.length > 25) {
+          pdf.text(partName.substring(0, 25) + '...', 50, yPosition + 5);
+        } else {
+          pdf.text(partName, 50, yPosition + 5);
         }
         
-        // Part name and number
-        const partText = item.part_number ? `${item.name} (${item.part_number})` : item.name;
-        const wrappedText = pdf.splitTextToSize(partText, colWidths[0] - 4);
-        pdf.text(wrappedText, colX[0] + 2, yPosition + 4);
+        // Part number
+        pdf.text(item.part_number || '', 120, yPosition + 5);
         
-        // Production status
-        pdf.text(item.production_status || 'N/A', colX[1] + 2, yPosition + 4);
+        // Production status with yellow highlight if contains certain keywords
+        const status = item.production_status || '';
+        const shouldHighlight = status.toLowerCase().includes('stock') || 
+                               status.toLowerCase().includes('progress') ||
+                               status.toLowerCase().includes('machining');
         
-        // Quantity
-        pdf.text(item.quantity?.toString() || '0', colX[2] + 2, yPosition + 4);
+        if (shouldHighlight) {
+          pdf.setFillColor(255, 193, 7); // Yellow background
+          pdf.rect(148, yPosition - 2, 25, 12, 'F');
+        }
         
-        // Category
-        pdf.text(item.category || 'N/A', colX[3] + 2, yPosition + 4);
+        pdf.setFontSize(9);
+        if (status.length > 15) {
+          pdf.text(status.substring(0, 15) + '...', 150, yPosition + 5);
+        } else {
+          pdf.text(status, 150, yPosition + 5);
+        }
         
-        yPosition += rowHeight;
+        // Quantity with teal background
+        pdf.setFillColor(23, 162, 184); // Teal background
+        pdf.rect(173, yPosition - 2, 15, 12, 'F');
+        
+        // White text for quantity
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        const quantityText = item.quantity?.toString() || '0';
+        const textWidth = pdf.getTextWidth(quantityText);
+        const centerX = 173 + (15 - textWidth) / 2;
+        pdf.text(quantityText, centerX, yPosition + 5);
+        
+        // Reset colors and font
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        
+        yPosition += rowHeight + 2;
       });
-      
-      // Footer
-      yPosition += 10;
-      pdf.setFontSize(8);
-      pdf.text(`Total Items: ${inventoryItems.length}`, 20, yPosition);
-      pdf.text(`Page ${pdf.getNumberOfPages()}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
       
       // Save PDF
       const fileName = `Stock_Report_${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -378,7 +384,7 @@ export default function Customers() {
       
       toast({
         title: "Report Generated",
-        description: `Stock report for ${customer.name} has been generated and downloaded.`,
+        description: `Stock report for ${customer.name} has been generated.`,
       });
       
     } catch (error) {
