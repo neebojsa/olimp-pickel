@@ -75,16 +75,33 @@ export default function Customers() {
   };
 
   const handleDeleteCustomer = async (customerId: string) => {
-    const { error } = await supabase
-      .from('customers')
-      .delete()
-      .eq('id', customerId);
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customerId);
 
-    if (!error) {
+      if (error) {
+        console.error('Delete error:', error);
+        toast({
+          title: "Error",
+          description: `Failed to delete customer: ${error.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
       setCustomers(prev => prev.filter(customer => customer.id !== customerId));
       toast({
         title: "Customer Deleted",
         description: "The customer has been successfully deleted.",
+      });
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while deleting the customer.",
+        variant: "destructive"
       });
     }
   };
