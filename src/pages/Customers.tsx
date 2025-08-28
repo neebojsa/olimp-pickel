@@ -17,6 +17,7 @@ import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -257,10 +258,10 @@ export default function Customers() {
               </div>
               <div>
                 <Label>Country</Label>
-                <Input 
-                  placeholder="Enter country" 
+                <CountryAutocomplete
                   value={newCustomer.country}
-                  onChange={(e) => setNewCustomer({...newCustomer, country: e.target.value})}
+                  onChange={(value) => setNewCustomer({...newCustomer, country: value})}
+                  placeholder="Enter country"
                 />
               </div>
               <div>
@@ -586,10 +587,10 @@ export default function Customers() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-country">Country</Label>
-              <Input
+              <CountryAutocomplete
                 id="edit-country"
                 value={newCustomer.country}
-                onChange={(e) => setNewCustomer(prev => ({ ...prev, country: e.target.value }))}
+                onChange={(value) => setNewCustomer(prev => ({ ...prev, country: value }))}
                 placeholder="Enter country"
               />
             </div>

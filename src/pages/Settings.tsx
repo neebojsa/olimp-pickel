@@ -13,6 +13,7 @@ import { User, Shield, Palette, Bell, Lock, Globe, Building } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
+import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -349,10 +350,10 @@ export default function Settings() {
               
               <div className="space-y-2">
                 <Label htmlFor="country">Country</Label>
-                <Input 
+                <CountryAutocomplete
                   id="country" 
                   value={companyData.country}
-                  onChange={(e) => setCompanyData(prev => ({ ...prev, country: e.target.value }))}
+                  onChange={(value) => setCompanyData(prev => ({ ...prev, country: value }))}
                   placeholder="Country"
                 />
               </div>
