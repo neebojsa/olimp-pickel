@@ -116,7 +116,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background">
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex md:w-64 md:flex-col md:border-r">
+      <div className="hidden md:flex md:w-64 md:min-w-64 md:flex-col md:border-r flex-shrink-0">
         <NavContent />
       </div>
 
