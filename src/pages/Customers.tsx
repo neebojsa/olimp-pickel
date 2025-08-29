@@ -50,7 +50,8 @@ export default function Customers() {
     industry: '',
     country: '',
     webpage: '',
-    notes: ''
+    notes: '',
+    declarationNumbers: ''
   });
 
   useEffect(() => {
@@ -78,7 +79,8 @@ export default function Customers() {
         lastOrderDate: new Date().toISOString().split('T')[0],
         paymentTerms: "Net 30", // Placeholder
         notes: "", // Placeholder
-        webpage: customer.webpage || ""
+        webpage: customer.webpage || "",
+        declaration_numbers: customer.declaration_numbers || []
       }));
       setCustomers(formattedCustomers);
     }
@@ -126,6 +128,11 @@ export default function Customers() {
       return;
     }
 
+    const declarationNumbersArray = newCustomer.declarationNumbers
+      .split(',')
+      .map(num => num.trim())
+      .filter(num => num.length > 0);
+
     const { data, error } = await supabase
       .from('customers')
       .insert([{
@@ -136,7 +143,8 @@ export default function Customers() {
         country: newCustomer.country,
         contact_person: newCustomer.contactPerson,
         industry: newCustomer.industry,
-        webpage: newCustomer.webpage
+        webpage: newCustomer.webpage,
+        declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null
       }])
       .select();
 
@@ -158,7 +166,8 @@ export default function Customers() {
         industry: '',
         country: '',
         webpage: '',
-        notes: ''
+        notes: '',
+        declarationNumbers: ''
       });
       toast({
         title: "Success",
@@ -182,7 +191,8 @@ export default function Customers() {
       industry: selectedCustomer.industry || '',
       country: selectedCustomer.country || '',
       webpage: selectedCustomer.webpage || '',
-      notes: selectedCustomer.notes || ''
+      notes: selectedCustomer.notes || '',
+      declarationNumbers: selectedCustomer.declaration_numbers?.join(', ') || ''
     });
     setIsCustomerDialogOpen(false);
     setIsEditCustomerOpen(true);
@@ -198,6 +208,11 @@ export default function Customers() {
       return;
     }
 
+    const declarationNumbersArray = newCustomer.declarationNumbers
+      .split(',')
+      .map(num => num.trim())
+      .filter(num => num.length > 0);
+
     const { error } = await supabase
       .from('customers')
       .update({
@@ -208,7 +223,8 @@ export default function Customers() {
         country: newCustomer.country,
         contact_person: newCustomer.contactPerson,
         industry: newCustomer.industry,
-        webpage: newCustomer.webpage
+        webpage: newCustomer.webpage,
+        declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null
       })
       .eq('id', selectedCustomer.id);
 
@@ -228,7 +244,8 @@ export default function Customers() {
         industry: '',
         country: '',
         webpage: '',
-        notes: ''
+        notes: '',
+        declarationNumbers: ''
       });
       setIsEditCustomerOpen(false);
     } else {
@@ -477,6 +494,17 @@ export default function Customers() {
                 />
               </div>
               <div className="col-span-2">
+                <Label>Declaration Numbers</Label>
+                <Input 
+                  placeholder="Enter declaration numbers (comma-separated)" 
+                  value={newCustomer.declarationNumbers}
+                  onChange={(e) => setNewCustomer({...newCustomer, declarationNumbers: e.target.value})}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter multiple declaration numbers separated by commas (e.g., "DEC001, DEC002")
+                </p>
+              </div>
+              <div className="col-span-2">
                 <Label>Notes</Label>
                 <Input 
                   placeholder="Enter any notes" 
@@ -664,6 +692,24 @@ export default function Customers() {
                 </Card>
               </div>
 
+              {/* Declaration Numbers */}
+              {selectedCustomer.declaration_numbers && selectedCustomer.declaration_numbers.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Declaration Numbers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-2 flex-wrap">
+                      {selectedCustomer.declaration_numbers.map((number, index) => (
+                        <Badge key={index} variant="secondary">
+                          {number}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Order Statistics */}
               <Card>
                 <CardHeader>
@@ -800,6 +846,18 @@ export default function Customers() {
                 onChange={(e) => setNewCustomer(prev => ({ ...prev, webpage: e.target.value }))}
                 placeholder="Enter website URL"
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-declaration-numbers">Declaration Numbers</Label>
+              <Input
+                id="edit-declaration-numbers"
+                value={newCustomer.declarationNumbers}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, declarationNumbers: e.target.value }))}
+                placeholder="Enter declaration numbers (comma-separated)"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter multiple declaration numbers separated by commas
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-notes">Notes</Label>
