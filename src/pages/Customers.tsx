@@ -261,122 +261,120 @@ export default function Customers() {
       const pdf = new jsPDF();
       const pageWidth = pdf.internal.pageSize.width;
       const pageHeight = pdf.internal.pageSize.height;
+      const itemsPerPage = 15;
       
-      // Date at top
-      pdf.setFontSize(12);
+      // Company header
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Stock Report - ${customer.name}`, 20, 20);
+      
+      // Date
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
       const currentDate = new Date().toLocaleDateString('en-GB', { 
         day: 'numeric', 
         month: 'long', 
         year: 'numeric' 
       });
-      pdf.text(currentDate, 20, 25);
+      pdf.text(`Generated: ${currentDate}`, 20, 30);
       
-      let yPosition = 40;
-      const rowHeight = 25;
-      const imageSize = 20;
+      let yPosition = 50;
+      let itemCount = 0;
       
-      // Table headers
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Description', 50, yPosition - 5);
-      pdf.text('Art.Nr.', 120, yPosition - 5);
-      pdf.text('Action', 150, yPosition - 5);
-      pdf.text('inStock', 175, yPosition - 5);
+      // Function to convert image to base64 for PDF
+      const getImageAsBase64 = async (imageUrl: string): Promise<string | null> => {
+        try {
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        } catch {
+          return null;
+        }
+      };
       
-      // Header underline
-      pdf.setLineWidth(0.5);
-      pdf.line(20, yPosition, 190, yPosition);
-      
-      yPosition += 10;
-      
-      inventoryItems.forEach((item, index) => {
-        // Check for new page
-        if (yPosition > pageHeight - 40) {
+      for (let i = 0; i < inventoryItems.length; i++) {
+        const item = inventoryItems[i];
+        
+        // Check for new page (15 items per page)
+        if (itemCount >= itemsPerPage) {
           pdf.addPage();
           yPosition = 30;
+          itemCount = 0;
           
-          // Redraw headers
+          // Redraw header on new page
+          pdf.setFontSize(16);
           pdf.setFont('helvetica', 'bold');
-          pdf.text('Description', 50, yPosition - 5);
-          pdf.text('Art.Nr.', 120, yPosition - 5);
-          pdf.text('Action', 150, yPosition - 5);
-          pdf.text('inStock', 175, yPosition - 5);
-          pdf.line(20, yPosition, 190, yPosition);
-          yPosition += 10;
+          pdf.text(`Stock Report - ${customer.name} (cont.)`, 20, 20);
+          yPosition = 40;
         }
         
-        // Row border
-        pdf.setLineWidth(0.2);
-        pdf.setDrawColor(200, 200, 200);
-        pdf.rect(20, yPosition - 5, 170, rowHeight);
+        const rowHeight = 16;
+        const imageSize = 12;
         
-        // Image placeholder box
-        pdf.setFillColor(240, 240, 240);
-        pdf.rect(22, yPosition - 3, imageSize, imageSize, 'F');
-        pdf.setDrawColor(180, 180, 180);
-        pdf.rect(22, yPosition - 3, imageSize, imageSize);
+        // Image section
+        let imageBase64 = null;
+        if (item.photo_url) {
+          try {
+            imageBase64 = await getImageAsBase64(item.photo_url);
+          } catch (error) {
+            console.log('Failed to load image:', item.photo_url);
+          }
+        }
         
-        // "IMG" text in placeholder
-        pdf.setFontSize(8);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(120, 120, 120);
-        pdf.text('IMG', 27, yPosition + 8);
+        if (imageBase64) {
+          try {
+            pdf.addImage(imageBase64, 'JPEG', 20, yPosition - 2, imageSize, imageSize);
+          } catch (error) {
+            // Fallback to placeholder if image fails
+            pdf.setFillColor(245, 245, 245);
+            pdf.roundedRect(20, yPosition - 2, imageSize, imageSize, 2, 2, 'F');
+            pdf.setFontSize(6);
+            pdf.setTextColor(120, 120, 120);
+            pdf.text('IMG', 24, yPosition + 4);
+          }
+        } else {
+          // Image placeholder with rounded appearance
+          pdf.setFillColor(245, 245, 245);
+          pdf.roundedRect(20, yPosition - 2, imageSize, imageSize, 2, 2, 'F');
+          pdf.setFontSize(6);
+          pdf.setTextColor(120, 120, 120);
+          pdf.text('IMG', 24, yPosition + 4);
+        }
         
-        // Reset text color
+        // Reset text formatting
         pdf.setTextColor(0, 0, 0);
         pdf.setFontSize(10);
         pdf.setFont('helvetica', 'normal');
         
-        // Part name
+        // Part name (Description)
         const partName = item.name || '';
-        if (partName.length > 25) {
-          pdf.text(partName.substring(0, 25) + '...', 50, yPosition + 5);
-        } else {
-          pdf.text(partName, 50, yPosition + 5);
-        }
+        const maxNameLength = 30;
+        const displayName = partName.length > maxNameLength ? partName.substring(0, maxNameLength) + '...' : partName;
+        pdf.text(displayName, 40, yPosition + 5);
         
         // Part number
-        pdf.text(item.part_number || '', 120, yPosition + 5);
-        
-        // Production status with yellow highlight if contains certain keywords
-        const status = item.production_status || '';
-        const shouldHighlight = status.toLowerCase().includes('stock') || 
-                               status.toLowerCase().includes('progress') ||
-                               status.toLowerCase().includes('machining');
-        
-        if (shouldHighlight) {
-          pdf.setFillColor(255, 193, 7); // Yellow background
-          pdf.rect(148, yPosition - 2, 25, 12, 'F');
-        }
-        
-        pdf.setFontSize(9);
-        if (status.length > 15) {
-          pdf.text(status.substring(0, 15) + '...', 150, yPosition + 5);
-        } else {
-          pdf.text(status, 150, yPosition + 5);
-        }
-        
-        // Quantity with teal background
-        pdf.setFillColor(23, 162, 184); // Teal background
-        pdf.rect(173, yPosition - 2, 15, 12, 'F');
-        
-        // White text for quantity
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(11);
-        const quantityText = item.quantity?.toString() || '0';
-        const textWidth = pdf.getTextWidth(quantityText);
-        const centerX = 173 + (15 - textWidth) / 2;
-        pdf.text(quantityText, centerX, yPosition + 5);
-        
-        // Reset colors and font
-        pdf.setTextColor(0, 0, 0);
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
+        pdf.text(item.part_number || 'N/A', 120, yPosition + 5);
         
-        yPosition += rowHeight + 2;
-      });
+        // Production status
+        const status = item.production_status || 'N/A';
+        const maxStatusLength = 12;
+        const displayStatus = status.length > maxStatusLength ? status.substring(0, maxStatusLength) + '...' : status;
+        pdf.text(displayStatus, 150, yPosition + 5);
+        
+        // Quantity
+        pdf.setFont('helvetica', 'bold');
+        const quantityText = item.quantity?.toString() || '0';
+        pdf.text(quantityText, 180, yPosition + 5);
+        
+        yPosition += rowHeight;
+        itemCount++;
+      }
       
       // Save PDF
       const fileName = `Stock_Report_${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -384,7 +382,7 @@ export default function Customers() {
       
       toast({
         title: "Report Generated",
-        description: `Stock report for ${customer.name} has been generated.`,
+        description: `Clean stock report for ${customer.name} has been generated with ${inventoryItems.length} items.`,
       });
       
     } catch (error) {
