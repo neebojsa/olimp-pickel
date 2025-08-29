@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Product Sans Font Family */
+@font-face {
+  font-family: 'Product Sans';
+  src: url('/fonts/ProductSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Product Sans';
+  src: url('/fonts/ProductSans-Regular.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
@@ -120,6 +137,49 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-product-sans;
+  }
+}
+
+/* Print Styles for PDF Generation */
+@media print {
+  * {
+    font-family: 'Product Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  }
+  
+  .invoice-print {
+    max-width: none;
+    margin: 0;
+    padding: 20px;
+    color: black;
+    background: white;
+  }
+  
+  .invoice-header {
+    margin-bottom: 30px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 20px;
+  }
+  
+  .invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+  }
+  
+  .invoice-table th,
+  .invoice-table td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: left;
+  }
+  
+  .invoice-table th {
+    background-color: #f0f0f0;
+    font-weight: 700;
+  }
+  
+  .no-print {
+    display: none !important;
   }
 }

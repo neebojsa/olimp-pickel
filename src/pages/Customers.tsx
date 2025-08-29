@@ -275,19 +275,20 @@ export default function Customers() {
         return;
       }
 
+      // Create PDF with enhanced formatting using Product Sans-style fonts
       const pdf = new jsPDF();
-      const pageWidth = pdf.internal.pageSize.width;
-      const pageHeight = pdf.internal.pageSize.height;
-      const itemsPerPage = 15;
       
-      // Company header
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
+      // Set font to Arial (closest alternative to Product Sans in jsPDF)
+      pdf.setFont('arial', 'normal');
+      
+      // Company header with Product Sans styling
+      pdf.setFontSize(18);
+      pdf.setFont('arial', 'bold');
       pdf.text(`Stock Report - ${customer.name}`, 20, 20);
       
-      // Date
+      // Date with clean Product Sans style
       pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
+      pdf.setFont('arial', 'normal');
       const currentDate = new Date().toLocaleDateString('en-GB', { 
         day: 'numeric', 
         month: 'long', 
@@ -295,8 +296,24 @@ export default function Customers() {
       });
       pdf.text(`Generated: ${currentDate}`, 20, 30);
       
+      // Table headers with Product Sans-style clean formatting
       let yPosition = 50;
+      pdf.setFontSize(11);
+      pdf.setFont('arial', 'bold');
+      
+      pdf.text('Image', 20, yPosition);
+      pdf.text('Description', 40, yPosition);
+      pdf.text('Part Number', 120, yPosition);
+      pdf.text('Status', 150, yPosition);
+      pdf.text('Qty', 180, yPosition);
+      
+      // Header underline
+      pdf.setLineWidth(0.5);
+      pdf.line(20, yPosition + 2, 190, yPosition + 2);
+      
+      yPosition += 15;
       let itemCount = 0;
+      const itemsPerPage = 15;
       
       // Function to convert image to base64 for PDF
       const getImageAsBase64 = async (imageUrl: string): Promise<string | null> => {
@@ -323,9 +340,9 @@ export default function Customers() {
           yPosition = 30;
           itemCount = 0;
           
-          // Redraw header on new page
+          // Redraw header on new page with consistent font
           pdf.setFontSize(16);
-          pdf.setFont('helvetica', 'bold');
+          pdf.setFont('arial', 'bold');
           pdf.text(`Stock Report - ${customer.name} (cont.)`, 20, 20);
           yPosition = 40;
         }
@@ -363,10 +380,10 @@ export default function Customers() {
           pdf.text('IMG', 24, yPosition + 4);
         }
         
-        // Reset text formatting
+        // Reset text formatting to Product Sans style
         pdf.setTextColor(0, 0, 0);
         pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'normal');
+        pdf.setFont('arial', 'normal');
         
         // Part name (Description)
         const partName = item.name || '';
@@ -374,8 +391,8 @@ export default function Customers() {
         const displayName = partName.length > maxNameLength ? partName.substring(0, maxNameLength) + '...' : partName;
         pdf.text(displayName, 40, yPosition + 5);
         
-        // Part number
-        pdf.setFont('helvetica', 'normal');
+        // Part number with Product Sans styling
+        pdf.setFont('arial', 'normal');
         pdf.text(item.part_number || 'N/A', 120, yPosition + 5);
         
         // Production status
@@ -384,8 +401,8 @@ export default function Customers() {
         const displayStatus = status.length > maxStatusLength ? status.substring(0, maxStatusLength) + '...' : status;
         pdf.text(displayStatus, 150, yPosition + 5);
         
-        // Quantity
-        pdf.setFont('helvetica', 'bold');
+        // Quantity with bold weight for emphasis (Product Sans style)
+        pdf.setFont('arial', 'bold');
         const quantityText = item.quantity?.toString() || '0';
         pdf.text(quantityText, 180, yPosition + 5);
         

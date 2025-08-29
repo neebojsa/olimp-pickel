@@ -840,110 +840,108 @@ export default function Invoicing() {
             </DialogDescription>
           </DialogHeader>
           
-          {selectedInvoice && (
-            <div className="space-y-6 print:text-black">
-              {/* Invoice Header */}
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-semibold mb-2">Bill To:</h3>
-                  <p className="font-medium">{selectedInvoice.customers?.name}</p>
-                  <p className="text-sm whitespace-pre-line">{selectedInvoice.shipping_address}</p>
-                </div>
-                <div className="text-right">
-                  <div className="space-y-1">
-                    <p><span className="font-medium">Invoice Number:</span> {selectedInvoice.invoice_number}</p>
-                    <p><span className="font-medium">Issue Date:</span> {new Date(selectedInvoice.issue_date).toLocaleDateString()}</p>
-                    <p><span className="font-medium">Due Date:</span> {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'N/A'}</p>
-                    {selectedInvoice.order_number && (
-                      <p><span className="font-medium">Order Number:</span> {selectedInvoice.order_number}</p>
-                    )}
-                    {selectedInvoice.shipping_date && (
-                      <p><span className="font-medium">Shipping Date:</span> {new Date(selectedInvoice.shipping_date).toLocaleDateString()}</p>
-                    )}
-                    {selectedInvoice.incoterms && (
-                      <p><span className="font-medium">Incoterms:</span> {selectedInvoice.incoterms}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Invoice Items */}
-              <div>
-                <h3 className="font-semibold mb-3">Items</h3>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Unit Price</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedInvoice.invoice_items?.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.description}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{item.unit_price.toFixed(2)} {selectedInvoice.currency}</TableCell>
-                          <TableCell>{item.total.toFixed(2)} {selectedInvoice.currency}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-
-              {/* Invoice Summary */}
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-semibold mb-2">Summary</h3>
-                  <div className="space-y-1 text-sm">
-                    <p><span className="font-medium">Total Quantity:</span> {selectedInvoice.total_quantity} pcs</p>
-                    <p><span className="font-medium">Net Weight:</span> {selectedInvoice.net_weight} kg</p>
-                    <p><span className="font-medium">Total Weight:</span> {selectedInvoice.total_weight} kg</p>
-                    <p><span className="font-medium">Packing:</span> {selectedInvoice.packing} packages</p>
-                    {selectedInvoice.declaration_number && (
-                      <p><span className="font-medium">Declaration Number:</span> {selectedInvoice.declaration_number}</p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="text-right">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span>{((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>VAT ({selectedInvoice.vat_rate}%):</span>
-                      <span>{((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-lg border-t pt-2">
-                      <span>Total:</span>
-                      <span>{(selectedInvoice.amount || 0).toFixed(2)} {selectedInvoice.currency}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {selectedInvoice.notes && (
-                <div>
-                  <h3 className="font-semibold mb-2">Notes</h3>
-                  <p className="text-sm whitespace-pre-line">{selectedInvoice.notes}</p>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-4 print:hidden">
-                <Button onClick={() => window.print()}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Print Invoice
-                </Button>
-                <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
-                  Close
-                </Button>
+      {selectedInvoice && (
+        <div className="invoice-print space-y-6 print:text-black">
+          {/* Invoice Header */}
+          <div className="invoice-header grid grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-bold mb-2 text-lg">Bill To:</h3>
+              <p className="font-semibold text-base">{selectedInvoice.customers?.name}</p>
+              <p className="text-sm whitespace-pre-line mt-1">{selectedInvoice.shipping_address}</p>
+            </div>
+            <div className="text-right">
+              <div className="space-y-1">
+                <p className="text-sm"><span className="font-semibold">Invoice Number:</span> {selectedInvoice.invoice_number}</p>
+                <p className="text-sm"><span className="font-semibold">Issue Date:</span> {new Date(selectedInvoice.issue_date).toLocaleDateString()}</p>
+                <p className="text-sm"><span className="font-semibold">Due Date:</span> {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'N/A'}</p>
+                {selectedInvoice.order_number && (
+                  <p className="text-sm"><span className="font-semibold">Order Number:</span> {selectedInvoice.order_number}</p>
+                )}
+                {selectedInvoice.shipping_date && (
+                  <p className="text-sm"><span className="font-semibold">Shipping Date:</span> {new Date(selectedInvoice.shipping_date).toLocaleDateString()}</p>
+                )}
+                {selectedInvoice.incoterms && (
+                  <p className="text-sm"><span className="font-semibold">Incoterms:</span> {selectedInvoice.incoterms}</p>
+                )}
               </div>
             </div>
+          </div>
+
+          {/* Invoice Items */}
+          <div>
+            <h3 className="font-bold mb-3 text-lg">Items</h3>
+            <table className="invoice-table w-full">
+              <thead>
+                <tr>
+                  <th className="text-left p-2">Description</th>
+                  <th className="text-left p-2">Quantity</th>
+                  <th className="text-left p-2">Unit Price</th>
+                  <th className="text-left p-2">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedInvoice.invoice_items?.map((item, index) => (
+                  <tr key={index}>
+                    <td className="p-2">{item.description}</td>
+                    <td className="p-2">{item.quantity}</td>
+                    <td className="p-2">{item.unit_price.toFixed(2)} {selectedInvoice.currency}</td>
+                    <td className="p-2">{item.total.toFixed(2)} {selectedInvoice.currency}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Invoice Summary */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-bold mb-2 text-base">Summary</h3>
+              <div className="space-y-1 text-sm">
+                <p><span className="font-semibold">Total Quantity:</span> {selectedInvoice.total_quantity} pcs</p>
+                <p><span className="font-semibold">Net Weight:</span> {selectedInvoice.net_weight} kg</p>
+                <p><span className="font-semibold">Total Weight:</span> {selectedInvoice.total_weight} kg</p>
+                <p><span className="font-semibold">Packing:</span> {selectedInvoice.packing} packages</p>
+                {selectedInvoice.declaration_number && (
+                  <p><span className="font-semibold">Declaration Number:</span> {selectedInvoice.declaration_number}</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="text-right">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal:</span>
+                  <span>{((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>VAT ({selectedInvoice.vat_rate}%):</span>
+                  <span>{((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency}</span>
+                </div>
+                <div className="flex justify-between font-bold text-base border-t pt-2">
+                  <span>Total:</span>
+                  <span>{(selectedInvoice.amount || 0).toFixed(2)} {selectedInvoice.currency}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {selectedInvoice.notes && (
+            <div>
+              <h3 className="font-bold mb-2 text-base">Notes</h3>
+              <p className="text-sm whitespace-pre-line">{selectedInvoice.notes}</p>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-4 no-print">
+            <Button onClick={() => window.print()}>
+              <Download className="w-4 h-4 mr-2" />
+              Print Invoice
+            </Button>
+            <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
           )}
         </DialogContent>
       </Dialog>
