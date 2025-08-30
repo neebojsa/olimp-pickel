@@ -16,7 +16,6 @@ import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
 import PartHistoryDialog from "@/components/PartHistoryDialog";
 import { MaterialForm, MaterialData } from "@/components/MaterialForm";
 import { ProductionStatusDialog } from "@/components/ProductionStatusDialog";
-import { ToolSuggestionsDialog } from "@/components/ToolSuggestionsDialog";
 import { format } from "date-fns";
 export default function Inventory() {
   const {
@@ -75,7 +74,6 @@ export default function Inventory() {
   const [materialData, setMaterialData] = useState<MaterialData | null>(null);
   const [isProductionStatusDialogOpen, setIsProductionStatusDialogOpen] = useState(false);
   const [selectedItemForProductionStatus, setSelectedItemForProductionStatus] = useState<any>(null);
-  const [isToolSuggestionsDialogOpen, setIsToolSuggestionsDialogOpen] = useState(false);
   useEffect(() => {
     fetchInventoryItems();
     fetchSuppliers();
@@ -332,37 +330,13 @@ export default function Inventory() {
     }
   };
   const handleOpenAddDialog = (category: string) => {
-    if (category === "Tools") {
-      setIsToolSuggestionsDialogOpen(true);
-    } else {
-      setCurrentCategory(category);
-      setFormData(prev => ({
-        ...prev,
-        category
-      }));
-      setIsAddDialogOpen(true);
-    }
-  };
-
-  const handleToolSelected = (toolData: any) => {
-    // Populate form with tool data and open regular add dialog
-    setCurrentCategory("Tools");
-    setFormData({
-      part_number: toolData.part_number,
-      name: toolData.name,
-      description: toolData.description,
-      quantity: toolData.quantity,
-      unit_price: toolData.unit_price,
-      location: toolData.location,
-      category: "Tools",
-      customer_id: "",
-      minimum_stock: toolData.minimum_stock,
-      photo: null
-    });
-    
+    setCurrentCategory(category);
+    setFormData(prev => ({
+      ...prev,
+      category
+    }));
     setIsAddDialogOpen(true);
   };
-
   const handleOpenEditDialog = (item: any) => {
     setEditingItem(item);
     setFormData({
@@ -1790,12 +1764,5 @@ export default function Inventory() {
             </div>}
         </DialogContent>
       </Dialog>
-
-      {/* Tool Suggestions Dialog */}
-      <ToolSuggestionsDialog
-        open={isToolSuggestionsDialogOpen}
-        onOpenChange={setIsToolSuggestionsDialogOpen}
-        onToolSelected={handleToolSelected}
-      />
     </div>;
 }

@@ -552,51 +552,6 @@ export type Database = {
         }
         Relationships: []
       }
-      tools_library: {
-        Row: {
-          category: string
-          created_at: string
-          cutting_parameters: Json | null
-          description: string | null
-          id: string
-          manufacturer: string | null
-          part_number: string | null
-          specifications: Json | null
-          tool_name: string
-          tool_type: string
-          typical_applications: string[] | null
-          updated_at: string
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          cutting_parameters?: Json | null
-          description?: string | null
-          id?: string
-          manufacturer?: string | null
-          part_number?: string | null
-          specifications?: Json | null
-          tool_name: string
-          tool_type: string
-          typical_applications?: string[] | null
-          updated_at?: string
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          cutting_parameters?: Json | null
-          description?: string | null
-          id?: string
-          manufacturer?: string | null
-          part_number?: string | null
-          specifications?: Json | null
-          tool_name?: string
-          tool_type?: string
-          typical_applications?: string[] | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       work_orders: {
         Row: {
           actual_hours: number | null
