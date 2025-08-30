@@ -40,6 +40,7 @@ export default function Inventory() {
     location: "",
     category: "Parts",
     customer_id: "",
+    supplier_id: "",
     minimum_stock: "",
     photo: null as File | null
   });
@@ -288,7 +289,8 @@ export default function Inventory() {
       unit_price: parseFloat(formData.unit_price),
       location: formData.location,
       category: formData.category,
-      customer_id: formData.customer_id || null,
+      customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
+      supplier: formData.category !== "Parts" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
       minimum_stock: parseInt(formData.minimum_stock) || 0,
       photo_url: photoUrl,
       materials_used: currentCategory === "Materials" && materialData ? {
@@ -310,6 +312,7 @@ export default function Inventory() {
         location: "",
         category: currentCategory,
         customer_id: "",
+        supplier_id: "",
         minimum_stock: "",
         photo: null
       });
@@ -348,6 +351,7 @@ export default function Inventory() {
       location: item.location || "",
       category: item.category,
       customer_id: item.customer_id || "",
+      supplier_id: item.supplier ? (suppliers.find(s => s.name === item.supplier)?.id || "") : "",
       minimum_stock: item.minimum_stock?.toString() || "",
       photo: null
     });
@@ -437,7 +441,8 @@ export default function Inventory() {
         unit_price: parseFloat(formData.unit_price) || 0,
         location: formData.location,
         category: formData.category,
-        customer_id: formData.customer_id || null,
+        customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
+        supplier: formData.category !== "Parts" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
         minimum_stock: parseInt(formData.minimum_stock) || 0,
         photo_url: photoUrl,
         materials_used: editingItem?.category === "Materials" && materialData ? {
@@ -469,6 +474,7 @@ export default function Inventory() {
         location: "",
         category: "Parts",
         customer_id: "",
+        supplier_id: "",
         minimum_stock: "",
         photo: null
       });
@@ -972,16 +978,20 @@ export default function Inventory() {
                                    </>}
                                </div>
                               
-                               <div className="text-xs text-muted-foreground text-right space-y-1">
-                                 {item.customer_id && <div className="flex items-center justify-end gap-1">
-                                     <Users className="h-3 w-3 text-gray-400" />
-                                     <span>{customers.find(c => c.id === item.customer_id)?.name}</span>
-                                   </div>}
-                                 {item.location && <div className="flex items-center justify-end gap-1">
-                                     <MapPin className="h-3 w-3 text-gray-400" />
-                                     <span>{item.location}</span>
-                                   </div>}
-                               </div>
+                                <div className="text-xs text-muted-foreground text-right space-y-1">
+                                  {item.customer_id && item.category === "Parts" && <div className="flex items-center justify-end gap-1">
+                                      <Users className="h-3 w-3 text-gray-400" />
+                                      <span>{customers.find(c => c.id === item.customer_id)?.name}</span>
+                                    </div>}
+                                  {item.supplier && item.category !== "Parts" && <div className="flex items-center justify-end gap-1">
+                                      <Building2 className="h-3 w-3 text-gray-400" />
+                                      <span>{item.supplier}</span>
+                                    </div>}
+                                  {item.location && <div className="flex items-center justify-end gap-1">
+                                      <MapPin className="h-3 w-3 text-gray-400" />
+                                      <span>{item.location}</span>
+                                    </div>}
+                                </div>
                             </div>
                           </div>
                         </div>
@@ -1066,22 +1076,41 @@ export default function Inventory() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="customer">Customer</Label>
-              <Select value={formData.customer_id} onValueChange={value => setFormData(prev => ({
-              ...prev,
-              customer_id: value
-            }))}>
-                <SelectTrigger id="customer">
-                  <SelectValue placeholder="Select a customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map(customer => <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {currentCategory === "Parts" ? (
+              <div className="grid gap-2">
+                <Label htmlFor="customer">Customer</Label>
+                <Select value={formData.customer_id} onValueChange={value => setFormData(prev => ({
+                ...prev,
+                customer_id: value
+              }))}>
+                  <SelectTrigger id="customer">
+                    <SelectValue placeholder="Select a customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map(customer => <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                <Label htmlFor="supplier">Supplier</Label>
+                <Select value={formData.supplier_id} onValueChange={value => setFormData(prev => ({
+                ...prev,
+                supplier_id: value
+              }))}>
+                  <SelectTrigger id="supplier">
+                    <SelectValue placeholder="Select a supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(supplier => <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {formData.category !== "Materials" && <div className="grid gap-2">
                 <Label htmlFor="photo">Photo</Label>
                 <div className="space-y-2">
@@ -1181,22 +1210,41 @@ export default function Inventory() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit_customer">Customer</Label>
-              <Select value={formData.customer_id} onValueChange={value => setFormData(prev => ({
-              ...prev,
-              customer_id: value
-            }))}>
-                <SelectTrigger id="edit_customer">
-                  <SelectValue placeholder="Select a customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map(customer => <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {editingItem?.category === "Parts" ? (
+              <div className="grid gap-2">
+                <Label htmlFor="edit_customer">Customer</Label>
+                <Select value={formData.customer_id} onValueChange={value => setFormData(prev => ({
+                ...prev,
+                customer_id: value
+              }))}>
+                  <SelectTrigger id="edit_customer">
+                    <SelectValue placeholder="Select a customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map(customer => <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                <Label htmlFor="edit_supplier">Supplier</Label>
+                <Select value={formData.supplier_id} onValueChange={value => setFormData(prev => ({
+                ...prev,
+                supplier_id: value
+              }))}>
+                  <SelectTrigger id="edit_supplier">
+                    <SelectValue placeholder="Select a supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(supplier => <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {formData.category !== "Materials" && <div className="grid gap-2">
                 <Label htmlFor="edit_photo">Photo</Label>
                 <div className="space-y-2">
