@@ -189,6 +189,7 @@ export type Database = {
           id: string
           location: string | null
           materials_used: Json | null
+          minimum_stock: number | null
           name: string
           part_number: string | null
           photo_url: string | null
@@ -209,6 +210,7 @@ export type Database = {
           id?: string
           location?: string | null
           materials_used?: Json | null
+          minimum_stock?: number | null
           name: string
           part_number?: string | null
           photo_url?: string | null
@@ -229,6 +231,7 @@ export type Database = {
           id?: string
           location?: string | null
           materials_used?: Json | null
+          minimum_stock?: number | null
           name?: string
           part_number?: string | null
           photo_url?: string | null

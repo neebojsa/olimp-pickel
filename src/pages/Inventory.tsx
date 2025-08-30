@@ -40,6 +40,7 @@ export default function Inventory() {
     location: "",
     category: "Parts",
     customer_id: "",
+    minimum_stock: "",
     photo: null as File | null
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -288,6 +289,7 @@ export default function Inventory() {
       location: formData.location,
       category: formData.category,
       customer_id: formData.customer_id || null,
+      minimum_stock: parseInt(formData.minimum_stock) || 0,
       photo_url: photoUrl,
       materials_used: currentCategory === "Materials" && materialData ? {
         surfaceFinish: materialData.surfaceFinish,
@@ -308,6 +310,7 @@ export default function Inventory() {
         location: "",
         category: currentCategory,
         customer_id: "",
+        minimum_stock: "",
         photo: null
       });
       setPhotoPreview(null);
@@ -345,6 +348,7 @@ export default function Inventory() {
       location: item.location || "",
       category: item.category,
       customer_id: item.customer_id || "",
+      minimum_stock: item.minimum_stock?.toString() || "",
       photo: null
     });
 
@@ -434,6 +438,7 @@ export default function Inventory() {
         location: formData.location,
         category: formData.category,
         customer_id: formData.customer_id || null,
+        minimum_stock: parseInt(formData.minimum_stock) || 0,
         photo_url: photoUrl,
         materials_used: editingItem?.category === "Materials" && materialData ? {
           surfaceFinish: materialData.surfaceFinish,
@@ -464,6 +469,7 @@ export default function Inventory() {
         location: "",
         category: "Parts",
         customer_id: "",
+        minimum_stock: "",
         photo: null
       });
       setPhotoPreview(null);
@@ -631,8 +637,8 @@ export default function Inventory() {
     }
     return `${quantity} pcs`;
   };
-  const lowStockItems = inventoryItems.filter(item => item.currentQuantity <= item.minimumQuantity);
-  const totalValue = inventoryItems.reduce((total, item) => total + item.currentQuantity * item.unitCost, 0);
+  const lowStockItems = inventoryItems.filter(item => item.quantity <= (item.minimum_stock || 0));
+  const totalValue = inventoryItems.reduce((total, item) => total + (item.quantity || 0) * (item.unit_price || 0), 0);
   const allLowStockCount = lowStockItems.length;
   const handleViewHistory = async (item: any) => {
     setSelectedItemForHistory(item);
@@ -841,7 +847,9 @@ export default function Inventory() {
               <div className="space-y-3">
                 {filteredItems.length > 0 ? filteredItems.map(item => item &&
             // Add null check for the entire item
-            <Card key={item.id} className={`${category === "Materials" ? "h-[90px]" : "h-40"} hover:shadow-md transition-shadow cursor-pointer`} onClick={() => {
+            <Card key={item.id} className={`${category === "Materials" ? "h-[90px]" : "h-40"} hover:shadow-md transition-shadow cursor-pointer ${
+              item.quantity <= (item.minimum_stock || 0) ? 'border-destructive bg-destructive/5' : ''
+            }`} onClick={() => {
               setSelectedViewItem(item);
               setIsViewDialogOpen(true);
             }}>
@@ -941,26 +949,26 @@ export default function Inventory() {
                                <div className="flex items-center gap-4">
                                   {item?.category === "Materials" ? (() => {
                           const materialInfo = item.materials_used || {};
-                          const quantity = formatMaterialQuantity(materialInfo, item.currentQuantity);
+                          const quantity = formatMaterialQuantity(materialInfo, item.quantity);
                           const weight = calculateMaterialWeight(materialInfo);
                           const priceUnit = materialInfo.priceUnit === 'per_kg' ? 'kg' : 'm';
                           return <>
-                                          <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
-                                            {quantity}
-                                          </Badge>
+                                           <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
+                                             {quantity}
+                                           </Badge>
                                           {weight > 0 && <span className="text-sm text-muted-foreground">
                                               {weight.toFixed(1)} kg
                                             </span>}
-                                           <span className="font-semibold text-lg">${item.unitCost.toFixed(2)}/{priceUnit}</span>
-                                           <span className="text-sm text-muted-foreground ml-2">
-                                             (Total: ${(materialInfo.priceUnit === 'per_kg' ? weight * item.unitCost : item.currentQuantity * item.unitCost).toFixed(2)})
-                                           </span>
+                                           <span className="font-semibold text-lg">${item.unit_price.toFixed(2)}/{priceUnit}</span>
+                                            <span className="text-sm text-muted-foreground ml-2">
+                                              (Total: ${(materialInfo.priceUnit === 'per_kg' ? weight * item.unit_price : item.quantity * item.unit_price).toFixed(2)})
+                                            </span>
                                         </>;
                         })() : <>
-                                     <Badge variant={item.currentQuantity <= item.minimumQuantity ? "destructive" : "secondary"}>
-                                       {item.currentQuantity} {item.unitOfMeasure}
-                                     </Badge>
-                                     <span className="font-semibold text-lg">${item.unitCost}</span>
+                                      <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
+                                        {item.quantity} pcs
+                                      </Badge>
+                                     <span className="font-semibold text-lg">${item.unit_price}</span>
                                    </>}
                                </div>
                               
@@ -1019,12 +1027,19 @@ export default function Inventory() {
               description: e.target.value
             }))} placeholder="Enter item description" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="quantity">Quantity *</Label>
                 <Input id="quantity" type="number" value={formData.quantity} onChange={e => setFormData(prev => ({
                 ...prev,
                 quantity: e.target.value
+              }))} placeholder="0" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="minimum_stock">Min Stock Level</Label>
+                <Input id="minimum_stock" type="number" value={formData.minimum_stock || ''} onChange={e => setFormData(prev => ({
+                ...prev,
+                minimum_stock: e.target.value
               }))} placeholder="0" />
               </div>
               <div className="grid gap-2">
@@ -1127,12 +1142,19 @@ export default function Inventory() {
               description: e.target.value
             }))} placeholder="Enter description" rows={3} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit_quantity">Quantity *</Label>
                 <Input id="edit_quantity" type="number" value={formData.quantity} onChange={e => setFormData(prev => ({
                 ...prev,
                 quantity: e.target.value
+              }))} placeholder="0" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit_minimum_stock">Min Stock Level</Label>
+                <Input id="edit_minimum_stock" type="number" value={formData.minimum_stock || ''} onChange={e => setFormData(prev => ({
+                ...prev,
+                minimum_stock: e.target.value
               }))} placeholder="0" />
               </div>
               <div className="grid gap-2">
