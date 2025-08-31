@@ -1,4 +1,5 @@
 // Country to currency mapping based on ISO 4217 currency codes
+// Updated to resolve module caching issue
 export const countryToCurrency: Record<string, string> = {
   // Europe
   'Austria': 'EUR',
