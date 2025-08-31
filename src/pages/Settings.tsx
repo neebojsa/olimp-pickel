@@ -161,60 +161,6 @@ export default function Settings() {
     }
   };
 
-  const handleSaveCompany = async () => {
-    let logoUrl = companyData.logo_url;
-    
-    if (logoFile) {
-      logoUrl = await handleLogoUpload(logoFile);
-      if (!logoUrl) return;
-    }
-
-    const companyInfo = { ...companyData, logo_url: logoUrl };
-
-    const { data: existingData, error: fetchError } = await supabase.from('company_info').select('id').limit(1).maybeSingle();
-    
-    if (fetchError) {
-      console.error('Fetch error:', fetchError);
-      toast({
-        title: "Save failed",
-        description: "Failed to check existing company information.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (existingData) {
-      const { error } = await supabase.from('company_info').update(companyInfo).eq('id', existingData.id);
-      if (error) {
-        console.error('Update error:', error);
-        toast({
-          title: "Save failed",
-          description: `Failed to update company information: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      const { error } = await supabase.from('company_info').insert([companyInfo]);
-      if (error) {
-        console.error('Insert error:', error);
-        toast({
-          title: "Save failed",
-          description: `Failed to save company information: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    setCompanyData(companyInfo);
-    setLogoFile(null);
-    toast({
-      title: "Company information saved",
-      description: "Company details have been updated successfully.",
-    });
-  };
-
   const handleAvatarUpload = async (file: File) => {
     try {
       if (!validateImageFile(file)) {
@@ -347,6 +293,60 @@ export default function Settings() {
     toast({
       title: "Preferences saved",
       description: "Your preferences have been updated successfully.",
+    });
+  };
+
+  const handleSaveCompany = async () => {
+    let logoUrl = companyData.logo_url;
+    
+    if (logoFile) {
+      logoUrl = await handleLogoUpload(logoFile);
+      if (!logoUrl) return;
+    }
+
+    const companyInfo = { ...companyData, logo_url: logoUrl };
+
+    const { data: existingData, error: fetchError } = await supabase.from('company_info').select('id').limit(1).maybeSingle();
+    
+    if (fetchError) {
+      console.error('Fetch error:', fetchError);
+      toast({
+        title: "Save failed",
+        description: "Failed to check existing company information.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (existingData) {
+      const { error } = await supabase.from('company_info').update(companyInfo).eq('id', existingData.id);
+      if (error) {
+        console.error('Update error:', error);
+        toast({
+          title: "Save failed",
+          description: `Failed to update company information: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      const { error } = await supabase.from('company_info').insert([companyInfo]);
+      if (error) {
+        console.error('Insert error:', error);
+        toast({
+          title: "Save failed",
+          description: `Failed to save company information: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setCompanyData(companyInfo);
+    setLogoFile(null);
+    toast({
+      title: "Company information saved",
+      description: "Company details have been updated successfully.",
     });
   };
 
@@ -755,7 +755,10 @@ export default function Settings() {
                     <Label>Dark Mode</Label>
                     <p className="text-sm text-muted-foreground">Toggle between light and dark themes</p>
                   </div>
-                  <Switch checked={preferences.dark_mode} onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, dark_mode: checked }))} />
+                  <Switch 
+                    checked={preferences.dark_mode} 
+                    onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, dark_mode: checked }))} 
+                  />
                 </div>
                 
                 <Separator />
@@ -815,7 +818,10 @@ export default function Settings() {
                     <Label>Push Notifications</Label>
                     <p className="text-sm text-muted-foreground">Receive notifications in the browser</p>
                   </div>
-                  <Switch checked={preferences.push_notifications} onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, push_notifications: checked }))} />
+                  <Switch 
+                    checked={preferences.push_notifications} 
+                    onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, push_notifications: checked }))} 
+                  />
                 </div>
                 
                 <div className="flex items-center justify-between">
@@ -823,30 +829,33 @@ export default function Settings() {
                     <Label>Email Notifications</Label>
                     <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                   </div>
-                  <Switch checked={preferences.email_notifications} onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, email_notifications: checked }))} />
+                  <Switch 
+                    checked={preferences.email_notifications} 
+                    onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, email_notifications: checked }))} 
+                  />
                 </div>
                 
                 <Separator />
                 
                 <div className="space-y-4">
                   <h4 className="text-sm font-medium">Notification Types</h4>
-                   {[
-                     { name: "Work Order Updates", key: "work_order_notifications", description: "When work orders are created or modified" },
-                     { name: "Inventory Alerts", key: "inventory_notifications", description: "Low stock and inventory updates" },
-                     { name: "System Maintenance", key: "system_notifications", description: "Scheduled maintenance and downtime" },
-                     { name: "Account Security", key: "security_notifications", description: "Login attempts and security alerts" },
-                   ].map((notif) => (
-                     <div key={notif.name} className="flex items-center justify-between">
-                       <div className="space-y-0.5">
-                         <Label>{notif.name}</Label>
-                         <p className="text-sm text-muted-foreground">{notif.description}</p>
-                       </div>
-                       <Switch 
-                         checked={preferences[notif.key as keyof typeof preferences] as boolean} 
-                         onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, [notif.key]: checked }))} 
-                       />
-                     </div>
-                   ))}
+                  {[
+                    { name: "Work Order Updates", key: "work_order_notifications", description: "When work orders are created or modified" },
+                    { name: "Inventory Alerts", key: "inventory_notifications", description: "Low stock and inventory updates" },
+                    { name: "System Maintenance", key: "system_notifications", description: "Scheduled maintenance and downtime" },
+                    { name: "Account Security", key: "security_notifications", description: "Login attempts and security alerts" },
+                  ].map((notif) => (
+                    <div key={notif.name} className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>{notif.name}</Label>
+                        <p className="text-sm text-muted-foreground">{notif.description}</p>
+                      </div>
+                      <Switch 
+                        checked={preferences[notif.key as keyof typeof preferences] as boolean} 
+                        onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, [notif.key]: checked }))} 
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
               
@@ -945,7 +954,6 @@ export default function Settings() {
           </Card>
         </TabsContent>
       </Tabs>
-
     </div>
   );
 }
