@@ -18,6 +18,7 @@ import { MaterialForm, MaterialData } from "@/components/MaterialForm";
 import { ProductionStatusDialog } from "@/components/ProductionStatusDialog";
 import { format } from "date-fns";
 import { getCurrencyForCountry, formatCurrency } from "@/lib/currencyUtils";
+import { importInventoryFromSpreadsheet } from "@/utils/importInventory";
 export default function Inventory() {
   const {
     toast
@@ -339,6 +340,35 @@ export default function Inventory() {
       });
     }
   };
+  const handleImportSpreadsheet = async () => {
+    try {
+      setIsUploading(true);
+      toast({
+        title: "Importing inventory...",
+        description: "This may take a few moments"
+      });
+      
+      const result = await importInventoryFromSpreadsheet();
+      
+      toast({
+        title: "Import completed!",
+        description: `Successfully imported ${result.success} items. ${result.errors > 0 ? `${result.errors} items failed.` : ''}`
+      });
+      
+      // Refresh the inventory list
+      fetchInventoryItems();
+    } catch (error) {
+      console.error('Import failed:', error);
+      toast({
+        title: "Import failed",
+        description: "Failed to import inventory from spreadsheet",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleOpenAddDialog = (category: string) => {
     setCurrentCategory(category);
     setFormData(prev => ({
@@ -785,10 +815,20 @@ export default function Inventory() {
             Track materials, tools, and stock levels
           </p>
         </div>
-        <Button onClick={() => handleOpenAddDialog(currentCategory)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Item
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => handleOpenAddDialog(currentCategory)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Item
+          </Button>
+          <Button 
+            onClick={handleImportSpreadsheet}
+            variant="outline"
+            disabled={isUploading}
+          >
+            <Package className="w-4 h-4 mr-2" />
+            Import Spreadsheet
+          </Button>
+        </div>
       </div>
 
       {/* Overview Cards */}
