@@ -224,6 +224,7 @@ export default function Suppliers() {
     }
   };
 
+  // Handler for country selection - updates currency automatically
   const handleCountryChange = (country: string) => {
     const currency = getCurrencyForCountry(country);
     setNewSupplier({ ...newSupplier, country, currency });
