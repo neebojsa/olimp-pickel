@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Input } from '@/components/ui/input';
+import React from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ChevronDown } from 'lucide-react';
 
 interface CountryAutocompleteProps {
   value: string;
@@ -36,104 +35,22 @@ const countries = [
 export function CountryAutocomplete({ 
   value, 
   onChange, 
-  placeholder = "Enter country", 
+  placeholder = "Select country", 
   className,
   id
 }: CountryAutocompleteProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [filteredCountries, setFilteredCountries] = useState<string[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (value) {
-      const filtered = countries.filter(country =>
-        country.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 5);
-      setFilteredCountries(filtered);
-    } else {
-      setFilteredCountries([]);
-    }
-  }, [value]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        inputRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        !inputRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    onChange(newValue);
-    setIsOpen(newValue.length > 0);
-  };
-
-  const handleCountrySelect = (country: string) => {
-    onChange(country);
-    setIsOpen(false);
-    inputRef.current?.blur();
-  };
-
-  const handleInputFocus = () => {
-    if (value) {
-      setIsOpen(true);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setIsOpen(false);
-      inputRef.current?.blur();
-    }
-  };
-
   return (
-    <div className="relative">
-      <div className="relative">
-        <Input
-          ref={inputRef}
-          id={id}
-          type="text"
-          value={value}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className={cn("pr-8", className)}
-          autoComplete="country"
-        />
-        <ChevronDown 
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
-        />
-      </div>
-
-      {isOpen && filteredCountries.length > 0 && (
-        <div
-          ref={dropdownRef}
-          className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
-        >
-          {filteredCountries.map((country) => (
-            <button
-              key={country}
-              type="button"
-              className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground text-sm border-none bg-transparent cursor-pointer"
-              onClick={() => handleCountrySelect(country)}
-            >
-              {country}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className={cn(className)} id={id}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent className="max-h-[200px]">
+        {countries.map((country) => (
+          <SelectItem key={country} value={country}>
+            {country}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
