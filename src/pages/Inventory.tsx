@@ -17,7 +17,7 @@ import PartHistoryDialog from "@/components/PartHistoryDialog";
 import { MaterialForm, MaterialData } from "@/components/MaterialForm";
 import { ProductionStatusDialog } from "@/components/ProductionStatusDialog";
 import { format } from "date-fns";
-import { getCurrencyForCountry } from "@/lib/currencyUtils";
+import { getCurrencyForCountry, formatCurrency } from "@/lib/currencyUtils";
 export default function Inventory() {
   const {
     toast
@@ -718,7 +718,7 @@ export default function Inventory() {
               time: '09:00',
               // Default time since we don't have time in date field
               activity: 'Sold',
-              details: `Quantity: ${invoiceItem.quantity}, Unit Price: €${invoiceItem.unit_price}`,
+              details: `Quantity: ${invoiceItem.quantity}, Unit Price: ${formatCurrency(invoiceItem.unit_price, invoiceItem.invoices.currency || 'EUR')}`,
               reference: invoiceItem.invoices.invoice_number
             });
           }
@@ -829,7 +829,7 @@ export default function Inventory() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalValue, 'EUR')}</div>
             <p className="text-xs text-muted-foreground">
               complete inventory
             </p>
@@ -978,10 +978,10 @@ export default function Inventory() {
                                           {weight > 0 && <span className="text-sm text-muted-foreground">
                                               {weight.toFixed(1)} kg
                                             </span>}
-                                           <span className="font-semibold text-lg">${item.unit_price.toFixed(2)}/{priceUnit}</span>
-                                            <span className="text-sm text-muted-foreground ml-2">
-                                              (Total: ${(materialInfo.priceUnit === 'per_kg' ? weight * item.unit_price : item.quantity * item.unit_price).toFixed(2)})
-                                            </span>
+                                            <span className="font-semibold text-lg">{formatCurrency(item.unit_price, item.currency || 'EUR')}/{priceUnit}</span>
+                                             <span className="text-sm text-muted-foreground ml-2">
+                                               (Total: {formatCurrency((materialInfo.priceUnit === 'per_kg' ? weight * item.unit_price : item.quantity * item.unit_price), item.currency || 'EUR')})
+                                             </span>
                                         </>;
                          })() : <>
                                       <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
@@ -992,7 +992,7 @@ export default function Inventory() {
                                          {item.weight} kg
                                        </span>
                                      )}
-                                     <span className="font-semibold text-lg">${item.unit_price}</span>
+                                     <span className="font-semibold text-lg">{formatCurrency(item.unit_price, item.currency || 'EUR')}</span>
                                    </>}
                                </div>
                               
