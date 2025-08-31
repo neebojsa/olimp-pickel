@@ -79,6 +79,8 @@ export default function Inventory() {
   const [materialData, setMaterialData] = useState<MaterialData | null>(null);
   const [isProductionStatusDialogOpen, setIsProductionStatusDialogOpen] = useState(false);
   const [selectedItemForProductionStatus, setSelectedItemForProductionStatus] = useState<any>(null);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   useEffect(() => {
     fetchInventoryItems();
     fetchSuppliers();
@@ -340,7 +342,7 @@ export default function Inventory() {
       });
     }
   };
-  const handleImportSpreadsheet = async () => {
+  const handleImportSpreadsheet = async (url: string) => {
     try {
       setIsUploading(true);
       toast({
@@ -348,7 +350,7 @@ export default function Inventory() {
         description: "This may take a few moments"
       });
       
-      const result = await importInventoryFromSpreadsheet();
+      const result = await importInventoryFromSpreadsheet(url);
       
       toast({
         title: "Import completed!",
@@ -357,6 +359,8 @@ export default function Inventory() {
       
       // Refresh the inventory list
       fetchInventoryItems();
+      setIsImportDialogOpen(false);
+      setSpreadsheetUrl("");
     } catch (error) {
       console.error('Import failed:', error);
       toast({
@@ -821,12 +825,12 @@ export default function Inventory() {
             Add Item
           </Button>
           <Button 
-            onClick={handleImportSpreadsheet}
+            onClick={() => setIsImportDialogOpen(true)}
             variant="outline"
             disabled={isUploading}
           >
             <Package className="w-4 h-4 mr-2" />
-            Import Spreadsheet
+            Import from Spreadsheet
           </Button>
         </div>
       </div>
@@ -1827,6 +1831,43 @@ export default function Inventory() {
         onSave={handleSaveProductionStatus}
         itemName={selectedItemForProductionStatus?.name || ""}
       />
+
+      {/* Import Spreadsheet Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Import from Spreadsheet</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="spreadsheet-url">Spreadsheet URL</Label>
+              <Input
+                id="spreadsheet-url"
+                value={spreadsheetUrl}
+                onChange={(e) => setSpreadsheetUrl(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/..."
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsImportDialogOpen(false);
+                  setSpreadsheetUrl("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleImportSpreadsheet(spreadsheetUrl)}
+                disabled={!spreadsheetUrl.trim() || isUploading}
+              >
+                {isUploading ? "Importing..." : "Import"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* View Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
