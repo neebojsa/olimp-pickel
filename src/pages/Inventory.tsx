@@ -110,7 +110,7 @@ export default function Inventory() {
   const fetchSuppliers = async () => {
     const {
       data
-    } = await supabase.from('suppliers').select('id, name');
+    } = await supabase.from('suppliers').select('id, name, country, currency');
     if (data) {
       setSuppliers(data);
     }
@@ -118,7 +118,7 @@ export default function Inventory() {
   const fetchCustomers = async () => {
     const {
       data
-    } = await supabase.from('customers').select('id, name');
+    } = await supabase.from('customers').select('id, name, country, currency');
     if (data) {
       setCustomers(data);
     }
@@ -1142,7 +1142,13 @@ export default function Inventory() {
                     <SelectItem value="AUD">AUD (A$)</SelectItem>
                     <SelectItem value="CNY">CNY (¥)</SelectItem>
                     <SelectItem value="INR">INR (₹)</SelectItem>
+                    <SelectItem value="BAM">BAM (KM)</SelectItem>
                     <SelectItem value="RSD">RSD (РСД)</SelectItem>
+                    <SelectItem value="PLN">PLN (zł)</SelectItem>
+                    <SelectItem value="CZK">CZK (Kč)</SelectItem>
+                    <SelectItem value="SEK">SEK (kr)</SelectItem>
+                    <SelectItem value="NOK">NOK (kr)</SelectItem>
+                    <SelectItem value="DKK">DKK (kr)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1199,10 +1205,17 @@ export default function Inventory() {
             ) : (
               <div className="grid gap-2">
                 <Label htmlFor="supplier">Supplier</Label>
-                <Select value={formData.supplier_id} onValueChange={value => setFormData(prev => ({
-                ...prev,
-                supplier_id: value
-              }))}>
+                <Select value={formData.supplier_id} onValueChange={value => {
+                  // Find the selected supplier and auto-set currency
+                  const selectedSupplier = suppliers.find(s => s.id === value);
+                  const currency = selectedSupplier?.country ? getCurrencyForCountry(selectedSupplier.country) : 'EUR';
+                  
+                  setFormData(prev => ({
+                    ...prev,
+                    supplier_id: value,
+                    currency: currency
+                  }));
+                }}>
                   <SelectTrigger id="supplier">
                     <SelectValue placeholder="Select a supplier" />
                   </SelectTrigger>
@@ -1317,7 +1330,13 @@ export default function Inventory() {
                     <SelectItem value="AUD">AUD (A$)</SelectItem>
                     <SelectItem value="CNY">CNY (¥)</SelectItem>
                     <SelectItem value="INR">INR (₹)</SelectItem>
+                    <SelectItem value="BAM">BAM (KM)</SelectItem>
                     <SelectItem value="RSD">RSD (РСД)</SelectItem>
+                    <SelectItem value="PLN">PLN (zł)</SelectItem>
+                    <SelectItem value="CZK">CZK (Kč)</SelectItem>
+                    <SelectItem value="SEK">SEK (kr)</SelectItem>
+                    <SelectItem value="NOK">NOK (kr)</SelectItem>
+                    <SelectItem value="DKK">DKK (kr)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1374,10 +1393,17 @@ export default function Inventory() {
             ) : (
               <div className="grid gap-2">
                 <Label htmlFor="edit_supplier">Supplier</Label>
-                <Select value={formData.supplier_id} onValueChange={value => setFormData(prev => ({
-                ...prev,
-                supplier_id: value
-              }))}>
+                <Select value={formData.supplier_id} onValueChange={value => {
+                  // Find the selected supplier and auto-set currency
+                  const selectedSupplier = suppliers.find(s => s.id === value);
+                  const currency = selectedSupplier?.country ? getCurrencyForCountry(selectedSupplier.country) : 'EUR';
+                  
+                  setFormData(prev => ({
+                    ...prev,
+                    supplier_id: value,
+                    currency: currency
+                  }));
+                }}>
                   <SelectTrigger id="edit_supplier">
                     <SelectValue placeholder="Select a supplier" />
                   </SelectTrigger>
