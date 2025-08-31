@@ -17,9 +17,34 @@ import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 
 export default function Settings() {
   const { toast } = useToast();
-  const [darkMode, setDarkMode] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
+  
+  // Profile state
+  const [profileData, setProfileData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    department: "",
+    avatar_url: ""
+  });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+
+  // Preferences state
+  const [preferences, setPreferences] = useState({
+    dark_mode: false,
+    theme_color: "blue",
+    font_size: "medium",
+    push_notifications: true,
+    email_notifications: true,
+    work_order_notifications: true,
+    inventory_notifications: true,
+    system_notifications: false,
+    security_notifications: true,
+    language: "en",
+    timezone: "utc-5",
+    date_format: "mdy"
+  });
+
+  // Company data state
   const [companyData, setCompanyData] = useState({
     company_name: "",
     legal_name: "",
@@ -38,8 +63,56 @@ export default function Settings() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
   useEffect(() => {
-    fetchCompanyInfo();
+    fetchAllData();
   }, []);
+
+  const fetchAllData = async () => {
+    await Promise.all([
+      fetchCompanyInfo(),
+      fetchUserProfile(),
+      fetchUserPreferences()
+    ]);
+  };
+
+  const fetchUserProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return;
+    }
+    
+    if (data) {
+      setProfileData(data);
+    }
+  };
+
+  const fetchUserPreferences = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching user preferences:', error);
+      return;
+    }
+    
+    if (data) {
+      setPreferences(data);
+    }
+  };
 
   const fetchCompanyInfo = async () => {
     const { data, error } = await supabase.from('company_info').select('*').limit(1).maybeSingle();
@@ -142,9 +215,137 @@ export default function Settings() {
     });
   };
 
-  const handleSave = () => {
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      if (!validateImageFile(file)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a JPG or PNG image.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      const resizedFile = await resizeImageFile(file, 200, 200, 0.8);
+      
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64String = reader.result as string;
+          resolve(base64String);
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(resizedFile);
+      });
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to process avatar. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    let avatarUrl = profileData.avatar_url;
+    if (avatarFile) {
+      avatarUrl = await handleAvatarUpload(avatarFile);
+      if (!avatarUrl) return;
+    }
+
+    const profileInfo = { ...profileData, avatar_url: avatarUrl, user_id: user.id };
+
+    const { data: existingData } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingData) {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update(profileInfo)
+        .eq('user_id', user.id);
+      
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: `Failed to update profile: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from('user_profiles')
+        .insert([profileInfo]);
+      
+      if (error) {
+        toast({
+          title: "Save failed", 
+          description: `Failed to save profile: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setProfileData(profileInfo);
+    setAvatarFile(null);
     toast({
-      title: "Settings saved",
+      title: "Profile saved",
+      description: "Your profile has been updated successfully.",
+    });
+  };
+
+  const handleSavePreferences = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const preferencesData = { ...preferences, user_id: user.id };
+
+    const { data: existingData } = await supabase
+      .from('user_preferences')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingData) {
+      const { error } = await supabase
+        .from('user_preferences')
+        .update(preferencesData)
+        .eq('user_id', user.id);
+      
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: `Failed to update preferences: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from('user_preferences')
+        .insert([preferencesData]);
+      
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: `Failed to save preferences: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    toast({
+      title: "Preferences saved",
       description: "Your preferences have been updated successfully.",
     });
   };
@@ -179,11 +380,28 @@ export default function Settings() {
             <CardContent className="space-y-6">
               <div className="flex items-center space-x-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="/placeholder.svg" />
-                  <AvatarFallback>JD</AvatarFallback>
+                  <AvatarImage src={profileData.avatar_url || "/placeholder.svg"} />
+                  <AvatarFallback>{profileData.first_name?.[0]}{profileData.last_name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-2">
-                  <Button variant="outline" size="sm">Change Avatar</Button>
+                  <Button variant="outline" size="sm" onClick={() => document.getElementById('avatar-upload')?.click()}>Change Avatar</Button>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setAvatarFile(file);
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                          setProfileData(prev => ({ ...prev, avatar_url: e.target?.result as string }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
                   <p className="text-sm text-muted-foreground">JPG, GIF or PNG. Max size 1MB.</p>
                 </div>
               </div>
@@ -193,24 +411,40 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" defaultValue="John" />
+                  <Input 
+                    id="firstName" 
+                    value={profileData.first_name}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, first_name: e.target.value }))}
+                    placeholder="First Name"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" defaultValue="Doe" />
+                  <Input 
+                    id="lastName" 
+                    value={profileData.last_name}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, last_name: e.target.value }))}
+                    placeholder="Last Name"
+                  />
                 </div>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  value={profileData.email}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="Email Address"
+                />
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="department">Department</Label>
-                <Select defaultValue="production">
+                <Select value={profileData.department} onValueChange={(value) => setProfileData(prev => ({ ...prev, department: value }))}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="production">Production</SelectItem>
@@ -219,6 +453,12 @@ export default function Settings() {
                     <SelectItem value="maintenance">Maintenance</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button onClick={handleSaveProfile} className="px-8">
+                  Save Profile
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -515,14 +755,14 @@ export default function Settings() {
                     <Label>Dark Mode</Label>
                     <p className="text-sm text-muted-foreground">Toggle between light and dark themes</p>
                   </div>
-                  <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+                  <Switch checked={preferences.dark_mode} onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, dark_mode: checked }))} />
                 </div>
                 
                 <Separator />
                 
                 <div className="space-y-2">
                   <Label>Theme Color</Label>
-                  <Select defaultValue="blue">
+                  <Select value={preferences.theme_color} onValueChange={(value) => setPreferences(prev => ({ ...prev, theme_color: value }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -537,7 +777,7 @@ export default function Settings() {
                 
                 <div className="space-y-2">
                   <Label>Font Size</Label>
-                  <Select defaultValue="medium">
+                  <Select value={preferences.font_size} onValueChange={(value) => setPreferences(prev => ({ ...prev, font_size: value }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -548,6 +788,12 @@ export default function Settings() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button onClick={handleSavePreferences} className="px-8">
+                  Save Appearance Settings
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -569,7 +815,7 @@ export default function Settings() {
                     <Label>Push Notifications</Label>
                     <p className="text-sm text-muted-foreground">Receive notifications in the browser</p>
                   </div>
-                  <Switch checked={notifications} onCheckedChange={setNotifications} />
+                  <Switch checked={preferences.push_notifications} onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, push_notifications: checked }))} />
                 </div>
                 
                 <div className="flex items-center justify-between">
@@ -577,28 +823,37 @@ export default function Settings() {
                     <Label>Email Notifications</Label>
                     <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                   </div>
-                  <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
+                  <Switch checked={preferences.email_notifications} onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, email_notifications: checked }))} />
                 </div>
                 
                 <Separator />
                 
                 <div className="space-y-4">
                   <h4 className="text-sm font-medium">Notification Types</h4>
-                  {[
-                    { name: "Work Order Updates", description: "When work orders are created or modified", enabled: true },
-                    { name: "Inventory Alerts", description: "Low stock and inventory updates", enabled: true },
-                    { name: "System Maintenance", description: "Scheduled maintenance and downtime", enabled: false },
-                    { name: "Account Security", description: "Login attempts and security alerts", enabled: true },
-                  ].map((notif) => (
-                    <div key={notif.name} className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>{notif.name}</Label>
-                        <p className="text-sm text-muted-foreground">{notif.description}</p>
-                      </div>
-                      <Switch defaultChecked={notif.enabled} />
-                    </div>
-                  ))}
+                   {[
+                     { name: "Work Order Updates", key: "work_order_notifications", description: "When work orders are created or modified" },
+                     { name: "Inventory Alerts", key: "inventory_notifications", description: "Low stock and inventory updates" },
+                     { name: "System Maintenance", key: "system_notifications", description: "Scheduled maintenance and downtime" },
+                     { name: "Account Security", key: "security_notifications", description: "Login attempts and security alerts" },
+                   ].map((notif) => (
+                     <div key={notif.name} className="flex items-center justify-between">
+                       <div className="space-y-0.5">
+                         <Label>{notif.name}</Label>
+                         <p className="text-sm text-muted-foreground">{notif.description}</p>
+                       </div>
+                       <Switch 
+                         checked={preferences[notif.key as keyof typeof preferences] as boolean} 
+                         onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, [notif.key]: checked }))} 
+                       />
+                     </div>
+                   ))}
                 </div>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button onClick={handleSavePreferences} className="px-8">
+                  Save Notification Settings
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -617,7 +872,7 @@ export default function Settings() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Language</Label>
-                  <Select defaultValue="en">
+                  <Select value={preferences.language} onValueChange={(value) => setPreferences(prev => ({ ...prev, language: value }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -632,7 +887,7 @@ export default function Settings() {
                 
                 <div className="space-y-2">
                   <Label>Timezone</Label>
-                  <Select defaultValue="utc-5">
+                  <Select value={preferences.timezone} onValueChange={(value) => setPreferences(prev => ({ ...prev, timezone: value }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -647,7 +902,7 @@ export default function Settings() {
                 
                 <div className="space-y-2">
                   <Label>Date Format</Label>
-                  <Select defaultValue="mdy">
+                  <Select value={preferences.date_format} onValueChange={(value) => setPreferences(prev => ({ ...prev, date_format: value }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -657,6 +912,14 @@ export default function Settings() {
                       <SelectItem value="ymd">YYYY-MM-DD</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                
+                <Separator />
+
+                <div className="flex justify-end">
+                  <Button onClick={handleSavePreferences} className="px-8">
+                    Save System Settings
+                  </Button>
                 </div>
                 
                 <Separator />
@@ -683,11 +946,6 @@ export default function Settings() {
         </TabsContent>
       </Tabs>
 
-      <div className="flex justify-end mt-8">
-        <Button onClick={handleSave} className="px-8">
-          Save All Changes
-        </Button>
-      </div>
     </div>
   );
 }

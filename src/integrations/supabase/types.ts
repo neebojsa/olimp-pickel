@@ -552,6 +552,144 @@ export type Database = {
         }
         Relationships: []
       }
+      tools_library: {
+        Row: {
+          category: string
+          created_at: string
+          cutting_parameters: Json | null
+          description: string | null
+          id: string
+          manufacturer: string | null
+          part_number: string | null
+          specifications: Json | null
+          tool_name: string
+          tool_type: string
+          typical_applications: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          cutting_parameters?: Json | null
+          description?: string | null
+          id?: string
+          manufacturer?: string | null
+          part_number?: string | null
+          specifications?: Json | null
+          tool_name: string
+          tool_type: string
+          typical_applications?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          cutting_parameters?: Json | null
+          description?: string | null
+          id?: string
+          manufacturer?: string | null
+          part_number?: string | null
+          specifications?: Json | null
+          tool_name?: string
+          tool_type?: string
+          typical_applications?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          dark_mode: boolean
+          date_format: string
+          email_notifications: boolean
+          font_size: string
+          id: string
+          inventory_notifications: boolean
+          language: string
+          push_notifications: boolean
+          security_notifications: boolean
+          system_notifications: boolean
+          theme_color: string
+          timezone: string
+          updated_at: string
+          user_id: string
+          work_order_notifications: boolean
+        }
+        Insert: {
+          created_at?: string
+          dark_mode?: boolean
+          date_format?: string
+          email_notifications?: boolean
+          font_size?: string
+          id?: string
+          inventory_notifications?: boolean
+          language?: string
+          push_notifications?: boolean
+          security_notifications?: boolean
+          system_notifications?: boolean
+          theme_color?: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+          work_order_notifications?: boolean
+        }
+        Update: {
+          created_at?: string
+          dark_mode?: boolean
+          date_format?: string
+          email_notifications?: boolean
+          font_size?: string
+          id?: string
+          inventory_notifications?: boolean
+          language?: string
+          push_notifications?: boolean
+          security_notifications?: boolean
+          system_notifications?: boolean
+          theme_color?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+          work_order_notifications?: boolean
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          department: string | null
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       work_orders: {
         Row: {
           actual_hours: number | null
