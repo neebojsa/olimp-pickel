@@ -291,7 +291,7 @@ export default function Inventory() {
       category: formData.category,
       customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
       supplier: formData.category !== "Parts" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
-      minimum_stock: parseInt(formData.minimum_stock) || 0,
+      minimum_stock: formData.category === "Machines" ? 0 : (parseInt(formData.minimum_stock) || 0),
       photo_url: photoUrl,
       materials_used: currentCategory === "Materials" && materialData ? {
         surfaceFinish: materialData.surfaceFinish,
@@ -443,7 +443,7 @@ export default function Inventory() {
         category: formData.category,
         customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
         supplier: formData.category !== "Parts" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
-        minimum_stock: parseInt(formData.minimum_stock) || 0,
+        minimum_stock: formData.category === "Machines" ? 0 : (parseInt(formData.minimum_stock) || 0),
         photo_url: photoUrl,
         materials_used: editingItem?.category === "Materials" && materialData ? {
           surfaceFinish: materialData.surfaceFinish,
@@ -1045,13 +1045,15 @@ export default function Inventory() {
                 quantity: e.target.value
               }))} placeholder="0" />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="minimum_stock">Min Stock Level</Label>
-                <Input id="minimum_stock" type="number" value={formData.minimum_stock || ''} onChange={e => setFormData(prev => ({
-                ...prev,
-                minimum_stock: e.target.value
-              }))} placeholder="0" />
-              </div>
+              {formData.category !== "Machines" && (
+                <div className="grid gap-2">
+                  <Label htmlFor="minimum_stock">Min Stock Level</Label>
+                  <Input id="minimum_stock" type="number" value={formData.minimum_stock || ''} onChange={e => setFormData(prev => ({
+                  ...prev,
+                  minimum_stock: e.target.value
+                }))} placeholder="0" />
+                </div>
+              )}
               <div className="grid gap-2">
                 <Label htmlFor="unit_price">Unit Price *</Label>
                 <Input id="unit_price" type="number" step="0.01" value={formData.unit_price} onChange={e => setFormData(prev => ({
@@ -1179,13 +1181,15 @@ export default function Inventory() {
                 quantity: e.target.value
               }))} placeholder="0" />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit_minimum_stock">Min Stock Level</Label>
-                <Input id="edit_minimum_stock" type="number" value={formData.minimum_stock || ''} onChange={e => setFormData(prev => ({
-                ...prev,
-                minimum_stock: e.target.value
-              }))} placeholder="0" />
-              </div>
+              {formData.category !== "Machines" && (
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_minimum_stock">Min Stock Level</Label>
+                  <Input id="edit_minimum_stock" type="number" value={formData.minimum_stock || ''} onChange={e => setFormData(prev => ({
+                  ...prev,
+                  minimum_stock: e.target.value
+                }))} placeholder="0" />
+                </div>
+              )}
               <div className="grid gap-2">
                 <Label htmlFor="edit_unit_price">Unit Price *</Label>
                 <Input id="edit_unit_price" type="number" step="0.01" value={formData.unit_price} onChange={e => setFormData(prev => ({
