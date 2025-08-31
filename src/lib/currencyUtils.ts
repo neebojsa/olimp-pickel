@@ -165,6 +165,11 @@ export const getCurrencyForCountry = (country: string): string => {
  * Format currency with proper symbol
  */
 export const formatCurrency = (amount: number, currency: string): string => {
+  // Special case for BAM - display as KM
+  if (currency === 'BAM') {
+    return `${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM`;
+  }
+  
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
