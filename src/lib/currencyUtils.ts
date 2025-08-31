@@ -150,7 +150,8 @@ export const countryToCurrency: Record<string, string> = {
   'New Zealand': 'NZD',
   
   // Default fallback
-  'Serbia': 'RSD'
+  'Serbia': 'RSD',
+  'Bosnia and Herzegovina': 'BAM'
 };
 
 /**
@@ -194,7 +195,8 @@ export const getCurrencySymbol = (currency: string): string => {
     'CZK': 'Kč',
     'SEK': 'kr',
     'NOK': 'kr',
-    'DKK': 'kr'
+    'DKK': 'kr',
+    'BAM': 'KM'
   };
   return symbols[currency] || currency;
 };

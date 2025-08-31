@@ -17,6 +17,8 @@ import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CountryAutocomplete } from "@/components/CountryAutocomplete";
+import { getCurrencyForCountry } from "@/lib/currencyUtils";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -47,7 +49,9 @@ export default function Suppliers() {
     website: '',
     tax_id: '',
     payment_terms: 'Net 30',
-    notes: ''
+    notes: '',
+    country: '',
+    currency: 'EUR'
   });
 
   useEffect(() => {
@@ -105,7 +109,9 @@ export default function Suppliers() {
         website: newSupplier.website,
         tax_id: newSupplier.tax_id,
         payment_terms: newSupplier.payment_terms,
-        notes: newSupplier.notes
+        notes: newSupplier.notes,
+        country: newSupplier.country,
+        currency: newSupplier.currency
       }])
       .select();
 
@@ -127,7 +133,9 @@ export default function Suppliers() {
         website: '',
         tax_id: '',
         payment_terms: 'Net 30',
-        notes: ''
+        notes: '',
+        country: '',
+        currency: 'EUR'
       });
       toast({
         title: "Success",
@@ -151,7 +159,9 @@ export default function Suppliers() {
       website: selectedSupplier.website || '',
       tax_id: selectedSupplier.tax_id || '',
       payment_terms: selectedSupplier.payment_terms || 'Net 30',
-      notes: selectedSupplier.notes || ''
+      notes: selectedSupplier.notes || '',
+      country: selectedSupplier.country || '',
+      currency: selectedSupplier.currency || 'EUR'
     });
     setIsSupplierDialogOpen(false);
     setIsEditSupplierOpen(true);
@@ -178,7 +188,9 @@ export default function Suppliers() {
         website: newSupplier.website,
         tax_id: newSupplier.tax_id,
         payment_terms: newSupplier.payment_terms,
-        notes: newSupplier.notes
+        notes: newSupplier.notes,
+        country: newSupplier.country,
+        currency: newSupplier.currency
       })
       .eq('id', selectedSupplier.id);
 
@@ -198,7 +210,9 @@ export default function Suppliers() {
         website: '',
         tax_id: '',
         payment_terms: 'Net 30',
-        notes: ''
+        notes: '',
+        country: '',
+        currency: 'EUR'
       });
       setIsEditSupplierOpen(false);
     } else {
@@ -208,6 +222,11 @@ export default function Suppliers() {
         variant: "destructive"
       });
     }
+  };
+
+  const handleCountryChange = (country: string) => {
+    const currency = getCurrencyForCountry(country);
+    setNewSupplier({ ...newSupplier, country, currency });
   };
 
   return (
@@ -275,6 +294,22 @@ export default function Suppliers() {
                   onChange={(e) => setNewSupplier({...newSupplier, payment_terms: e.target.value})}
                 />
               </div>
+              <div>
+                <Label>Country</Label>
+                <CountryAutocomplete
+                  value={newSupplier.country}
+                  onChange={handleCountryChange}
+                  placeholder="Select country"
+                />
+              </div>
+              <div>
+                <Label>Currency</Label>
+                <Input 
+                  value={newSupplier.currency}
+                  disabled
+                  placeholder="Currency (auto-set from country)"
+                />
+              </div>
               <div className="col-span-2">
                 <Label>Address</Label>
                 <Input 
@@ -323,6 +358,7 @@ export default function Suppliers() {
                   <TableHead>Contact Person</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
+                  <TableHead>Country</TableHead>
                   <TableHead>Payment Terms</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Total Orders</TableHead>
@@ -348,6 +384,7 @@ export default function Suppliers() {
                       </a>
                     </TableCell>
                     <TableCell className="text-sm">{supplier.phone}</TableCell>
+                    <TableCell className="text-sm">{supplier.country || '-'}</TableCell>
                     <TableCell>{supplier.payment_terms}</TableCell>
                     <TableCell>
                       <Badge
@@ -422,6 +459,14 @@ export default function Suppliers() {
                     <div>
                       <p className="text-sm text-muted-foreground">Payment Terms</p>
                       <p className="font-medium">{selectedSupplier.payment_terms}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Country</p>
+                      <p className="font-medium">{selectedSupplier.country || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Currency</p>
+                      <p className="font-medium">{selectedSupplier.currency || 'EUR'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
@@ -606,6 +651,23 @@ export default function Suppliers() {
                 value={newSupplier.payment_terms}
                 onChange={(e) => setNewSupplier(prev => ({ ...prev, payment_terms: e.target.value }))}
                 placeholder="e.g., Net 30"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-country">Country</Label>
+              <CountryAutocomplete
+                value={newSupplier.country}
+                onChange={handleCountryChange}
+                placeholder="Select country"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-currency">Currency</Label>
+              <Input
+                id="edit-currency"
+                value={newSupplier.currency}
+                disabled
+                placeholder="Currency (auto-set from country)"
               />
             </div>
             <div className="grid gap-2">
