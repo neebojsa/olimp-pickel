@@ -155,10 +155,6 @@ export default function Inventory() {
     } = await supabase.from('inventory').delete().eq('id', itemId);
     if (!error) {
       setInventoryItems(prev => prev.filter(item => item.id !== itemId));
-      toast({
-        title: "Item Deleted",
-        description: "The inventory item has been successfully deleted."
-      });
     }
   };
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
