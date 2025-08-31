@@ -113,6 +113,7 @@ export type Database = {
           contact_person: string | null
           country: string | null
           created_at: string
+          currency: string | null
           declaration_numbers: string[] | null
           email: string | null
           id: string
@@ -127,6 +128,7 @@ export type Database = {
           contact_person?: string | null
           country?: string | null
           created_at?: string
+          currency?: string | null
           declaration_numbers?: string[] | null
           email?: string | null
           id?: string
@@ -141,6 +143,7 @@ export type Database = {
           contact_person?: string | null
           country?: string | null
           created_at?: string
+          currency?: string | null
           declaration_numbers?: string[] | null
           email?: string | null
           id?: string

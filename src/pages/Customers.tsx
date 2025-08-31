@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CountryAutocomplete } from "@/components/CountryAutocomplete";
+import { countryToCurrency } from "@/lib/currencyUtils";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -49,6 +50,7 @@ export default function Customers() {
     address: '',
     industry: '',
     country: '',
+    currency: 'EUR',
     webpage: '',
     notes: '',
     declarationNumbers: ''
@@ -141,6 +143,7 @@ export default function Customers() {
         phone: newCustomer.phone,
         address: newCustomer.address,
         country: newCustomer.country,
+        currency: newCustomer.currency,
         contact_person: newCustomer.contactPerson,
         industry: newCustomer.industry,
         webpage: newCustomer.webpage,
@@ -165,6 +168,7 @@ export default function Customers() {
         address: '',
         industry: '',
         country: '',
+        currency: 'EUR',
         webpage: '',
         notes: '',
         declarationNumbers: ''
@@ -190,6 +194,7 @@ export default function Customers() {
       address: selectedCustomer.address || '',
       industry: selectedCustomer.industry || '',
       country: selectedCustomer.country || '',
+      currency: selectedCustomer.currency || 'EUR',
       webpage: selectedCustomer.webpage || '',
       notes: selectedCustomer.notes || '',
       declarationNumbers: selectedCustomer.declaration_numbers?.join(', ') || ''
@@ -221,6 +226,7 @@ export default function Customers() {
         phone: newCustomer.phone,
         address: newCustomer.address,
         country: newCustomer.country,
+        currency: newCustomer.currency,
         contact_person: newCustomer.contactPerson,
         industry: newCustomer.industry,
         webpage: newCustomer.webpage,
@@ -243,6 +249,7 @@ export default function Customers() {
         address: '',
         industry: '',
         country: '',
+        currency: 'EUR',
         webpage: '',
         notes: '',
         declarationNumbers: ''
@@ -465,8 +472,21 @@ export default function Customers() {
                 <Label>Country</Label>
                 <CountryAutocomplete
                   value={newCustomer.country}
-                  onChange={(value) => setNewCustomer({...newCustomer, country: value})}
-                  placeholder="Enter country"
+                  onChange={(value) => {
+                    const currency = countryToCurrency[value] || 'EUR';
+                    setNewCustomer({...newCustomer, country: value, currency});
+                  }}
+                  placeholder="Select country"
+                />
+              </div>
+              <div>
+                <Label>Currency</Label>
+                <Input 
+                  placeholder="Currency" 
+                  value={newCustomer.currency}
+                  onChange={(e) => setNewCustomer({...newCustomer, currency: e.target.value})}
+                  className="bg-muted/50"
+                  readOnly
                 />
               </div>
               <div>
@@ -535,6 +555,7 @@ export default function Customers() {
                   <TableHead>Company Name</TableHead>
                   <TableHead>Contact Person</TableHead>
                   <TableHead>Country</TableHead>
+                  <TableHead>Currency</TableHead>
                   <TableHead>Industry</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
@@ -557,6 +578,7 @@ export default function Customers() {
                     </TableCell>
                     <TableCell>{customer.contactPerson}</TableCell>
                     <TableCell>{customer.country}</TableCell>
+                    <TableCell>{customer.currency || 'EUR'}</TableCell>
                     <TableCell>{customer.industry}</TableCell>
                     <TableCell className="text-sm">
                       <a href={`mailto:${customer.email}`} className="hover:underline">
@@ -834,8 +856,22 @@ export default function Customers() {
               <CountryAutocomplete
                 id="edit-country"
                 value={newCustomer.country}
-                onChange={(value) => setNewCustomer(prev => ({ ...prev, country: value }))}
-                placeholder="Enter country"
+                onChange={(value) => {
+                  const currency = countryToCurrency[value] || 'EUR';
+                  setNewCustomer(prev => ({ ...prev, country: value, currency }));
+                }}
+                placeholder="Select country"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-currency">Currency</Label>
+              <Input
+                id="edit-currency"
+                value={newCustomer.currency}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, currency: e.target.value }))}
+                placeholder="Currency"
+                className="bg-muted/50"
+                readOnly
               />
             </div>
             <div className="grid gap-2">
