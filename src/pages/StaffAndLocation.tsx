@@ -29,6 +29,10 @@ interface Staff {
   department?: string;
   is_active: boolean;
   created_at: string;
+  password_hash?: string;
+  page_permissions?: string[];
+  can_see_prices?: boolean;
+  can_see_customers?: boolean;
 }
 
 const Settings = () => {
@@ -53,7 +57,11 @@ const Settings = () => {
     phone: "",
     position: "",
     department: "",
-    is_active: true
+    is_active: true,
+    password: "",
+    page_permissions: [] as string[],
+    can_see_prices: false,
+    can_see_customers: false
   });
 
   useEffect(() => {
@@ -91,7 +99,13 @@ const Settings = () => {
         variant: "destructive"
       });
     } else {
-      setStaff(data || []);
+      const processedStaff = (data || []).map(staff => ({
+        ...staff,
+        page_permissions: Array.isArray(staff.page_permissions) 
+          ? staff.page_permissions.filter((p): p is string => typeof p === 'string')
+          : []
+      }));
+      setStaff(processedStaff);
     }
   };
 
@@ -155,10 +169,41 @@ const Settings = () => {
       return;
     }
 
+    if (!staffForm.email.trim()) {
+      toast({
+        title: "Error",
+        description: "Email is required for login access",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!editingStaff && !staffForm.password.trim()) {
+      toast({
+        title: "Error",
+        description: "Password is required for new staff members",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const staffData = {
+      name: staffForm.name,
+      email: staffForm.email,
+      phone: staffForm.phone,
+      position: staffForm.position,
+      department: staffForm.department,
+      is_active: staffForm.is_active,
+      page_permissions: staffForm.page_permissions,
+      can_see_prices: staffForm.can_see_prices,
+      can_see_customers: staffForm.can_see_customers,
+      ...(staffForm.password ? { password_hash: staffForm.password } : {})
+    };
+
     if (editingStaff) {
       const { error } = await supabase
         .from('staff')
-        .update(staffForm)
+        .update(staffData)
         .eq('id', editingStaff.id);
 
       if (error) {
@@ -172,7 +217,7 @@ const Settings = () => {
     } else {
       const { error } = await supabase
         .from('staff')
-        .insert([staffForm]);
+        .insert([staffData]);
 
       if (error) {
         toast({
@@ -189,7 +234,18 @@ const Settings = () => {
       description: `Staff member ${editingStaff ? 'updated' : 'created'} successfully`
     });
 
-    setStaffForm({ name: "", email: "", phone: "", position: "", department: "", is_active: true });
+    setStaffForm({ 
+      name: "", 
+      email: "", 
+      phone: "", 
+      position: "", 
+      department: "", 
+      is_active: true,
+      password: "",
+      page_permissions: [],
+      can_see_prices: false,
+      can_see_customers: false
+    });
     setEditingStaff(null);
     setIsStaffDialogOpen(false);
     fetchStaff();
@@ -253,6 +309,11 @@ const Settings = () => {
     setIsLocationDialogOpen(true);
   };
 
+  const availablePages = [
+    "inventory", "work-orders", "customers", "suppliers", 
+    "invoicing", "accounting", "labels", "settings"
+  ];
+
   const openStaffDialog = (staffMember?: Staff) => {
     if (staffMember) {
       setEditingStaff(staffMember);
@@ -262,13 +323,37 @@ const Settings = () => {
         phone: staffMember.phone || "",
         position: staffMember.position || "",
         department: staffMember.department || "",
-        is_active: staffMember.is_active
+        is_active: staffMember.is_active,
+        password: "",
+        page_permissions: staffMember.page_permissions || [],
+        can_see_prices: staffMember.can_see_prices || false,
+        can_see_customers: staffMember.can_see_customers || false
       });
     } else {
       setEditingStaff(null);
-      setStaffForm({ name: "", email: "", phone: "", position: "", department: "", is_active: true });
+      setStaffForm({ 
+        name: "", 
+        email: "", 
+        phone: "", 
+        position: "", 
+        department: "", 
+        is_active: true,
+        password: "",
+        page_permissions: [],
+        can_see_prices: false,
+        can_see_customers: false
+      });
     }
     setIsStaffDialogOpen(true);
+  };
+
+  const handlePagePermissionToggle = (page: string) => {
+    setStaffForm(prev => ({
+      ...prev,
+      page_permissions: prev.page_permissions.includes(page)
+        ? prev.page_permissions.filter(p => p !== page)
+        : [...prev.page_permissions, page]
+    }));
   };
 
   return (
@@ -454,23 +539,80 @@ const Settings = () => {
                       placeholder="Job title"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="staff-department">Department</Label>
-                    <Input
-                      id="staff-department"
-                      value={staffForm.department}
-                      onChange={(e) => setStaffForm({ ...staffForm, department: e.target.value })}
-                      placeholder="Department name"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="staff-active"
-                      checked={staffForm.is_active}
-                      onCheckedChange={(checked) => setStaffForm({ ...staffForm, is_active: checked })}
-                    />
-                    <Label htmlFor="staff-active">Active</Label>
-                  </div>
+                   <div>
+                     <Label htmlFor="staff-department">Department</Label>
+                     <Input
+                       id="staff-department"
+                       value={staffForm.department}
+                       onChange={(e) => setStaffForm({ ...staffForm, department: e.target.value })}
+                       placeholder="Department name"
+                     />
+                   </div>
+                   
+                   <div>
+                     <Label htmlFor="staff-password">
+                       Password {!editingStaff && '*'}
+                     </Label>
+                     <Input
+                       id="staff-password"
+                       type="password"
+                       value={staffForm.password}
+                       onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+                       placeholder={editingStaff ? "Leave empty to keep current password" : "Enter password"}
+                     />
+                   </div>
+
+                   <div className="space-y-3">
+                     <Label>Page Permissions</Label>
+                     <div className="grid grid-cols-2 gap-2">
+                       {availablePages.map((page) => (
+                         <div key={page} className="flex items-center space-x-2">
+                           <Switch
+                             id={`permission-${page}`}
+                             checked={staffForm.page_permissions.includes(page)}
+                             onCheckedChange={() => handlePagePermissionToggle(page)}
+                           />
+                           <Label 
+                             htmlFor={`permission-${page}`}
+                             className="text-sm capitalize"
+                           >
+                             {page.replace('-', ' ')}
+                           </Label>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+
+                   <div className="space-y-3">
+                     <Label>Data Permissions</Label>
+                     <div className="space-y-2">
+                       <div className="flex items-center space-x-2">
+                         <Switch
+                           id="can-see-prices"
+                           checked={staffForm.can_see_prices}
+                           onCheckedChange={(checked) => setStaffForm(prev => ({ ...prev, can_see_prices: checked }))}
+                         />
+                         <Label htmlFor="can-see-prices">Can see prices</Label>
+                       </div>
+                       <div className="flex items-center space-x-2">
+                         <Switch
+                           id="can-see-customers"
+                           checked={staffForm.can_see_customers}
+                           onCheckedChange={(checked) => setStaffForm(prev => ({ ...prev, can_see_customers: checked }))}
+                         />
+                         <Label htmlFor="can-see-customers">Can see customers</Label>
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div className="flex items-center space-x-2">
+                     <Switch
+                       id="staff-active"
+                       checked={staffForm.is_active}
+                       onCheckedChange={(checked) => setStaffForm({ ...staffForm, is_active: checked })}
+                     />
+                     <Label htmlFor="staff-active">Active</Label>
+                   </div>
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => setIsStaffDialogOpen(false)}>
                       Cancel

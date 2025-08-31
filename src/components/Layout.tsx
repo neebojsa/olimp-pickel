@@ -20,6 +20,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const navigation = [
   { name: "Inventory", href: "/inventory", icon: Package },
@@ -37,11 +39,11 @@ const navigation = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [companyInfo, setCompanyInfo] = useState<any>(null);
-  const [userName, setUserName] = useState("User");
+  const { staff, logout, hasPagePermission } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchCompanyInfo();
-    fetchUserInfo();
   }, []);
 
   const fetchCompanyInfo = async () => {
@@ -51,12 +53,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const fetchUserInfo = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserName(user.email?.split('@')[0] || "User");
-    }
+  const handleLogout = () => {
+    logout();
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
   };
+
+  // Filter navigation items based on permissions
+  const filteredNavigation = navigation.filter(item => {
+    const page = item.href.slice(1); // Remove leading '/'
+    return hasPagePermission(page);
+  });
 
   const NavContent = () => (
     <div className="flex flex-col h-full">
@@ -70,10 +79,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ) : (
           <h1 className="text-xl font-bold">{companyInfo?.company_name || "CNC Manager"}</h1>
         )}
-        <p className="text-xs text-muted-foreground">{userName}</p>
+        <p className="text-xs text-muted-foreground">{staff?.name || "Staff"}</p>
+        {staff?.position && (
+          <p className="text-xs text-muted-foreground opacity-70">{staff.position}</p>
+        )}
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2">
-        {navigation.map((item) => {
+        {filteredNavigation.map((item) => {
           const isActive = location.pathname.startsWith(item.href);
           return (
             <Link
@@ -105,7 +117,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <Settings className="w-4 h-4 mr-2" />
           Settings
         </Link>
-        <Button variant="ghost" size="sm" className="w-full justify-start">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="w-full justify-start"
+          onClick={handleLogout}
+        >
           <LogOut className="w-4 h-4 mr-2" />
           Sign Out
         </Button>

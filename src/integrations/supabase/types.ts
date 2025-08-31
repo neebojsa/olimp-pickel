@@ -443,39 +443,89 @@ export type Database = {
       }
       staff: {
         Row: {
+          can_see_customers: boolean | null
+          can_see_prices: boolean | null
           created_at: string
           department: string | null
           email: string | null
           id: string
           is_active: boolean
+          last_login: string | null
           name: string
+          page_permissions: Json | null
+          password_hash: string | null
           phone: string | null
           position: string | null
           updated_at: string
         }
         Insert: {
+          can_see_customers?: boolean | null
+          can_see_prices?: boolean | null
           created_at?: string
           department?: string | null
           email?: string | null
           id?: string
           is_active?: boolean
+          last_login?: string | null
           name: string
+          page_permissions?: Json | null
+          password_hash?: string | null
           phone?: string | null
           position?: string | null
           updated_at?: string
         }
         Update: {
+          can_see_customers?: boolean | null
+          can_see_prices?: boolean | null
           created_at?: string
           department?: string | null
           email?: string | null
           id?: string
           is_active?: boolean
+          last_login?: string | null
           name?: string
+          page_permissions?: Json | null
+          password_hash?: string | null
           phone?: string | null
           position?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      staff_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          session_token: string
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          session_token: string
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          session_token?: string
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_sessions_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_locations: {
         Row: {
@@ -767,6 +817,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      authenticate_staff: {
+        Args: { staff_email: string; staff_password: string }
+        Returns: Json
+      }
       generate_invoice_number: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -774,6 +828,10 @@ export type Database = {
       generate_work_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      verify_staff_session: {
+        Args: { token: string }
+        Returns: Json
       }
     }
     Enums: {
