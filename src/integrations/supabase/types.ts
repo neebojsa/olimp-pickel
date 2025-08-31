@@ -183,6 +183,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          currency: string | null
           customer_id: string | null
           description: string | null
           drawings_files: Json | null
@@ -204,6 +205,7 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string
+          currency?: string | null
           customer_id?: string | null
           description?: string | null
           drawings_files?: Json | null
@@ -225,6 +227,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          currency?: string | null
           customer_id?: string | null
           description?: string | null
           drawings_files?: Json | null

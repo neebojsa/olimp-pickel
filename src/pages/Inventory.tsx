@@ -17,6 +17,7 @@ import PartHistoryDialog from "@/components/PartHistoryDialog";
 import { MaterialForm, MaterialData } from "@/components/MaterialForm";
 import { ProductionStatusDialog } from "@/components/ProductionStatusDialog";
 import { format } from "date-fns";
+import { getCurrencyForCountry } from "@/lib/currencyUtils";
 export default function Inventory() {
   const {
     toast
@@ -43,6 +44,7 @@ export default function Inventory() {
     customer_id: "",
     supplier_id: "",
     minimum_stock: "",
+    currency: "EUR",
     photo: null as File | null
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -288,6 +290,7 @@ export default function Inventory() {
       description: formData.description || null,
       quantity: parseInt(formData.quantity),
       unit_price: parseFloat(formData.unit_price),
+      currency: formData.currency,
       weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : 0,
       location: formData.location,
       category: formData.category,
@@ -317,6 +320,7 @@ export default function Inventory() {
         customer_id: "",
         supplier_id: "",
         minimum_stock: "",
+        currency: "EUR",
         photo: null
       });
       setPhotoPreview(null);
@@ -357,6 +361,7 @@ export default function Inventory() {
       customer_id: item.customer_id || "",
       supplier_id: item.supplier ? (suppliers.find(s => s.name === item.supplier)?.id || "") : "",
       minimum_stock: item.minimum_stock?.toString() || "",
+      currency: item.currency || "EUR",
       photo: null
     });
 
@@ -443,6 +448,7 @@ export default function Inventory() {
         description: editingItem?.category === "Materials" ? formData.description || null : formData.description,
         quantity: parseInt(formData.quantity) || 0,
         unit_price: parseFloat(formData.unit_price) || 0,
+        currency: formData.currency,
         weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : editingItem.weight || 0,
         location: formData.location,
         category: formData.category,
@@ -482,6 +488,7 @@ export default function Inventory() {
         customer_id: "",
         supplier_id: "",
         minimum_stock: "",
+        currency: "EUR",
         photo: null
       });
       setPhotoPreview(null);
@@ -1072,6 +1079,29 @@ export default function Inventory() {
                 unit_price: e.target.value
               }))} placeholder="0.00" />
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
+                  ...prev,
+                  currency: value
+                }))}>
+                  <SelectTrigger id="currency">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
+                    <SelectItem value="JPY">JPY (¥)</SelectItem>
+                    <SelectItem value="CHF">CHF (₣)</SelectItem>
+                    <SelectItem value="CAD">CAD (C$)</SelectItem>
+                    <SelectItem value="AUD">AUD (A$)</SelectItem>
+                    <SelectItem value="CNY">CNY (¥)</SelectItem>
+                    <SelectItem value="INR">INR (₹)</SelectItem>
+                    <SelectItem value="RSD">RSD (РСД)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             {(currentCategory === "Parts" || currentCategory === "Machines") && (
               <div className="grid gap-2">
@@ -1101,10 +1131,17 @@ export default function Inventory() {
             {currentCategory === "Parts" ? (
               <div className="grid gap-2">
                 <Label htmlFor="customer">Customer</Label>
-                <Select value={formData.customer_id} onValueChange={value => setFormData(prev => ({
-                ...prev,
-                customer_id: value
-              }))}>
+                <Select value={formData.customer_id} onValueChange={value => {
+                  // Find the selected customer and auto-set currency
+                  const selectedCustomer = customers.find(c => c.id === value);
+                  const currency = selectedCustomer?.country ? getCurrencyForCountry(selectedCustomer.country) : 'EUR';
+                  
+                  setFormData(prev => ({
+                    ...prev,
+                    customer_id: value,
+                    currency: currency
+                  }));
+                }}>
                   <SelectTrigger id="customer">
                     <SelectValue placeholder="Select a customer" />
                   </SelectTrigger>
@@ -1217,6 +1254,29 @@ export default function Inventory() {
                 unit_price: e.target.value
               }))} placeholder="0.00" />
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit_currency">Currency</Label>
+                <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
+                  ...prev,
+                  currency: value
+                }))}>
+                  <SelectTrigger id="edit_currency">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
+                    <SelectItem value="JPY">JPY (¥)</SelectItem>
+                    <SelectItem value="CHF">CHF (₣)</SelectItem>
+                    <SelectItem value="CAD">CAD (C$)</SelectItem>
+                    <SelectItem value="AUD">AUD (A$)</SelectItem>
+                    <SelectItem value="CNY">CNY (¥)</SelectItem>
+                    <SelectItem value="INR">INR (₹)</SelectItem>
+                    <SelectItem value="RSD">RSD (РСД)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             {(editingItem?.category === "Parts" || editingItem?.category === "Machines") && (
               <div className="grid gap-2">
@@ -1246,10 +1306,17 @@ export default function Inventory() {
             {editingItem?.category === "Parts" ? (
               <div className="grid gap-2">
                 <Label htmlFor="edit_customer">Customer</Label>
-                <Select value={formData.customer_id} onValueChange={value => setFormData(prev => ({
-                ...prev,
-                customer_id: value
-              }))}>
+                <Select value={formData.customer_id} onValueChange={value => {
+                  // Find the selected customer and auto-set currency
+                  const selectedCustomer = customers.find(c => c.id === value);
+                  const currency = selectedCustomer?.country ? getCurrencyForCountry(selectedCustomer.country) : 'EUR';
+                  
+                  setFormData(prev => ({
+                    ...prev,
+                    customer_id: value,
+                    currency: currency
+                  }));
+                }}>
                   <SelectTrigger id="edit_customer">
                     <SelectValue placeholder="Select a customer" />
                   </SelectTrigger>
