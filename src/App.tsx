@@ -24,18 +24,26 @@ import NotFound from "./pages/NotFound";
 const ProtectedRoute: React.FC<{ children: React.ReactNode; page?: string }> = ({ children, page }) => {
   const { staff, isLoading, hasPagePermission } = useAuth();
   
+  // Debug logging
+  console.log('ProtectedRoute - staff:', staff);
+  console.log('ProtectedRoute - page:', page);
+  console.log('ProtectedRoute - hasPagePermission:', page ? hasPagePermission(page) : 'no page specified');
+  
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
   
   if (!staff) {
+    console.log('No staff, redirecting to login');
     return <Navigate to="/login" replace />;
   }
   
   if (page && !hasPagePermission(page)) {
+    console.log('No page permission, redirecting to inventory');
     return <Navigate to="/inventory" replace />;
   }
   
+  console.log('ProtectedRoute - rendering children');
   return <>{children}</>;
 };
 

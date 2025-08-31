@@ -77,7 +77,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const hasPagePermission = (page: string): boolean => {
     if (!staff) return false;
-    return staff.page_permissions.includes(page) || staff.page_permissions.includes('all');
+    console.log('hasPagePermission - staff.page_permissions:', staff.page_permissions);
+    console.log('hasPagePermission - checking page:', page);
+    const hasPermission = staff.page_permissions.includes(page) || staff.page_permissions.includes('all');
+    console.log('hasPagePermission - result:', hasPermission);
+    return hasPermission;
   };
 
   const canSeePrices = (): boolean => {
