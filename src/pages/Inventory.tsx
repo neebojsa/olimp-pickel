@@ -37,6 +37,7 @@ export default function Inventory() {
     description: "",
     quantity: "",
     unit_price: "",
+    weight: "",
     location: "",
     category: "Parts",
     customer_id: "",
@@ -287,6 +288,7 @@ export default function Inventory() {
       description: formData.description || null,
       quantity: parseInt(formData.quantity),
       unit_price: parseFloat(formData.unit_price),
+      weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : 0,
       location: formData.location,
       category: formData.category,
       customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
@@ -309,6 +311,7 @@ export default function Inventory() {
         description: "",
         quantity: "",
         unit_price: "",
+        weight: "",
         location: "",
         category: currentCategory,
         customer_id: "",
@@ -348,6 +351,7 @@ export default function Inventory() {
       description: item.description || "",
       quantity: item.quantity.toString(),
       unit_price: item.unit_price.toString(),
+      weight: item.weight?.toString() || "",
       location: item.location || "",
       category: item.category,
       customer_id: item.customer_id || "",
@@ -439,6 +443,7 @@ export default function Inventory() {
         description: editingItem?.category === "Materials" ? formData.description || null : formData.description,
         quantity: parseInt(formData.quantity) || 0,
         unit_price: parseFloat(formData.unit_price) || 0,
+        weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : editingItem.weight || 0,
         location: formData.location,
         category: formData.category,
         customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
@@ -471,6 +476,7 @@ export default function Inventory() {
         description: "",
         quantity: "",
         unit_price: "",
+        weight: "",
         location: "",
         category: "Parts",
         customer_id: "",
@@ -970,10 +976,15 @@ export default function Inventory() {
                                               (Total: ${(materialInfo.priceUnit === 'per_kg' ? weight * item.unit_price : item.quantity * item.unit_price).toFixed(2)})
                                             </span>
                                         </>;
-                        })() : <>
+                         })() : <>
                                       <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
                                         {item.quantity} pcs
                                       </Badge>
+                                     {(item.category === "Parts" || item.category === "Machines") && item.weight > 0 && (
+                                       <span className="text-sm text-muted-foreground">
+                                         {item.weight} kg
+                                       </span>
+                                     )}
                                      <span className="font-semibold text-lg">${item.unit_price}</span>
                                    </>}
                                </div>
@@ -1062,6 +1073,15 @@ export default function Inventory() {
               }))} placeholder="0.00" />
               </div>
             </div>
+            {(currentCategory === "Parts" || currentCategory === "Machines") && (
+              <div className="grid gap-2">
+                <Label htmlFor="weight">Weight (kg)</Label>
+                <Input id="weight" type="number" step="0.01" value={formData.weight} onChange={e => setFormData(prev => ({
+                ...prev,
+                weight: e.target.value
+              }))} placeholder="0.00" />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="location">Location</Label>
               <Select value={formData.location} onValueChange={value => setFormData(prev => ({
@@ -1198,6 +1218,15 @@ export default function Inventory() {
               }))} placeholder="0.00" />
               </div>
             </div>
+            {(editingItem?.category === "Parts" || editingItem?.category === "Machines") && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit_weight">Weight (kg)</Label>
+                <Input id="edit_weight" type="number" step="0.01" value={formData.weight} onChange={e => setFormData(prev => ({
+                ...prev,
+                weight: e.target.value
+              }))} placeholder="0.00" />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="edit_location">Location</Label>
               <Select value={formData.location} onValueChange={value => setFormData(prev => ({
