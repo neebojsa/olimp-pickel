@@ -1006,21 +1006,36 @@ export default function Inventory() {
                             
                              <div className="flex items-center justify-between">
                                <div className="flex items-center gap-4">
-                                  {item?.category === "Materials" ? (() => {
+                                   {item?.category === "Materials" ? (() => {
                           const materialInfo = item.materials_used || {};
                           const quantity = formatMaterialQuantity(materialInfo, item.quantity);
-                          const weight = calculateMaterialWeight(materialInfo);
+                          const unitWeight = calculateMaterialWeight(materialInfo);
+                          const totalWeight = unitWeight * item.quantity;
                           const priceUnit = materialInfo.priceUnit === 'per_kg' ? 'kg' : 'm';
+                          
+                          // Calculate total value based on pricing unit
+                          let totalValue;
+                          if (materialInfo.priceUnit === 'per_kg') {
+                            totalValue = totalWeight * item.unit_price;
+                          } else {
+                            // For per_meter pricing, calculate total length in meters
+                            const dims = materialInfo.dimensions || {};
+                            const lengthInMm = parseFloat(dims.length) || 0;
+                            const lengthInMeters = lengthInMm / 1000;
+                            const totalMeters = lengthInMeters * item.quantity;
+                            totalValue = totalMeters * item.unit_price;
+                          }
+                          
                           return <>
                                            <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
                                              {quantity}
                                            </Badge>
-                                          {weight > 0 && <span className="text-sm text-muted-foreground">
-                                              {weight.toFixed(1)} kg
+                                          {totalWeight > 0 && <span className="text-sm text-muted-foreground">
+                                              {totalWeight.toFixed(1)} kg
                                             </span>}
                                             <span className="font-semibold text-lg">{formatCurrency(item.unit_price, item.currency || 'EUR')}/{priceUnit}</span>
                                              <span className="text-sm text-muted-foreground ml-2">
-                                               (Total: {formatCurrency((materialInfo.priceUnit === 'per_kg' ? weight * item.unit_price : item.quantity * item.unit_price), item.currency || 'EUR')})
+                                               (Total: {formatCurrency(totalValue, item.currency || 'EUR')})
                                              </span>
                                         </>;
                          })() : <>
