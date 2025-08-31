@@ -79,10 +79,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ) : (
           <h1 className="text-xl font-bold">{companyInfo?.company_name || "CNC Manager"}</h1>
         )}
-        <p className="text-xs text-muted-foreground">{staff?.name || "Staff"}</p>
-        {staff?.position && (
-          <p className="text-xs text-muted-foreground opacity-70">{staff.position}</p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          {staff?.name || "Staff"}{staff?.position ? `, ${staff.position}` : ""}
+        </p>
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2">
         {filteredNavigation.map((item) => {
