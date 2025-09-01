@@ -83,6 +83,7 @@ export default function Inventory() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("");
+  const [showOnlyWithProductionStatus, setShowOnlyWithProductionStatus] = useState(false);
   useEffect(() => {
     fetchInventoryItems();
     fetchSuppliers();
@@ -557,7 +558,14 @@ export default function Inventory() {
       
       // Customer filter (only for Parts)
       if (category === "Parts" && selectedCustomerFilter && selectedCustomerFilter !== "all") {
-        return matchesSearch && item.customer_id === selectedCustomerFilter;
+        const matchesCustomer = item.customer_id === selectedCustomerFilter;
+        const matchesProductionStatus = showOnlyWithProductionStatus ? (item.production_status && item.production_status.trim() !== "") : true;
+        return matchesSearch && matchesCustomer && matchesProductionStatus;
+      }
+      
+      // Production status filter (only for Parts)
+      if (category === "Parts" && showOnlyWithProductionStatus) {
+        return matchesSearch && item.production_status && item.production_status.trim() !== "";
       }
       
       return matchesSearch;
@@ -923,22 +931,32 @@ export default function Inventory() {
                   <Input placeholder={`Search ${category.toLowerCase()}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
                 </div>
                 
-                {/* Customer filter - only show for Parts */}
+                {/* Customer filter and Production Status filter - only show for Parts */}
                 {category === "Parts" && (
-                  <div className="w-60">
-                    <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Filter by customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map(customer => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="all">All</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-60">
+                      <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Filter by customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {customers.map(customer => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="all">All</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      variant={showOnlyWithProductionStatus ? "default" : "outline"}
+                      onClick={() => setShowOnlyWithProductionStatus(!showOnlyWithProductionStatus)}
+                      size="default"
+                    >
+                      <ClipboardList className="w-4 h-4 mr-2" />
+                      With Production Status
+                    </Button>
                   </div>
                 )}
                 
