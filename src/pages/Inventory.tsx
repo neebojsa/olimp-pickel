@@ -556,7 +556,7 @@ export default function Inventory() {
                            (item.part_number && item.part_number.toLowerCase().includes(searchTerm.toLowerCase()));
       
       // Customer filter (only for Parts)
-      if (category === "Parts" && selectedCustomerFilter) {
+      if (category === "Parts" && selectedCustomerFilter && selectedCustomerFilter !== "all") {
         return matchesSearch && item.customer_id === selectedCustomerFilter;
       }
       
@@ -936,7 +936,7 @@ export default function Inventory() {
                             {customer.name}
                           </SelectItem>
                         ))}
-                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
