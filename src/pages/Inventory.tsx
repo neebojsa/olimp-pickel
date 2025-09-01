@@ -925,10 +925,8 @@ export default function Inventory() {
                         color
                       }} />
                   </div>;
-                })() : <div className="w-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                            <AspectRatio ratio={4/3}>
-                              {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : <CategoryIcon className="w-12 h-12 text-muted-foreground" />}
-                            </AspectRatio>
+                })() : <div className="w-[170px] h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                            {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : <CategoryIcon className="w-12 h-12 text-muted-foreground" />}
                           </div>}
                            
                            {/* Content */}
@@ -1244,10 +1242,8 @@ export default function Inventory() {
             {formData.category !== "Materials" && <div className="grid gap-2">
                 <Label htmlFor="photo">Photo</Label>
                 <div className="space-y-2">
-                  {photoPreview ? <div className="relative w-32">
-                      <AspectRatio ratio={4/3}>
+                  {photoPreview ? <div className="relative w-[170px] h-32">
                         <img src={photoPreview} alt="Preview" className="w-full h-full object-cover rounded-lg border" />
-                      </AspectRatio>
                       <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={handleRemovePhoto}>
                         <X className="h-3 w-3" />
                       </Button>
@@ -1434,10 +1430,8 @@ export default function Inventory() {
             {formData.category !== "Materials" && <div className="grid gap-2">
                 <Label htmlFor="edit_photo">Photo</Label>
                 <div className="space-y-2">
-                  {photoPreview ? <div className="relative w-32">
-                      <AspectRatio ratio={4/3}>
+                  {photoPreview ? <div className="relative w-[170px] h-32">
                         <img src={photoPreview} alt="Preview" className="w-full h-full object-cover rounded-lg border" />
-                      </AspectRatio>
                       <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={handleRemovePhoto}>
                         <X className="h-3 w-3" />
                       </Button>
@@ -1926,10 +1920,8 @@ export default function Inventory() {
           {selectedViewItem && <div className="space-y-6">
               {/* Photo and Basic Info */}
               <div className="flex gap-6">
-                {selectedViewItem?.category !== "Materials" && <div className="w-48 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                    <AspectRatio ratio={4/3}>
+                {selectedViewItem?.category !== "Materials" && <div className="w-[170px] h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                       {selectedViewItem.photo_url ? <img src={selectedViewItem.photo_url} alt={selectedViewItem.name} className="w-full h-full object-cover" /> : <Package className="w-16 h-16 text-muted-foreground" />}
-                    </AspectRatio>
                   </div>}
                 <div className="flex-1 space-y-4">
                   <div>
