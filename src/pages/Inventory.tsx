@@ -82,6 +82,7 @@ export default function Inventory() {
   const [selectedItemForProductionStatus, setSelectedItemForProductionStatus] = useState<any>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
+  const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("");
   useEffect(() => {
     fetchInventoryItems();
     fetchSuppliers();
@@ -547,7 +548,31 @@ export default function Inventory() {
     }
   };
   const getFilteredItems = (category: string) => {
-    return inventoryItems.filter(item => item && item?.category === category && item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    let items = inventoryItems.filter(item => {
+      if (!item || item?.category !== category || !item.name) return false;
+      
+      // Search term filter
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (item.part_number && item.part_number.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      // Customer filter (only for Parts)
+      if (category === "Parts" && selectedCustomerFilter) {
+        return matchesSearch && item.customer_id === selectedCustomerFilter;
+      }
+      
+      return matchesSearch;
+    });
+    
+    // Sort parts by part_number
+    if (category === "Parts") {
+      items = items.sort((a, b) => {
+        const partA = a.part_number || "";
+        const partB = b.part_number || "";
+        return partA.localeCompare(partB);
+      });
+    }
+    
+    return items;
   };
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -893,10 +918,30 @@ export default function Inventory() {
         return <TabsContent key={category} value={category} className="space-y-4">
               {/* Search and Add */}
               <div className="flex items-center justify-between space-x-4">
-                <div className="relative flex-1">
+                <div className="relative max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input placeholder={`Search ${category.toLowerCase()}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
                 </div>
+                
+                {/* Customer filter - only show for Parts */}
+                {category === "Parts" && (
+                  <div className="w-60">
+                    <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Filter by customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map(customer => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="">All</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
                 <Button onClick={() => handleOpenAddDialog(category)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add {category.slice(0, -1)}
