@@ -918,7 +918,7 @@ export default function Invoicing() {
                         <p className="font-medium">
                           {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
                         </p>
-                        <div className="h-px bg-foreground print:bg-black mt-1.5"></div>
+                        <div className="h-[1.5px] bg-foreground print:bg-black mt-1.5"></div>
                       </div>
                     </div>
                   </div>
