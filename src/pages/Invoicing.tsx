@@ -33,6 +33,7 @@ export default function Invoicing() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -61,6 +62,7 @@ export default function Invoicing() {
     fetchInvoices();
     fetchCustomers();
     fetchInventoryItems();
+    fetchCompanyInfo();
   }, []);
 
   const fetchInvoices = async () => {
@@ -86,6 +88,11 @@ export default function Invoicing() {
   const fetchInventoryItems = async () => {
     const { data } = await supabase.from('inventory').select('*').eq('category', 'Parts');
     if (data) setInventoryItems(data);
+  };
+
+  const fetchCompanyInfo = async () => {
+    const { data } = await supabase.from('company_info').select('*').limit(1).single();
+    if (data) setCompanyInfo(data);
   };
 
   const getSelectedCustomer = () => {
@@ -894,7 +901,27 @@ export default function Invoicing() {
               `}</style>
               
               <div className="print-invoice space-y-6 print:text-black print:bg-white">
-                {/* Invoice Header - Repeats on each page */}
+                {/* Company Logo and Info - Top Left */}
+                {companyInfo && (
+                  <div className="company-header print:mb-6">
+                    {companyInfo.logo_url && (
+                      <div className="mb-3">
+                        <img 
+                          src={companyInfo.logo_url} 
+                          alt="Company Logo" 
+                          className="h-16 print:h-20 object-contain"
+                        />
+                      </div>
+                    )}
+                    <div className="text-sm print:text-sm">
+                      <p className="underline font-medium">
+                        {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - {companyInfo.country}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Invoice Header */}
                 <div className="invoice-header grid grid-cols-2 gap-6 print:mb-8">
                   <div>
                     <h3 className="font-semibold mb-2 print:text-lg">Bill To:</h3>
