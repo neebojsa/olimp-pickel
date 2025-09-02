@@ -924,8 +924,8 @@ export default function Invoicing() {
                 )}
 
                 {/* INVOICE Title */}
-                <div className="relative" style={{ marginLeft: '4cm' }}>
-                  <div className="inline-block bg-[#f3daaf] px-2 py-1 h-[20px] flex items-center" style={{ width: 'calc(100% - 4cm)' }}>
+                <div className="relative flex justify-end" style={{ marginRight: '4cm' }}>
+                  <div className="bg-[#f3daaf] px-2 h-[25px] flex items-center justify-center">
                     <span className="text-lg font-medium text-black">INVOICE</span>
                   </div>
                 </div>
