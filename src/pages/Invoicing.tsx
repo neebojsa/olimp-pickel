@@ -952,7 +952,7 @@ export default function Invoicing() {
                       <p><span className="font-medium">Total Quantity:</span> {selectedInvoice.total_quantity} pcs</p>
                       <p><span className="font-medium">Net Weight:</span> {selectedInvoice.net_weight} kg</p>
                       <p><span className="font-medium">Total Weight:</span> {selectedInvoice.total_weight} kg</p>
-                      <p><span className="font-medium">Packing:</span> {selectedInvoice.packing} packages</p>
+                      <p><span className="font-medium">Packing:</span> {selectedInvoice.packing} {selectedInvoice.packing === 1 ? 'package' : 'packages'}</p>
                       {selectedInvoice.declaration_number && (
                         <p><span className="font-medium">Declaration Number:</span> {selectedInvoice.declaration_number}</p>
                       )}
