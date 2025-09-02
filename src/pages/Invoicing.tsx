@@ -523,12 +523,8 @@ export default function Invoicing() {
 
               {/* Invoice Items */}
               <div>
-                <div className="flex justify-between items-center mb-4">
+                <div className="mb-4">
                   <Label className="text-lg font-semibold">Invoice Items</Label>
-                  <Button type="button" onClick={addInvoiceItem} size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Item
-                  </Button>
                 </div>
 
                 <div className="space-y-3">
@@ -596,6 +592,12 @@ export default function Invoicing() {
                       </div>
                     </div>
                   ))}
+                </div>
+                
+                <div className="mt-3">
+                  <Button type="button" onClick={addInvoiceItem} size="sm" variant="outline">
+                    <Plus className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
 
