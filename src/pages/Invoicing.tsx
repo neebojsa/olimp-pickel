@@ -915,7 +915,7 @@ export default function Invoicing() {
                     )}
                     <div className="text-sm print:text-sm">
                       <p className="underline font-medium">
-                        {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - {companyInfo.country}
+                        {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
                       </p>
                     </div>
                   </div>
