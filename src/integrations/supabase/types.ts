@@ -121,6 +121,7 @@ export type Database = {
           name: string
           phone: string | null
           updated_at: string
+          vat_number: string | null
           webpage: string | null
         }
         Insert: {
@@ -136,6 +137,7 @@ export type Database = {
           name: string
           phone?: string | null
           updated_at?: string
+          vat_number?: string | null
           webpage?: string | null
         }
         Update: {
@@ -151,6 +153,7 @@ export type Database = {
           name?: string
           phone?: string | null
           updated_at?: string
+          vat_number?: string | null
           webpage?: string | null
         }
         Relationships: []

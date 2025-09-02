@@ -52,6 +52,7 @@ export default function Customers() {
     country: '',
     currency: 'EUR',
     webpage: '',
+    vatNumber: '',
     notes: '',
     declarationNumbers: ''
   });
@@ -147,6 +148,7 @@ export default function Customers() {
         contact_person: newCustomer.contactPerson,
         industry: newCustomer.industry,
         webpage: newCustomer.webpage,
+        vat_number: newCustomer.vatNumber,
         declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null
       }])
       .select();
@@ -170,6 +172,7 @@ export default function Customers() {
         country: '',
         currency: 'EUR',
         webpage: '',
+        vatNumber: '',
         notes: '',
         declarationNumbers: ''
       });
@@ -196,6 +199,7 @@ export default function Customers() {
       country: selectedCustomer.country || '',
       currency: selectedCustomer.currency || 'EUR',
       webpage: selectedCustomer.webpage || '',
+      vatNumber: selectedCustomer.vat_number || '',
       notes: selectedCustomer.notes || '',
       declarationNumbers: selectedCustomer.declaration_numbers?.join(', ') || ''
     });
@@ -230,6 +234,7 @@ export default function Customers() {
         contact_person: newCustomer.contactPerson,
         industry: newCustomer.industry,
         webpage: newCustomer.webpage,
+        vat_number: newCustomer.vatNumber,
         declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null
       })
       .eq('id', selectedCustomer.id);
@@ -251,6 +256,7 @@ export default function Customers() {
         country: '',
         currency: 'EUR',
         webpage: '',
+        vatNumber: '',
         notes: '',
         declarationNumbers: ''
       });
@@ -495,6 +501,14 @@ export default function Customers() {
                   placeholder="Enter industry" 
                   value={newCustomer.industry}
                   onChange={(e) => setNewCustomer({...newCustomer, industry: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>VAT Number</Label>
+                <Input 
+                  placeholder="Enter VAT number" 
+                  value={newCustomer.vatNumber}
+                  onChange={(e) => setNewCustomer({...newCustomer, vatNumber: e.target.value})}
                 />
               </div>
               <div className="col-span-2">
@@ -881,6 +895,15 @@ export default function Customers() {
                 value={newCustomer.webpage}
                 onChange={(e) => setNewCustomer(prev => ({ ...prev, webpage: e.target.value }))}
                 placeholder="Enter website URL"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-vat">VAT Number</Label>
+              <Input
+                id="edit-vat"
+                value={newCustomer.vatNumber}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, vatNumber: e.target.value }))}
+                placeholder="Enter VAT number"
               />
             </div>
             <div className="grid gap-2">
