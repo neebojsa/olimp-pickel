@@ -621,15 +621,15 @@ export default function Invoicing() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
-                      <span className="font-medium">{totals.subtotal.toFixed(2)} {totals.currency}</span>
+                      <span className="font-medium">{totals.subtotal.toFixed(2)} {totals.currency === 'BAM' ? 'KM' : totals.currency}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>VAT ({totals.vatRate}%):</span>
-                      <span className="font-medium">{totals.vatAmount.toFixed(2)} {totals.currency}</span>
+                      <span className="font-medium">{totals.vatAmount.toFixed(2)} {totals.currency === 'BAM' ? 'KM' : totals.currency}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg">
                       <span>Total:</span>
-                      <span>{totals.total.toFixed(2)} {totals.currency}</span>
+                      <span>{totals.total.toFixed(2)} {totals.currency === 'BAM' ? 'KM' : totals.currency}</span>
                     </div>
                   </div>
                 </div>
@@ -776,10 +776,10 @@ export default function Invoicing() {
                       {invoice.status === 'paid' ? 'Paid' : 'Unpaid'}
                     </Badge>
                   </div>
-                  <div className="min-w-[120px] text-right">
-                    <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="font-bold text-lg">{(invoice.amount || 0).toFixed(2)} {invoice.currency}</p>
-                  </div>
+                   <div className="min-w-[120px] text-right">
+                     <p className="text-sm text-muted-foreground">Total</p>
+                     <p className="font-bold text-lg">{(invoice.amount || 0).toFixed(2)} {invoice.currency === 'BAM' ? 'KM' : invoice.currency}</p>
+                   </div>
                 </div>
                 
                 <div className="flex gap-1 ml-4">
@@ -936,8 +936,8 @@ export default function Invoicing() {
                         <tr key={index} className="print:border-black">
                           <td className="border p-2 print:border-black">{item.description}</td>
                           <td className="border p-2 print:border-black">{item.quantity}</td>
-                          <td className="border p-2 print:border-black">{item.unit_price.toFixed(2)} {selectedInvoice.currency}</td>
-                          <td className="border p-2 print:border-black">{item.total.toFixed(2)} {selectedInvoice.currency}</td>
+                         <td className="border p-2 print:border-black">{item.unit_price.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
+                         <td className="border p-2 print:border-black">{item.total.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -961,18 +961,18 @@ export default function Invoicing() {
                   
                   <div className="text-right">
                     <div className="space-y-2 print:space-y-3">
-                      <div className="flex justify-between print:text-sm">
-                        <span>Subtotal:</span>
-                        <span>{((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency}</span>
-                      </div>
-                      <div className="flex justify-between print:text-sm">
-                        <span>VAT ({selectedInvoice.vat_rate}%):</span>
-                        <span>{((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-lg border-t pt-2 print:text-base print:border-black print:pt-3">
-                        <span>Total:</span>
-                        <span>{(selectedInvoice.amount || 0).toFixed(2)} {selectedInvoice.currency}</span>
-                      </div>
+                       <div className="flex justify-between print:text-sm">
+                         <span>Subtotal:</span>
+                         <span>{((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
+                       </div>
+                       <div className="flex justify-between print:text-sm">
+                         <span>VAT ({selectedInvoice.vat_rate}%):</span>
+                         <span>{((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
+                       </div>
+                       <div className="flex justify-between font-bold text-lg border-t pt-2 print:text-base print:border-black print:pt-3">
+                         <span>Total:</span>
+                         <span>{(selectedInvoice.amount || 0).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
+                       </div>
                     </div>
                   </div>
                 </div>

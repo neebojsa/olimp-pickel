@@ -1217,7 +1217,7 @@ export default function Inventory() {
                     <SelectItem value="AUD">AUD (A$)</SelectItem>
                     <SelectItem value="CNY">CNY (¥)</SelectItem>
                     <SelectItem value="INR">INR (₹)</SelectItem>
-                    <SelectItem value="BAM">BAM (KM)</SelectItem>
+                    <SelectItem value="BAM">KM (BAM)</SelectItem>
                     <SelectItem value="RSD">RSD (РСД)</SelectItem>
                     <SelectItem value="PLN">PLN (zł)</SelectItem>
                     <SelectItem value="CZK">CZK (Kč)</SelectItem>
@@ -1405,7 +1405,7 @@ export default function Inventory() {
                     <SelectItem value="AUD">AUD (A$)</SelectItem>
                     <SelectItem value="CNY">CNY (¥)</SelectItem>
                     <SelectItem value="INR">INR (₹)</SelectItem>
-                    <SelectItem value="BAM">BAM (KM)</SelectItem>
+                    <SelectItem value="BAM">KM (BAM)</SelectItem>
                     <SelectItem value="RSD">RSD (РСД)</SelectItem>
                     <SelectItem value="PLN">PLN (zł)</SelectItem>
                     <SelectItem value="CZK">CZK (Kč)</SelectItem>
