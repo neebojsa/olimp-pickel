@@ -170,15 +170,6 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ onToolChange, initia
             frequency: cat.frequency || 0,
           }));
 
-        const customToolTypesData = customCategories
-          .filter(cat => cat.category_type === 'tool_type')
-          .map(cat => ({
-            id: cat.id,
-            name: cat.name,
-            type: 'custom' as const,
-            frequency: cat.frequency || 0,
-          }));
-
         // Merge with presets and sort by frequency
         const allMachiningTypes = [...PRESET_MACHINING_TYPES, ...customMachiningTypes]
           .sort((a, b) => b.frequency - a.frequency);

@@ -617,6 +617,33 @@ export type Database = {
         }
         Relationships: []
       }
+      tool_categories: {
+        Row: {
+          category_type: string
+          created_at: string
+          frequency: number
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category_type: string
+          created_at?: string
+          frequency?: number
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category_type?: string
+          created_at?: string
+          frequency?: number
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tools_library: {
         Row: {
           category: string
