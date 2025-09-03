@@ -19,7 +19,6 @@ import Suppliers from "./pages/Suppliers";
 import OtherDocs from "./pages/OtherDocs";
 import Settings from "./pages/Settings";
 import StaffAndLocation from "./pages/StaffAndLocation";
-import { ToolManagement } from "./pages/ToolManagement";
 import NotFound from "./pages/NotFound";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; page?: string }> = ({ children, page }) => {
@@ -114,11 +113,6 @@ const App: React.FC = () => {
               <Route path="/staff-and-location" element={
                 <ProtectedRoute page="settings">
                   <Layout><StaffAndLocation /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/tool-management" element={
-                <ProtectedRoute page="inventory">
-                  <Layout><ToolManagement /></Layout>
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
