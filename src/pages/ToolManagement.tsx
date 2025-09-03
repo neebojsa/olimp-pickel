@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { ToolSelector } from '@/components/ToolSelector';
 import { ToolFilterPanel } from '@/components/ToolFilterPanel';
 import { supabase } from '@/integrations/supabase/client';
@@ -242,6 +242,9 @@ export const ToolManagement = () => {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add New Tool</DialogTitle>
+              <DialogDescription>
+                Select the tool category and enter the details below
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-6">
               {/* Tool Category Selector */}
