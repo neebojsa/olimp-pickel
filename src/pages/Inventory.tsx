@@ -21,6 +21,7 @@ import { getCurrencyForCountry, formatCurrency } from "@/lib/currencyUtils";
 import { importInventoryFromSpreadsheet } from "@/utils/importInventory";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { ToolManagementDialog } from "@/components/ToolManagementDialog";
+import { ToolCategorySelector } from "@/components/ToolCategorySelector";
 export default function Inventory() {
   const {
     toast
@@ -86,6 +87,12 @@ export default function Inventory() {
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("");
   const [showOnlyWithProductionStatus, setShowOnlyWithProductionStatus] = useState(false);
+  const [toolCategorySelection, setToolCategorySelection] = useState<{
+    categoryPath: string[];
+    categoryId: string;
+    categoryTitle: string;
+    specFields: { [key: string]: string };
+  } | null>(null);
   useEffect(() => {
     fetchInventoryItems();
     fetchSuppliers();
@@ -263,6 +270,15 @@ export default function Inventory() {
         });
         return;
       }
+    } else if (currentCategory === "Tools") {
+      if (!toolCategorySelection || !formData.quantity || !formData.unit_price) {
+        toast({
+          title: "Validation Error", 
+          description: "Please select a tool category and fill in all required fields.",
+          variant: "destructive"
+        });
+        return;
+      }
     } else if (!formData.name || !formData.quantity || !formData.unit_price) {
       toast({
         title: "Validation Error",
@@ -285,7 +301,10 @@ export default function Inventory() {
         return;
       }
     }
-    const itemName = currentCategory === "Materials" && materialData ? materialData.generatedName : formData.name;
+    const itemName = currentCategory === "Materials" && materialData ? materialData.generatedName : 
+                     currentCategory === "Tools" && toolCategorySelection ? 
+                     toolCategorySelection.categoryPath.join(" - ") :
+                     formData.name;
     const {
       error
     } = await supabase.from('inventory').insert({
@@ -308,6 +327,10 @@ export default function Inventory() {
         material: materialData.material,
         dimensions: materialData.dimensions,
         priceUnit: materialData.priceUnit
+      } : currentCategory === "Tools" && toolCategorySelection ? {
+        toolCategory: toolCategorySelection.categoryPath,
+        toolCategoryId: toolCategorySelection.categoryId,
+        specifications: toolCategorySelection.specFields
       } : null
     });
     setIsUploading(false);
@@ -329,6 +352,7 @@ export default function Inventory() {
       });
       setPhotoPreview(null);
       setMaterialData(null);
+      setToolCategorySelection(null);
       setIsAddDialogOpen(false);
       fetchInventoryItems();
       toast({
@@ -415,6 +439,18 @@ export default function Inventory() {
       // Reset material data for non-materials
       setMaterialData(null);
     }
+
+    // Populate tool category selection for tools
+    if (item.category === "Tools" && item.materials_used && typeof item.materials_used === 'object' && item.materials_used.toolCategory) {
+      setToolCategorySelection({
+        categoryPath: item.materials_used.toolCategory,
+        categoryId: item.materials_used.toolCategoryId,
+        categoryTitle: item.materials_used.toolCategory[item.materials_used.toolCategory.length - 1],
+        specFields: item.materials_used.specifications || {}
+      });
+    } else {
+      setToolCategorySelection(null);
+    }
     if (item.photo_url) {
       setPhotoPreview(item.photo_url);
     }
@@ -458,6 +494,15 @@ export default function Inventory() {
         });
         return;
       }
+    } else if (editingItem?.category === "Tools") {
+      if (!toolCategorySelection) {
+        toast({
+          title: "Error",
+          description: "Please select a tool category",
+          variant: "destructive"
+        });
+        return;
+      }
     } else if (!formData.name.trim()) {
       toast({
         title: "Error",
@@ -474,7 +519,10 @@ export default function Inventory() {
       if (formData.photo) {
         photoUrl = await uploadPhoto(formData.photo);
       }
-      const itemName = editingItem?.category === "Materials" && materialData ? materialData.generatedName : formData.name;
+      const itemName = editingItem?.category === "Materials" && materialData ? materialData.generatedName : 
+                       editingItem?.category === "Tools" && toolCategorySelection ? 
+                       toolCategorySelection.categoryPath.join(" - ") :
+                       formData.name;
       const {
         error
       } = await supabase.from('inventory').update({
@@ -497,6 +545,10 @@ export default function Inventory() {
           material: materialData.material,
           dimensions: materialData.dimensions,
           priceUnit: materialData.priceUnit
+        } : editingItem?.category === "Tools" && toolCategorySelection ? {
+          toolCategory: toolCategorySelection.categoryPath,
+          toolCategoryId: toolCategorySelection.categoryId,
+          specifications: toolCategorySelection.specFields
         } : materialsUsed.filter(m => m.name),
         tools_used: toolsUsed.filter(t => t.name),
         drawings_files: uploadedFiles
@@ -538,6 +590,7 @@ export default function Inventory() {
       }]);
       setUploadedFiles([]);
       setMaterialData(null);
+      setToolCategorySelection(null);
       setIsEditDialogOpen(false);
     } catch (error) {
       console.error('Error updating item:', error);
@@ -1169,13 +1222,21 @@ export default function Inventory() {
               part_number: e.target.value
             }))} placeholder="Enter part number" />
               </div>}
-            {currentCategory === "Materials" ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : <div className="grid gap-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input id="name" value={formData.name} onChange={e => setFormData(prev => ({
-              ...prev,
-              name: e.target.value
-            }))} placeholder="Enter item name" />
-              </div>}
+            {currentCategory === "Materials" ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
+              currentCategory === "Tools" ? (
+                <ToolCategorySelector 
+                  onSelectionChange={setToolCategorySelection}
+                  initialSelection={toolCategorySelection}
+                />
+              ) : (
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input id="name" value={formData.name} onChange={e => setFormData(prev => ({
+                    ...prev,
+                    name: e.target.value
+                  }))} placeholder="Enter item name" />
+                </div>
+              )}
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" value={formData.description} onChange={e => setFormData(prev => ({
@@ -1333,7 +1394,10 @@ export default function Inventory() {
               </div>}
           </div>
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setToolCategorySelection(null);
+              setIsAddDialogOpen(false);
+            }}>
               Cancel
             </Button>
             <Button onClick={handleSaveItem} disabled={isUploading}>
@@ -1357,13 +1421,21 @@ export default function Inventory() {
               part_number: e.target.value
             }))} placeholder="Enter part number" />
               </div>}
-            {editingItem?.category === "Materials" ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : <div className="grid gap-2">
-                <Label htmlFor="edit_name">Name *</Label>
-                <Input id="edit_name" value={formData.name} onChange={e => setFormData(prev => ({
-              ...prev,
-              name: e.target.value
-            }))} placeholder="Enter item name" />
-              </div>}
+            {editingItem?.category === "Materials" ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
+              editingItem?.category === "Tools" ? (
+                <ToolCategorySelector 
+                  onSelectionChange={setToolCategorySelection}
+                  initialSelection={toolCategorySelection}
+                />
+              ) : (
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_name">Name *</Label>
+                  <Input id="edit_name" value={formData.name} onChange={e => setFormData(prev => ({
+                    ...prev,
+                    name: e.target.value
+                  }))} placeholder="Enter item name" />
+                </div>
+              )}
             <div className="grid gap-2">
               <Label htmlFor="edit_description">Description</Label>
               <Textarea id="edit_description" value={formData.description} onChange={e => setFormData(prev => ({
@@ -1672,6 +1744,7 @@ export default function Inventory() {
               notes: ""
             }]);
             setUploadedFiles([]);
+            setToolCategorySelection(null);
             setIsEditDialogOpen(false);
           }}>
               Cancel
