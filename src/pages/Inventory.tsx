@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { getCurrencyForCountry, formatCurrency } from "@/lib/currencyUtils";
 import { importInventoryFromSpreadsheet } from "@/utils/importInventory";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { ToolManagementDialog } from "@/components/ToolManagementDialog";
 export default function Inventory() {
   const {
     toast
@@ -81,6 +82,7 @@ export default function Inventory() {
   const [isProductionStatusDialogOpen, setIsProductionStatusDialogOpen] = useState(false);
   const [selectedItemForProductionStatus, setSelectedItemForProductionStatus] = useState<any>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isToolManagementDialogOpen, setIsToolManagementDialogOpen] = useState(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("");
   const [showOnlyWithProductionStatus, setShowOnlyWithProductionStatus] = useState(false);
@@ -862,7 +864,7 @@ export default function Inventory() {
           )}
           {currentCategory === "Tools" && (
             <Button 
-              onClick={() => {/* TODO: Add tool management functionality */}}
+              onClick={() => setIsToolManagementDialogOpen(true)}
               variant="outline"
             >
               <Cog className="w-4 h-4 mr-2" />
@@ -2101,5 +2103,11 @@ export default function Inventory() {
             </div>}
         </DialogContent>
       </Dialog>
+
+      {/* Tool Management Dialog */}
+      <ToolManagementDialog 
+        open={isToolManagementDialogOpen}
+        onOpenChange={setIsToolManagementDialogOpen}
+      />
     </div>;
 }
