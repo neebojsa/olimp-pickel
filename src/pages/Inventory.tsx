@@ -850,18 +850,25 @@ export default function Inventory() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => handleOpenAddDialog(currentCategory)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Item
-          </Button>
-          <Button 
-            onClick={() => setIsImportDialogOpen(true)}
-            variant="outline"
-            disabled={isUploading}
-          >
-            <Package className="w-4 h-4 mr-2" />
-            Import from Spreadsheet
-          </Button>
+          {currentCategory === "Parts" && (
+            <Button 
+              onClick={() => setIsImportDialogOpen(true)}
+              variant="outline"
+              disabled={isUploading}
+            >
+              <Package className="w-4 h-4 mr-2" />
+              Import from Spreadsheet
+            </Button>
+          )}
+          {currentCategory === "Tools" && (
+            <Button 
+              onClick={() => {/* TODO: Add tool management functionality */}}
+              variant="outline"
+            >
+              <Cog className="w-4 h-4 mr-2" />
+              Tool Management System
+            </Button>
+          )}
         </div>
       </div>
 
