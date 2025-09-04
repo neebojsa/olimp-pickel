@@ -191,15 +191,15 @@ export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialo
       const fileName = `${categoryId}-${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
-        .from('company-assets')
-        .upload(`tool-categories/${fileName}`, file);
+        .from('tool-category-images')
+        .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('company-assets')
-        .getPublicUrl(`tool-categories/${fileName}`);
+        .from('tool-category-images')
+        .getPublicUrl(fileName);
 
       // Update category with image URL
       const { error: updateError } = await supabase
