@@ -16,7 +16,6 @@ import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
 import PartHistoryDialog from "@/components/PartHistoryDialog";
 import { MaterialForm, MaterialData } from "@/components/MaterialForm";
 import { ProductionStatusDialog } from "@/components/ProductionStatusDialog";
-import { ToolSelector } from "@/components/ToolSelector";
 import { format } from "date-fns";
 import { getCurrencyForCountry, formatCurrency } from "@/lib/currencyUtils";
 import { importInventoryFromSpreadsheet } from "@/utils/importInventory";
@@ -85,7 +84,6 @@ export default function Inventory() {
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("");
   const [showOnlyWithProductionStatus, setShowOnlyWithProductionStatus] = useState(false);
-  const [toolData, setToolData] = useState<any>(null);
   useEffect(() => {
     fetchInventoryItems();
     fetchSuppliers();
@@ -263,15 +261,6 @@ export default function Inventory() {
         });
         return;
       }
-    } else if (currentCategory === "Tools") {
-      if (!toolData || !toolData.machiningType || !toolData.toolType || !formData.quantity || !formData.unit_price) {
-        toast({
-          title: "Validation Error",
-          description: "Please select tool type and fill in all required fields.",
-          variant: "destructive"
-        });
-        return;
-      }
     } else if (!formData.name || !formData.quantity || !formData.unit_price) {
       toast({
         title: "Validation Error",
@@ -294,9 +283,7 @@ export default function Inventory() {
         return;
       }
     }
-    const itemName = currentCategory === "Materials" && materialData ? materialData.generatedName 
-      : currentCategory === "Tools" && toolData ? `${toolData.machiningType} - ${toolData.toolType}${toolData.subcategory ? ` - ${toolData.subcategory}` : ''}`
-      : formData.name;
+    const itemName = currentCategory === "Materials" && materialData ? materialData.generatedName : formData.name;
     const {
       error
     } = await supabase.from('inventory').insert({
@@ -319,12 +306,6 @@ export default function Inventory() {
         material: materialData.material,
         dimensions: materialData.dimensions,
         priceUnit: materialData.priceUnit
-      } : null,
-      tools_used: currentCategory === "Tools" && toolData ? {
-        machiningType: toolData.machiningType,
-        toolType: toolData.toolType,
-        subcategory: toolData.subcategory,
-        summary: toolData.summary
       } : null
     });
     setIsUploading(false);
@@ -346,7 +327,6 @@ export default function Inventory() {
       });
       setPhotoPreview(null);
       setMaterialData(null);
-      setToolData(null);
       setIsAddDialogOpen(false);
       fetchInventoryItems();
       toast({
@@ -1180,19 +1160,13 @@ export default function Inventory() {
               part_number: e.target.value
             }))} placeholder="Enter part number" />
               </div>}
-            {currentCategory === "Materials" ? (
-              <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} />
-            ) : currentCategory === "Tools" ? (
-              <ToolSelector onToolChange={setToolData} initialData={toolData} />
-            ) : (
-              <div className="grid gap-2">
+            {currentCategory === "Materials" ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : <div className="grid gap-2">
                 <Label htmlFor="name">Name *</Label>
                 <Input id="name" value={formData.name} onChange={e => setFormData(prev => ({
               ...prev,
               name: e.target.value
             }))} placeholder="Enter item name" />
-              </div>
-            )}
+              </div>}
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" value={formData.description} onChange={e => setFormData(prev => ({
