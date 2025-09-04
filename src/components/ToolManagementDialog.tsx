@@ -7,12 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
+interface ToolSpecField {
+  id: string;
+  title: string;
+  description?: string;
+}
+
 interface ToolCategory {
   id: string;
   title: string;
   picture?: string;
   children: ToolCategory[];
   expanded?: boolean;
+  specFields?: ToolSpecField[];
 }
 
 interface ToolManagementDialogProps {
@@ -47,6 +54,8 @@ export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialo
   
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryTitle, setNewCategoryTitle] = useState("");
+  const [editingSpecFields, setEditingSpecFields] = useState<string | null>(null);
+  const [newFieldTitle, setNewFieldTitle] = useState("");
 
   const addCategory = (parentId?: string) => {
     if (!newCategoryTitle.trim()) {
@@ -131,6 +140,64 @@ export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialo
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const addSpecField = (categoryId: string) => {
+    if (!newFieldTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a field title",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newField: ToolSpecField = {
+      id: Date.now().toString(),
+      title: newFieldTitle
+    };
+
+    const updateFields = (items: ToolCategory[]): ToolCategory[] => {
+      return items.map(item => {
+        if (item.id === categoryId) {
+          return { 
+            ...item, 
+            specFields: [...(item.specFields || []), newField] 
+          };
+        }
+        return { ...item, children: updateFields(item.children) };
+      });
+    };
+
+    setCategories(updateFields(categories));
+    setNewFieldTitle("");
+    setEditingSpecFields(null);
+    
+    toast({
+      title: "Success",
+      description: "Specification field added successfully"
+    });
+  };
+
+  const deleteSpecField = (categoryId: string, fieldId: string) => {
+    const updateFields = (items: ToolCategory[]): ToolCategory[] => {
+      return items.map(item => {
+        if (item.id === categoryId) {
+          return { 
+            ...item, 
+            specFields: (item.specFields || []).filter(field => field.id !== fieldId)
+          };
+        }
+        return { ...item, children: updateFields(item.children) };
+      });
+    };
+
+    setCategories(updateFields(categories));
+    
+    toast({
+      title: "Success",
+      description: "Specification field deleted successfully"
+    });
   };
 
   const renderCategory = (category: ToolCategory, level: number = 0) => {
@@ -242,6 +309,71 @@ export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialo
                 >
                   Cancel
                 </Button>
+              </div>
+            )}
+
+            {/* Specification Fields for Leaf Categories */}
+            {!hasChildren && (
+              <div className="mt-3" style={{ marginLeft: `${(level + 1) * 20}px` }}>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-medium">Specification Fields</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingSpecFields(category.id)}
+                    className="h-7"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Field
+                  </Button>
+                </div>
+
+                {/* Existing Fields */}
+                {category.specFields && category.specFields.length > 0 && (
+                  <div className="space-y-1 mb-2">
+                    {category.specFields.map(field => (
+                      <div key={field.id} className="flex items-center justify-between bg-muted/50 p-2 rounded">
+                        <span className="text-sm">{field.title}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteSpecField(category.id, field.id)}
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add New Field Form */}
+                {editingSpecFields === category.id && (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Field title (e.g., Length, Diameter)"
+                      value={newFieldTitle}
+                      onChange={(e) => setNewFieldTitle(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => addSpecField(category.id)}
+                    >
+                      Add
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingSpecFields(null);
+                        setNewFieldTitle("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
