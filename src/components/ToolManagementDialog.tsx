@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, ChevronRight, ChevronDown, Upload, Trash2, Edit2, Folder, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ToolSpecField {
   id: string;
@@ -29,35 +30,87 @@ interface ToolManagementDialogProps {
 
 export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialogProps) {
   const { toast } = useToast();
-  const [categories, setCategories] = useState<ToolCategory[]>([
-    {
-      id: "1",
-      title: "Cutting Tools",
-      children: [
-        {
-          id: "1-1",
-          title: "End Mills",
-          children: [
-            { id: "1-1-1", title: "Flat End Mills", children: [] },
-            { id: "1-1-2", title: "Ball End Mills", children: [] }
-          ]
-        },
-        { id: "1-2", title: "Drills", children: [] }
-      ]
-    },
-    {
-      id: "2", 
-      title: "Measuring Tools",
-      children: []
-    }
-  ]);
-  
+  const [categories, setCategories] = useState<ToolCategory[]>([]);
+  const [loading, setLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryTitle, setNewCategoryTitle] = useState("");
   const [editingSpecFields, setEditingSpecFields] = useState<string | null>(null);
   const [newFieldTitle, setNewFieldTitle] = useState("");
 
-  const addCategory = (parentId?: string) => {
+  // Fetch categories from database
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      const { data: dbCategories, error } = await supabase
+        .from('tool_category_hierarchy')
+        .select('*')
+        .order('title');
+
+      if (error) throw error;
+
+      const { data: specFields, error: fieldsError } = await supabase
+        .from('tool_spec_fields')
+        .select('*');
+
+      if (fieldsError) throw fieldsError;
+
+      // Build hierarchical structure
+      const categoryMap = new Map<string, ToolCategory>();
+      const rootCategories: ToolCategory[] = [];
+
+      // First pass: create all categories
+      dbCategories?.forEach(cat => {
+        const category: ToolCategory = {
+          id: cat.id,
+          title: cat.title,
+          picture: cat.picture_url || undefined,
+          children: [],
+          specFields: specFields?.filter(field => field.category_id === cat.id)
+            .map(field => ({
+              id: field.id,
+              title: field.title,
+              description: field.description || undefined
+            })) || []
+        };
+        categoryMap.set(cat.id, category);
+      });
+
+      // Second pass: build hierarchy
+      dbCategories?.forEach(cat => {
+        const category = categoryMap.get(cat.id);
+        if (!category) return;
+
+        if (cat.parent_id) {
+          const parent = categoryMap.get(cat.parent_id);
+          if (parent) {
+            parent.children.push(category);
+          }
+        } else {
+          rootCategories.push(category);
+        }
+      });
+
+      setCategories(rootCategories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load categories",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load categories when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchCategories();
+    }
+  }, [open]);
+
+  const addCategory = async (parentId?: string) => {
     if (!newCategoryTitle.trim()) {
       toast({
         title: "Error",
@@ -67,33 +120,180 @@ export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialo
       return;
     }
 
-    const newCategory: ToolCategory = {
-      id: Date.now().toString(),
-      title: newCategoryTitle,
-      children: []
-    };
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('tool_category_hierarchy')
+        .insert([{
+          title: newCategoryTitle,
+          parent_id: parentId || null
+        }]);
 
-    if (parentId) {
-      const addToParent = (items: ToolCategory[]): ToolCategory[] => {
-        return items.map(item => {
-          if (item.id === parentId) {
-            return { ...item, children: [...item.children, newCategory] };
-          }
-          return { ...item, children: addToParent(item.children) };
-        });
-      };
-      setCategories(addToParent(categories));
-    } else {
-      setCategories([...categories, newCategory]);
+      if (error) throw error;
+
+      setNewCategoryTitle("");
+      setEditingCategory(null);
+      await fetchCategories();
+      
+      toast({
+        title: "Success",
+        description: "Category added successfully"
+      });
+    } catch (error) {
+      console.error('Error adding category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add category",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteCategory = async (categoryId: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('tool_category_hierarchy')
+        .delete()
+        .eq('id', categoryId);
+
+      if (error) throw error;
+
+      await fetchCategories();
+      
+      toast({
+        title: "Success",
+        description: "Category deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (categoryId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setLoading(true);
+      
+      // Upload image to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${categoryId}-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('company-assets')
+        .upload(`tool-categories/${fileName}`, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-assets')
+        .getPublicUrl(`tool-categories/${fileName}`);
+
+      // Update category with image URL
+      const { error: updateError } = await supabase
+        .from('tool_category_hierarchy')
+        .update({ picture_url: publicUrl })
+        .eq('id', categoryId);
+
+      if (updateError) throw updateError;
+
+      await fetchCategories();
+      
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully"
+      });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addSpecField = async (categoryId: string) => {
+    if (!newFieldTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a field title",
+        variant: "destructive"
+      });
+      return;
     }
 
-    setNewCategoryTitle("");
-    setEditingCategory(null);
-    
-    toast({
-      title: "Success",
-      description: "Category added successfully"
-    });
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('tool_spec_fields')
+        .insert([{
+          category_id: categoryId,
+          title: newFieldTitle
+        }]);
+
+      if (error) throw error;
+
+      setNewFieldTitle("");
+      setEditingSpecFields(null);
+      await fetchCategories();
+      
+      toast({
+        title: "Success",
+        description: "Specification field added successfully"
+      });
+    } catch (error) {
+      console.error('Error adding spec field:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add specification field",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteSpecField = async (fieldId: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('tool_spec_fields')
+        .delete()
+        .eq('id', fieldId);
+
+      if (error) throw error;
+
+      await fetchCategories();
+      
+      toast({
+        title: "Success",
+        description: "Specification field deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting spec field:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete specification field",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleExpanded = (categoryId: string) => {
@@ -106,98 +306,6 @@ export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialo
       });
     };
     setCategories(updateExpanded(categories));
-  };
-
-  const deleteCategory = (categoryId: string) => {
-    const removeCategory = (items: ToolCategory[]): ToolCategory[] => {
-      return items.filter(item => item.id !== categoryId).map(item => ({
-        ...item,
-        children: removeCategory(item.children)
-      }));
-    };
-    setCategories(removeCategory(categories));
-    
-    toast({
-      title: "Success",
-      description: "Category deleted successfully"
-    });
-  };
-
-  const handleImageUpload = (categoryId: string, event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const updateImage = (items: ToolCategory[]): ToolCategory[] => {
-          return items.map(item => {
-            if (item.id === categoryId) {
-              return { ...item, picture: e.target?.result as string };
-            }
-            return { ...item, children: updateImage(item.children) };
-          });
-        };
-        setCategories(updateImage(categories));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const addSpecField = (categoryId: string) => {
-    if (!newFieldTitle.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a field title",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const newField: ToolSpecField = {
-      id: Date.now().toString(),
-      title: newFieldTitle
-    };
-
-    const updateFields = (items: ToolCategory[]): ToolCategory[] => {
-      return items.map(item => {
-        if (item.id === categoryId) {
-          return { 
-            ...item, 
-            specFields: [...(item.specFields || []), newField] 
-          };
-        }
-        return { ...item, children: updateFields(item.children) };
-      });
-    };
-
-    setCategories(updateFields(categories));
-    setNewFieldTitle("");
-    setEditingSpecFields(null);
-    
-    toast({
-      title: "Success",
-      description: "Specification field added successfully"
-    });
-  };
-
-  const deleteSpecField = (categoryId: string, fieldId: string) => {
-    const updateFields = (items: ToolCategory[]): ToolCategory[] => {
-      return items.map(item => {
-        if (item.id === categoryId) {
-          return { 
-            ...item, 
-            specFields: (item.specFields || []).filter(field => field.id !== fieldId)
-          };
-        }
-        return { ...item, children: updateFields(item.children) };
-      });
-    };
-
-    setCategories(updateFields(categories));
-    
-    toast({
-      title: "Success",
-      description: "Specification field deleted successfully"
-    });
   };
 
   const renderCategory = (category: ToolCategory, level: number = 0) => {
@@ -337,7 +445,7 @@ export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialo
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => deleteSpecField(category.id, field.id)}
+                          onClick={() => deleteSpecField(field.id)}
                           className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-3 w-3" />

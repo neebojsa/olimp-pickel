@@ -617,6 +617,103 @@ export type Database = {
         }
         Relationships: []
       }
+      tool_categories: {
+        Row: {
+          category_type: string
+          created_at: string
+          frequency: number
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category_type: string
+          created_at?: string
+          frequency?: number
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category_type?: string
+          created_at?: string
+          frequency?: number
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tool_category_hierarchy: {
+        Row: {
+          created_at: string
+          id: string
+          parent_id: string | null
+          picture_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          picture_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          picture_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_category_hierarchy_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "tool_category_hierarchy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_spec_fields: {
+        Row: {
+          category_id: string
+          created_at: string
+          description: string | null
+          id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_spec_fields_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "tool_category_hierarchy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tools_library: {
         Row: {
           category: string
