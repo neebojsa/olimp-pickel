@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { formatToolName } from "@/lib/toolSpecUtils";
 import { useToast } from "@/hooks/use-toast";
 import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
 import PartHistoryDialog from "@/components/PartHistoryDialog";
@@ -1061,23 +1062,9 @@ export default function Inventory() {
                                   <div className="min-w-0 flex-1">
                                     {item.category === "Tools" ? (
                                       <>
-                                        <h3 className="font-semibold text-lg truncate">
-                                          {(() => {
-                                            const toolData = item.materials_used;
-                                            if (toolData?.toolCategory && toolData?.specifications) {
-                                              // Skip the main category (first element) and join subcategories
-                                              const subcategories = toolData.toolCategory.slice(1);
-                                              const categoryPath = subcategories.join(" - ");
-                                              
-                                              // Format specifications as simple values
-                                              const specEntries = Object.entries(toolData.specifications).filter(([_, value]) => value && String(value).trim());
-                                              const specString = specEntries.map(([_, value]) => String(value)).join(" - ");
-                                              
-                                              return specString ? `${categoryPath} - ${specString}` : categoryPath;
-                                            }
-                                            return item.name;
-                                          })()}
-                                        </h3>
+                                         <h3 className="font-semibold text-lg truncate">
+                                           {item.category === "Tools" ? formatToolName(item.materials_used, item.name) : item.name}
+                                         </h3>
                                         {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
                                       </>
                                     ) : (

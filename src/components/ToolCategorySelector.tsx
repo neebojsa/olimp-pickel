@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatSpecificationValue } from "@/lib/toolSpecUtils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -251,6 +252,12 @@ export function ToolCategorySelector({ onSelectionChange, initialSelection }: To
                 placeholder={`Enter ${field.title.toLowerCase()}`}
                 className="text-sm"
               />
+              {/* Show formatted preview */}
+              {specFieldValues[field.id] && (
+                <div className="text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
+                  Preview: {formatSpecificationValue(field.title, specFieldValues[field.id])}
+                </div>
+              )}
             </div>
           ))}
         </div>

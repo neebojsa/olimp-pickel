@@ -268,6 +268,36 @@ export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialo
     }
   };
 
+  const addPresetSpecField = async (categoryId: string, presetType: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('tool_spec_fields')
+        .insert([{
+          category_id: categoryId,
+          title: presetType
+        }]);
+
+      if (error) throw error;
+
+      await fetchCategories();
+      
+      toast({
+        title: "Success",
+        description: `${presetType} field added successfully`
+      });
+    } catch (error) {
+      console.error('Error adding preset spec field:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add preset specification field",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteSpecField = async (fieldId: string) => {
     try {
       setLoading(true);
@@ -434,6 +464,24 @@ export function ToolManagementDialog({ open, onOpenChange }: ToolManagementDialo
                     <Plus className="h-3 w-3 mr-1" />
                     Add Field
                   </Button>
+                </div>
+
+                {/* Karakteristike (Preset Specifications) */}
+                <div className="mb-3">
+                  <Label className="text-xs font-medium text-muted-foreground mb-2 block">Karakteristike</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {['Length', 'Diameter', 'Radius', 'Thickness', 'Angle', 'Number of Inserts'].map((preset) => (
+                      <Button
+                        key={preset}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addPresetSpecField(category.id, preset)}
+                        className="h-6 text-xs px-2"
+                      >
+                        {preset}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Existing Fields */}
