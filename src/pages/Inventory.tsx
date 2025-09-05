@@ -1057,12 +1057,32 @@ export default function Inventory() {
                            {/* Content */}
                            <div className="flex-1 flex flex-col justify-between min-w-0">
                              <div className="space-y-2">
-                               <div className="flex items-start justify-between">
-                                 <div className="min-w-0 flex-1">
-                                   <h3 className="font-semibold text-lg truncate">{item.name}</h3>
-                                    {item.part_number && item?.category !== "Materials" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
-                                    {item.production_status && <p className="text-sm text-black font-medium">{item.production_status}</p>}
-                                 </div>
+                                <div className="flex items-start justify-between">
+                                  <div className="min-w-0 flex-1">
+                                    {item.category === "Tools" ? (
+                                      <>
+                                        <h3 className="font-semibold text-lg truncate">
+                                          {(() => {
+                                            const toolData = item.materials_used;
+                                            if (toolData?.toolCategory && toolData?.specifications) {
+                                              const categoryPath = toolData.toolCategory.join(" - ");
+                                              const specEntries = Object.entries(toolData.specifications).filter(([_, value]) => value);
+                                              const specString = specEntries.map(([key, value]) => `${key}: ${value}`).join(", ");
+                                              return specString ? `${categoryPath} - ${specString}` : categoryPath;
+                                            }
+                                            return item.name;
+                                          })()}
+                                        </h3>
+                                        {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <h3 className="font-semibold text-lg truncate">{item.name}</h3>
+                                        {item.part_number && item?.category !== "Materials" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
+                                        {item.production_status && <p className="text-sm text-black font-medium">{item.production_status}</p>}
+                                      </>
+                                    )}
+                                  </div>
                                  <AlertDialog>
                                    <div className="flex gap-1 ml-2">
                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
