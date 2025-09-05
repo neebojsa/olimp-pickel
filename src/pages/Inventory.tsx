@@ -1063,7 +1063,7 @@ export default function Inventory() {
                                      {item.category === "Tools" ? (
                                        <>
                                           <h3 className="font-semibold text-lg truncate">
-                                            {formatToolName(item, item.name)}
+                                            {formatToolName(item.materials_used, item.name)}
                                           </h3>
                                          {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
                                        </>
@@ -1674,7 +1674,7 @@ export default function Inventory() {
                               </SelectTrigger>
                               <SelectContent>
                                 {toolsList.map(item => <SelectItem key={item.id} value={item.name}>
-                                    {item.name} {item.part_number && `(${item.part_number})`}
+                                    {item.category === "Tools" ? formatToolName(item.materials_used, item.name) : item.name} {item.part_number && `(${item.part_number})`}
                                   </SelectItem>)}
                               </SelectContent>
                             </Select>
@@ -2133,7 +2133,7 @@ export default function Inventory() {
                     Tools Used
                   </Label>
                   <div className="space-y-2">
-                    {selectedViewItem.tools_used.filter((tool: any) => tool.name).map((tool: any, index: number) => <div key={index} className="p-3 bg-muted rounded-md">
+                     {selectedViewItem.tools_used.filter((tool: any) => tool.name).map((tool: any, index: number) => <div key={index} className="p-3 bg-muted-rounded-md">
                         <p className="font-medium">{tool.name}</p>
                         {tool.notes && <p className="text-sm text-muted-foreground mt-1">{tool.notes}</p>}
                       </div>)}
