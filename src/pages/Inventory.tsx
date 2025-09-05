@@ -1060,14 +1060,14 @@ export default function Inventory() {
                              <div className="space-y-2">
                                 <div className="flex items-start justify-between">
                                   <div className="min-w-0 flex-1">
-                                    {item.category === "Tools" ? (
-                                      <>
-                                         <h3 className="font-semibold text-lg truncate">
-                                           {item.category === "Tools" ? formatToolName(item.materials_used, item.name) : item.name}
-                                         </h3>
-                                        {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
-                                      </>
-                                    ) : (
+                                     {item.category === "Tools" ? (
+                                       <>
+                                          <h3 className="font-semibold text-lg truncate">
+                                            {formatToolName(item, item.name)}
+                                          </h3>
+                                         {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
+                                       </>
+                                     ) : (
                                       <>
                                         <h3 className="font-semibold text-lg truncate">{item.name}</h3>
                                         {item.part_number && item?.category !== "Materials" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
@@ -2070,7 +2070,8 @@ export default function Inventory() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5" />
-              {selectedViewItem?.category === "Materials" ? "Material Details" : "Part Details"}
+              {selectedViewItem?.category === "Materials" ? "Material Details" : 
+               selectedViewItem?.category === "Tools" ? "Tool Details" : "Part Details"}
             </DialogTitle>
           </DialogHeader>
           
