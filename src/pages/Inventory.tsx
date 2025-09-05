@@ -1065,9 +1065,14 @@ export default function Inventory() {
                                           {(() => {
                                             const toolData = item.materials_used;
                                             if (toolData?.toolCategory && toolData?.specifications) {
-                                              const categoryPath = toolData.toolCategory.join(" - ");
-                                              const specEntries = Object.entries(toolData.specifications).filter(([_, value]) => value);
-                                              const specString = specEntries.map(([key, value]) => `${key}: ${value}`).join(", ");
+                                              // Skip the main category (first element) and join subcategories
+                                              const subcategories = toolData.toolCategory.slice(1);
+                                              const categoryPath = subcategories.join(" - ");
+                                              
+                                              // Format specifications as simple values
+                                              const specEntries = Object.entries(toolData.specifications).filter(([_, value]) => value && String(value).trim());
+                                              const specString = specEntries.map(([_, value]) => String(value)).join(" - ");
+                                              
                                               return specString ? `${categoryPath} - ${specString}` : categoryPath;
                                             }
                                             return item.name;
