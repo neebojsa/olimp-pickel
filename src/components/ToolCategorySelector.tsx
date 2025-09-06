@@ -48,11 +48,33 @@ export function ToolCategorySelector({ onSelectionChange, initialSelection }: To
   }, []);
 
   useEffect(() => {
-    if (initialSelection) {
+    if (initialSelection && categories.length > 0) {
       setSpecFieldValues(initialSelection.specFields);
-      // TODO: Restore the navigation path based on initialSelection
+      
+      // Restore the navigation path based on initialSelection
+      const restorePath = () => {
+        const { categoryPath } = initialSelection;
+        const path: ToolCategory[] = [];
+        let currentCategories = categories;
+        
+        // Navigate through each level of the category path
+        for (const categoryTitle of categoryPath) {
+          const foundCategory = currentCategories.find(cat => cat.title === categoryTitle);
+          if (foundCategory) {
+            path.push(foundCategory);
+            currentCategories = foundCategory.children;
+          } else {
+            console.warn(`Category "${categoryTitle}" not found in path`);
+            break;
+          }
+        }
+        
+        setCurrentPath(path);
+      };
+      
+      restorePath();
     }
-  }, [initialSelection]);
+  }, [initialSelection, categories]);
 
   const fetchCategories = async () => {
     try {
