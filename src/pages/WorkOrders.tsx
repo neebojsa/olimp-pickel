@@ -412,6 +412,11 @@ export default function WorkOrders() {
 
     if (!error) {
       setWorkOrders(prev => prev.filter(wo => wo.id !== workOrderId));
+      // Clear the selected work order if it's the deleted one and close the dialog
+      if (selectedWorkOrder?.id === workOrderId) {
+        setSelectedWorkOrder(null);
+        setIsWorkOrderDetailsOpen(false);
+      }
       toast({
         title: "Work Order Deleted",
         description: "The work order has been successfully deleted.",
