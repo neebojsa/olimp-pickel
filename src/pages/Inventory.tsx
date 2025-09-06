@@ -168,6 +168,11 @@ export default function Inventory() {
     } = await supabase.from('inventory').delete().eq('id', itemId);
     if (!error) {
       setInventoryItems(prev => prev.filter(item => item.id !== itemId));
+      // Clear the selected view item if it's the deleted item and close the dialog
+      if (selectedViewItem?.id === itemId) {
+        setSelectedViewItem(null);
+        setIsViewDialogOpen(false);
+      }
     }
   };
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
