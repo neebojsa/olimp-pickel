@@ -1041,8 +1041,12 @@ export default function Inventory() {
             <Card key={item.id} className={`${category === "Materials" ? "h-[90px]" : "h-40"} hover:shadow-md transition-shadow cursor-pointer ${
               item.quantity <= (item.minimum_stock || 0) ? 'border-destructive bg-destructive/5' : ''
             }`} onClick={() => {
-              setSelectedViewItem(item);
-              setIsViewDialogOpen(true);
+              // Check if item still exists in the list (not deleted)
+              const itemExists = inventoryItems.some(i => i.id === item.id);
+              if (itemExists) {
+                setSelectedViewItem(item);
+                setIsViewDialogOpen(true);
+              }
             }}>
                        <CardContent className="p-4 h-full">
                          <div className="flex h-full gap-4">
@@ -1084,8 +1088,12 @@ export default function Inventory() {
                                    <div className="flex gap-1 ml-2">
                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                               e.stopPropagation();
-                              setSelectedViewItem(item);
-                              setIsViewDialogOpen(true);
+                              // Check if item still exists in the list (not deleted)
+                              const itemExists = inventoryItems.some(i => i.id === item.id);
+                              if (itemExists) {
+                                setSelectedViewItem(item);
+                                setIsViewDialogOpen(true);
+                              }
                             }} title="View Details">
                                         <Eye className="h-4 w-4" />
                                       </Button>

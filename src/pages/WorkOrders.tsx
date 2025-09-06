@@ -453,9 +453,13 @@ export default function WorkOrders() {
   };
 
   const handleWorkOrderClick = (workOrder: any) => {
-    setSelectedWorkOrder(workOrder);
-    setIsWorkOrderDetailsOpen(true);
-    setIsEditMode(false);
+    // Check if work order still exists in the list (not deleted)
+    const workOrderExists = workOrders.some(wo => wo.id === workOrder.id);
+    if (workOrderExists) {
+      setSelectedWorkOrder(workOrder);
+      setIsWorkOrderDetailsOpen(true);
+      setIsEditMode(false);
+    }
   };
 
   const handleEditWorkOrder = () => {
