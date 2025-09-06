@@ -1062,16 +1062,9 @@ export default function Inventory() {
                                   <div className="min-w-0 flex-1">
                                      {item.category === "Tools" ? (
                                        <>
-                                          <h3 className="font-semibold text-lg truncate">
-                                            {(() => {
-                                              console.log('Tool data for formatting:', {
-                                                name: item.name,
-                                                materials_used: item.materials_used,
-                                                category: item.category
-                                              });
-                                              return formatToolName(item.materials_used, item.name);
-                                            })()}
-                                          </h3>
+                                           <h3 className="font-semibold text-lg truncate">
+                                            {formatToolName(item.materials_used, item.name)}
+                                           </h3>
                                          {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
                                        </>
                                      ) : (

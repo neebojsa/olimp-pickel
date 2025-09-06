@@ -1,5 +1,14 @@
 // Utility functions for formatting tool specifications
 
+// Mapping of spec field UUIDs to their names
+const specFieldMapping: { [uuid: string]: string } = {
+  '73720edd-75fd-4319-af01-40466be6097d': 'Length',
+  '750e3bb7-1fe6-46a6-bd3e-25bad19cc0d4': 'Radius',
+  '45008473-bdb5-4ed2-a6d5-c0c85520615b': 'Diameter',
+  '4492e089-d79b-46e8-98ec-8c499f52a6e6': 'Angle',
+  '6a289abf-7465-4955-96aa-8bb9b95124b5': 'Number of Inserts'
+};
+
 export const formatSpecificationValue = (key: string, value: string): string => {
   if (!value || !String(value).trim()) return '';
   
@@ -30,7 +39,11 @@ export const formatToolSpecifications = (specifications: { [key: string]: any })
     .filter(([_, value]) => value && String(value).trim());
   
   return specEntries
-    .map(([key, value]) => formatSpecificationValue(key, String(value)))
+    .map(([key, value]) => {
+      // Map UUID key to readable name
+      const fieldName = specFieldMapping[key] || key;
+      return formatSpecificationValue(fieldName, String(value));
+    })
     .filter(formatted => formatted)
     .join(' - ');
 };
