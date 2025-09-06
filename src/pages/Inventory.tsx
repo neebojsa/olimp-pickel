@@ -2090,8 +2090,15 @@ export default function Inventory() {
                   </div>}
                 <div className="flex-1 space-y-4">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Part Name</Label>
-                    <p className="text-xl font-semibold">{selectedViewItem.name}</p>
+                    <Label className="text-sm font-medium text-muted-foreground">
+                      {selectedViewItem.category === "Tools" ? "Tool Name" : "Part Name"}
+                    </Label>
+                    <p className="text-xl font-semibold">
+                      {selectedViewItem.category === "Tools" 
+                        ? formatToolName(selectedViewItem.materials_used, selectedViewItem.name)
+                        : selectedViewItem.name
+                      }
+                    </p>
                   </div>
                   {selectedViewItem.part_number && <div>
                       <Label className="text-sm font-medium text-muted-foreground">Part Number</Label>
