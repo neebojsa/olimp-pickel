@@ -871,6 +871,15 @@ export default function Customers() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="edit-city">City</Label>
+              <Input
+                id="edit-city"
+                value={newCustomer.city}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, city: e.target.value }))}
+                placeholder="Enter city"
+              />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="edit-industry">Industry</Label>
               <Input
                 id="edit-industry"

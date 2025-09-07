@@ -46,6 +46,7 @@ export default function Suppliers() {
     email: '',
     phone: '',
     address: '',
+    city: '',
     website: '',
     tax_id: '',
     payment_terms: 'Net 30',
@@ -106,6 +107,7 @@ export default function Suppliers() {
         email: newSupplier.email,
         phone: newSupplier.phone,
         address: newSupplier.address,
+        city: newSupplier.city,
         website: newSupplier.website,
         tax_id: newSupplier.tax_id,
         payment_terms: newSupplier.payment_terms,
@@ -130,6 +132,7 @@ export default function Suppliers() {
         email: '',
         phone: '',
         address: '',
+        city: '',
         website: '',
         tax_id: '',
         payment_terms: 'Net 30',
@@ -156,6 +159,7 @@ export default function Suppliers() {
       email: selectedSupplier.email || '',
       phone: selectedSupplier.phone || '',
       address: selectedSupplier.address || '',
+      city: selectedSupplier.city || '',
       website: selectedSupplier.website || '',
       tax_id: selectedSupplier.tax_id || '',
       payment_terms: selectedSupplier.payment_terms || 'Net 30',
@@ -185,6 +189,7 @@ export default function Suppliers() {
         email: newSupplier.email,
         phone: newSupplier.phone,
         address: newSupplier.address,
+        city: newSupplier.city,
         website: newSupplier.website,
         tax_id: newSupplier.tax_id,
         payment_terms: newSupplier.payment_terms,
@@ -207,6 +212,7 @@ export default function Suppliers() {
         email: '',
         phone: '',
         address: '',
+        city: '',
         website: '',
         tax_id: '',
         payment_terms: 'Net 30',
@@ -317,6 +323,14 @@ export default function Suppliers() {
                   placeholder="Enter full address" 
                   value={newSupplier.address}
                   onChange={(e) => setNewSupplier({...newSupplier, address: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>City</Label>
+                <Input 
+                  placeholder="Enter city" 
+                  value={newSupplier.city}
+                  onChange={(e) => setNewSupplier({...newSupplier, city: e.target.value})}
                 />
               </div>
               <div className="col-span-2">
@@ -625,6 +639,15 @@ export default function Suppliers() {
                 value={newSupplier.address}
                 onChange={(e) => setNewSupplier(prev => ({ ...prev, address: e.target.value }))}
                 placeholder="Enter address"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-city">City</Label>
+              <Input
+                id="edit-city"
+                value={newSupplier.city}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, city: e.target.value }))}
+                placeholder="Enter city"
               />
             </div>
             <div className="grid gap-2">
