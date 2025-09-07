@@ -27,6 +27,16 @@ const getStatusColor = (status: string) => {
   }
 };
 export default function Invoicing() {
+  const formatCurrency = (amount: number, currency: string) => {
+    if (currency === 'BAM') {
+      return `${amount.toFixed(2)} KM`;
+    } else if (currency === 'EUR') {
+      return `€${amount.toFixed(2)}`;
+    } else {
+      return `${amount.toFixed(2)} ${currency}`;
+    }
+  };
+
   const {
     toast
   } = useToast();
@@ -898,8 +908,8 @@ export default function Invoicing() {
                           <td className="border p-2 print:border-black">{inventoryItem?.unit || 'piece'}</td>
                           <td className="border p-2 print:border-black">{item.quantity}</td>
                           <td className="border p-2 print:border-black">{subtotalWeight.toFixed(2)} kg</td>
-                          <td className="border p-2 print:border-black">{item.unit_price.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
-                          <td className="border p-2 text-right print:border-black">{item.total.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
+                          <td className="border p-2 print:border-black">{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
+                          <td className="border p-2 text-right print:border-black">{formatCurrency(item.total, selectedInvoice.currency)}</td>
                         </tr>
                       })}
                     </tbody>
@@ -923,15 +933,15 @@ export default function Invoicing() {
                     <div className="space-y-2 print:space-y-3">
                         <div className="flex justify-between print-text-sm">
                           <span>Subtotal:</span>
-                          <span>{((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
+                          <span>{formatCurrency(((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)), selectedInvoice.currency)}</span>
                         </div>
                         <div className="flex justify-between print-text-sm">
                           <span>VAT ({selectedInvoice.vat_rate}%):</span>
-                          <span>{((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
+                          <span>{formatCurrency(((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)), selectedInvoice.currency)}</span>
                         </div>
                         <div className="flex justify-between font-bold text-lg bg-[#f3daaf] print-invoice-bg h-[25px] items-center px-2 print-text-base">
                           <span>Total:</span>
-                          <span>{(selectedInvoice.amount || 0).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
+                          <span>{formatCurrency((selectedInvoice.amount || 0), selectedInvoice.currency)}</span>
                         </div>
                     </div>
                   </div>
