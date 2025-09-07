@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Plus, Search, DollarSign, Calendar, Send, Trash2, Download, Eye, Edit, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/currencyUtils";
 import { supabase } from "@/integrations/supabase/client";
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -27,16 +28,6 @@ const getStatusColor = (status: string) => {
   }
 };
 export default function Invoicing() {
-  const formatCurrency = (amount: number, currency: string) => {
-    if (currency === 'BAM') {
-      return `${amount.toFixed(2)} KM`;
-    } else if (currency === 'EUR') {
-      return `€${amount.toFixed(2)}`;
-    } else {
-      return `${amount.toFixed(2)} ${currency}`;
-    }
-  };
-
   const {
     toast
   } = useToast();
@@ -582,15 +573,15 @@ export default function Invoicing() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
-                      <span className="font-medium">{totals.subtotal.toFixed(2)} {totals.currency === 'BAM' ? 'KM' : totals.currency}</span>
+                      <span className="font-medium">{formatCurrency(totals.subtotal, totals.currency)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>VAT ({totals.vatRate}%):</span>
-                      <span className="font-medium">{totals.vatAmount.toFixed(2)} {totals.currency === 'BAM' ? 'KM' : totals.currency}</span>
+                      <span className="font-medium">{formatCurrency(totals.vatAmount, totals.currency)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg">
                       <span>Total:</span>
-                      <span>{totals.total.toFixed(2)} {totals.currency === 'BAM' ? 'KM' : totals.currency}</span>
+                      <span>{formatCurrency(totals.total, totals.currency)}</span>
                     </div>
                   </div>
                 </div>}
@@ -724,7 +715,7 @@ export default function Invoicing() {
                   </div>
                    <div className="min-w-[120px] text-right">
                      <p className="text-sm text-muted-foreground">Total</p>
-                     <p className="font-bold text-lg">{(invoice.amount || 0).toFixed(2)} {invoice.currency === 'BAM' ? 'KM' : invoice.currency}</p>
+                     <p className="font-bold text-lg">{formatCurrency((invoice.amount || 0), invoice.currency)}</p>
                    </div>
                 </div>
                 
