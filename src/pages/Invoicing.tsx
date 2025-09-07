@@ -795,8 +795,6 @@ export default function Invoicing() {
                     .invoice-items-table td {
                       border-left: none !important;
                       border-right: none !important;
-                      border-top: 1px solid #6b7280 !important;
-                      border-bottom: 1px solid #6b7280 !important;
                       padding: 8px !important;
                       text-align: left !important;
                       font-size: 14pt !important;
@@ -810,6 +808,11 @@ export default function Invoicing() {
                       border-bottom: 1px solid #000 !important;
                       -webkit-print-color-adjust: exact !important;
                       color-adjust: exact !important;
+                    }
+                    
+                    .invoice-items-table td {
+                      border-top: 1px solid #6b7280 !important;
+                      border-bottom: 1px solid #6b7280 !important;
                     }
                    
                    .print-invoice-bg {
