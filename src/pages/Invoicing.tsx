@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileText, Plus, Search, DollarSign, Calendar, Send, Trash2, Download, Eye, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-
 const getStatusColor = (status: string) => {
   switch (status) {
     case "paid":
@@ -27,9 +26,10 @@ const getStatusColor = (status: string) => {
       return "bg-gray-500/10 text-gray-700 border-gray-200";
   }
 };
-
 export default function Invoicing() {
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -41,7 +41,6 @@ export default function Invoicing() {
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [isAddInvoiceOpen, setIsAddInvoiceOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  
   const [newInvoice, setNewInvoice] = useState({
     customerId: '',
     orderNumber: '',
@@ -53,63 +52,63 @@ export default function Invoicing() {
     taraWeight: 0,
     notes: ''
   });
-
-  const [invoiceItems, setInvoiceItems] = useState([
-    { inventoryId: '', quantity: 1, unitPrice: 0 }
-  ]);
-
+  const [invoiceItems, setInvoiceItems] = useState([{
+    inventoryId: '',
+    quantity: 1,
+    unitPrice: 0
+  }]);
   useEffect(() => {
     fetchInvoices();
     fetchCustomers();
     fetchInventoryItems();
     fetchCompanyInfo();
   }, []);
-
   const fetchInvoices = async () => {
-    const { data } = await supabase
-      .from('invoices')
-      .select(`
+    const {
+      data
+    } = await supabase.from('invoices').select(`
         *,
         customers!inner(id, name, country),
         invoice_items!fk_invoice_items_invoice(*)
-      `)
-      .order('created_at', { ascending: false });
-    
+      `).order('created_at', {
+      ascending: false
+    });
     if (data) {
       setInvoices(data);
     }
   };
-
   const fetchCustomers = async () => {
-    const { data } = await supabase.from('customers').select('*');
+    const {
+      data
+    } = await supabase.from('customers').select('*');
     if (data) setCustomers(data);
   };
-
   const fetchInventoryItems = async () => {
-    const { data } = await supabase.from('inventory').select('*').eq('category', 'Parts');
+    const {
+      data
+    } = await supabase.from('inventory').select('*').eq('category', 'Parts');
     if (data) setInventoryItems(data);
   };
-
   const fetchCompanyInfo = async () => {
-    const { data } = await supabase.from('company_info').select('*').limit(1).single();
+    const {
+      data
+    } = await supabase.from('company_info').select('*').limit(1).single();
     if (data) setCompanyInfo(data);
   };
-
   const getSelectedCustomer = () => {
     return customers.find(c => c.id === newInvoice.customerId);
   };
-
   const generateInvoiceNumber = async () => {
-    const { data } = await supabase.rpc('generate_invoice_number');
+    const {
+      data
+    } = await supabase.rpc('generate_invoice_number');
     return data;
   };
-
   const calculateTotals = () => {
     const customer = getSelectedCustomer();
     let totalQuantity = 0;
     let netWeight = 0;
     let subtotal = 0;
-
     invoiceItems.forEach(item => {
       const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
       if (inventoryItem) {
@@ -118,13 +117,11 @@ export default function Invoicing() {
         subtotal += item.quantity * item.unitPrice;
       }
     });
-
     const totalWeight = netWeight + newInvoice.taraWeight;
     const vatRate = customer?.country === 'Bosnia and Herzegovina' ? 17 : 0;
     const vatAmount = subtotal * (vatRate / 100);
     const total = subtotal + vatAmount;
     const currency = customer?.country === 'Bosnia and Herzegovina' ? 'BAM' : 'EUR';
-
     return {
       totalQuantity,
       netWeight,
@@ -136,45 +133,40 @@ export default function Invoicing() {
       currency
     };
   };
-
   const handleCreateInvoice = async () => {
     if (!newInvoice.customerId) {
       toast({
-        title: "Error", 
+        title: "Error",
         description: "Please select a customer",
         variant: "destructive"
       });
       return;
     }
-
     const invoiceNumber = await generateInvoiceNumber();
     const totals = calculateTotals();
     const customer = getSelectedCustomer();
-
-    const { data: invoiceData, error: invoiceError } = await supabase
-      .from('invoices')
-      .insert([{
-        invoice_number: invoiceNumber,
-        customer_id: newInvoice.customerId,
-        order_number: newInvoice.orderNumber,
-        shipping_date: newInvoice.shippingDate,
-        shipping_address: newInvoice.shippingAddress || customer?.address,
-        incoterms: newInvoice.incoterms,
-        declaration_number: newInvoice.declarationNumber,
-        packing: newInvoice.packing,
-        tara_weight: newInvoice.taraWeight,
-        total_quantity: totals.totalQuantity,
-        net_weight: totals.netWeight,
-        total_weight: totals.totalWeight,
-        amount: totals.total,
-        currency: totals.currency,
-        vat_rate: totals.vatRate,
-        notes: newInvoice.notes,
-        status: 'draft'
-      }])
-      .select()
-      .single();
-
+    const {
+      data: invoiceData,
+      error: invoiceError
+    } = await supabase.from('invoices').insert([{
+      invoice_number: invoiceNumber,
+      customer_id: newInvoice.customerId,
+      order_number: newInvoice.orderNumber,
+      shipping_date: newInvoice.shippingDate,
+      shipping_address: newInvoice.shippingAddress || customer?.address,
+      incoterms: newInvoice.incoterms,
+      declaration_number: newInvoice.declarationNumber,
+      packing: newInvoice.packing,
+      tara_weight: newInvoice.taraWeight,
+      total_quantity: totals.totalQuantity,
+      net_weight: totals.netWeight,
+      total_weight: totals.totalWeight,
+      amount: totals.total,
+      currency: totals.currency,
+      vat_rate: totals.vatRate,
+      notes: newInvoice.notes,
+      status: 'draft'
+    }]).select().single();
     if (invoiceError) {
       toast({
         title: "Error",
@@ -192,11 +184,9 @@ export default function Invoicing() {
       unit_price: item.unitPrice,
       total: item.quantity * item.unitPrice
     }));
-
-    const { error: itemsError } = await supabase
-      .from('invoice_items')
-      .insert(itemsData);
-
+    const {
+      error: itemsError
+    } = await supabase.from('invoice_items').insert(itemsData);
     if (!itemsError) {
       await fetchInvoices();
       setIsAddInvoiceOpen(false);
@@ -207,42 +197,38 @@ export default function Invoicing() {
       });
     }
   };
-
   const handleUpdateInvoice = async () => {
     if (!newInvoice.customerId || !selectedInvoice) {
       toast({
-        title: "Error", 
+        title: "Error",
         description: "Please select a customer",
         variant: "destructive"
       });
       return;
     }
-
     const totals = calculateTotals();
     const customer = getSelectedCustomer();
 
     // Update the invoice
-    const { error: invoiceError } = await supabase
-      .from('invoices')
-      .update({
-        customer_id: newInvoice.customerId,
-        order_number: newInvoice.orderNumber,
-        shipping_date: newInvoice.shippingDate,
-        shipping_address: newInvoice.shippingAddress || customer?.address,
-        incoterms: newInvoice.incoterms,
-        declaration_number: newInvoice.declarationNumber,
-        packing: newInvoice.packing,
-        tara_weight: newInvoice.taraWeight,
-        total_quantity: totals.totalQuantity,
-        net_weight: totals.netWeight,
-        total_weight: totals.totalWeight,
-        amount: totals.total,
-        currency: totals.currency,
-        vat_rate: totals.vatRate,
-        notes: newInvoice.notes
-      })
-      .eq('id', selectedInvoice.id);
-
+    const {
+      error: invoiceError
+    } = await supabase.from('invoices').update({
+      customer_id: newInvoice.customerId,
+      order_number: newInvoice.orderNumber,
+      shipping_date: newInvoice.shippingDate,
+      shipping_address: newInvoice.shippingAddress || customer?.address,
+      incoterms: newInvoice.incoterms,
+      declaration_number: newInvoice.declarationNumber,
+      packing: newInvoice.packing,
+      tara_weight: newInvoice.taraWeight,
+      total_quantity: totals.totalQuantity,
+      net_weight: totals.netWeight,
+      total_weight: totals.totalWeight,
+      amount: totals.total,
+      currency: totals.currency,
+      vat_rate: totals.vatRate,
+      notes: newInvoice.notes
+    }).eq('id', selectedInvoice.id);
     if (invoiceError) {
       toast({
         title: "Error",
@@ -253,10 +239,7 @@ export default function Invoicing() {
     }
 
     // Delete existing invoice items
-    await supabase
-      .from('invoice_items')
-      .delete()
-      .eq('invoice_id', selectedInvoice.id);
+    await supabase.from('invoice_items').delete().eq('invoice_id', selectedInvoice.id);
 
     // Insert updated invoice items
     const itemsData = invoiceItems.map(item => ({
@@ -266,11 +249,9 @@ export default function Invoicing() {
       unit_price: item.unitPrice,
       total: item.quantity * item.unitPrice
     }));
-
-    const { error: itemsError } = await supabase
-      .from('invoice_items')
-      .insert(itemsData);
-
+    const {
+      error: itemsError
+    } = await supabase.from('invoice_items').insert(itemsData);
     if (!itemsError) {
       await fetchInvoices();
       setIsAddInvoiceOpen(false);
@@ -281,7 +262,6 @@ export default function Invoicing() {
       });
     }
   };
-
   const handleSubmitInvoice = () => {
     if (isEditMode) {
       handleUpdateInvoice();
@@ -289,7 +269,6 @@ export default function Invoicing() {
       handleCreateInvoice();
     }
   };
-
   const resetForm = () => {
     setNewInvoice({
       customerId: '',
@@ -302,30 +281,29 @@ export default function Invoicing() {
       taraWeight: 0,
       notes: ''
     });
-    setInvoiceItems([{ inventoryId: '', quantity: 1, unitPrice: 0 }]);
+    setInvoiceItems([{
+      inventoryId: '',
+      quantity: 1,
+      unitPrice: 0
+    }]);
     setIsEditMode(false);
   };
-
   const handleDeleteInvoice = async (invoiceId: string) => {
-    const { error } = await supabase
-      .from('invoices')
-      .delete()
-      .eq('id', invoiceId);
-
+    const {
+      error
+    } = await supabase.from('invoices').delete().eq('id', invoiceId);
     if (!error) {
       setInvoices(prev => prev.filter(invoice => invoice.id !== invoiceId));
       toast({
         title: "Invoice Deleted",
-        description: "The invoice has been successfully deleted.",
+        description: "The invoice has been successfully deleted."
       });
     }
   };
-
   const handleViewInvoice = (invoice: any) => {
     setSelectedInvoice(invoice);
     setIsPrintDialogOpen(true);
   };
-
   const handleEditInvoice = (invoice: any) => {
     setSelectedInvoice(invoice);
     setNewInvoice({
@@ -343,23 +321,31 @@ export default function Invoicing() {
       inventoryId: inventoryItems.find(inv => inv.name === item.description)?.id || '',
       quantity: item.quantity,
       unitPrice: item.unit_price
-    })) || [{ inventoryId: '', quantity: 1, unitPrice: 0 }]);
+    })) || [{
+      inventoryId: '',
+      quantity: 1,
+      unitPrice: 0
+    }]);
     setIsEditMode(true);
     setIsAddInvoiceOpen(true);
   };
-
   const addInvoiceItem = () => {
-    setInvoiceItems([...invoiceItems, { inventoryId: '', quantity: 1, unitPrice: 0 }]);
+    setInvoiceItems([...invoiceItems, {
+      inventoryId: '',
+      quantity: 1,
+      unitPrice: 0
+    }]);
   };
-
   const removeInvoiceItem = (index: number) => {
     setInvoiceItems(invoiceItems.filter((_, i) => i !== index));
   };
-
   const updateInvoiceItem = (index: number, field: string, value: any) => {
     const updated = [...invoiceItems];
-    updated[index] = { ...updated[index], [field]: value };
-    
+    updated[index] = {
+      ...updated[index],
+      [field]: value
+    };
+
     // Auto-fill unit price when inventory item is selected
     if (field === 'inventoryId') {
       const inventoryItem = inventoryItems.find(item => item.id === value);
@@ -367,28 +353,20 @@ export default function Invoicing() {
         updated[index].unitPrice = inventoryItem.unit_price;
       }
     }
-    
     setInvoiceItems(updated);
   };
-
   const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = 
-      invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) || invoice.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === "all" || invoice.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
-
   const totalRevenue = invoices.reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
   const paidInvoices = invoices.filter(inv => inv.status === "paid");
   const pendingInvoices = invoices.filter(inv => inv.status === "pending");
   const overdueInvoices = invoices.filter(inv => inv.status === "overdue");
-
   const totals = calculateTotals();
   const selectedCustomer = getSelectedCustomer();
-
-  return (
-    <div className="p-6 space-y-6">
+  return <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -397,10 +375,10 @@ export default function Invoicing() {
             Manage invoices and track payments
           </p>
         </div>
-        <Dialog open={isAddInvoiceOpen} onOpenChange={(open) => {
-          setIsAddInvoiceOpen(open);
-          if (!open) resetForm();
-        }}>
+        <Dialog open={isAddInvoiceOpen} onOpenChange={open => {
+        setIsAddInvoiceOpen(open);
+        if (!open) resetForm();
+      }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -420,51 +398,53 @@ export default function Invoicing() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Customer *</Label>
-                  <Select value={newInvoice.customerId} onValueChange={(value) => {
-                    setNewInvoice({...newInvoice, customerId: value});
-                    const customer = customers.find(c => c.id === value);
-                    if (customer) {
-                      setNewInvoice(prev => ({
-                        ...prev,
-                        shippingAddress: customer.address || '',
-                        declarationNumber: customer.declaration_numbers?.[0] || ''
-                      }));
-                    }
-                  }}>
+                  <Select value={newInvoice.customerId} onValueChange={value => {
+                  setNewInvoice({
+                    ...newInvoice,
+                    customerId: value
+                  });
+                  const customer = customers.find(c => c.id === value);
+                  if (customer) {
+                    setNewInvoice(prev => ({
+                      ...prev,
+                      shippingAddress: customer.address || '',
+                      declarationNumber: customer.declaration_numbers?.[0] || ''
+                    }));
+                  }
+                }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select customer" />
                     </SelectTrigger>
                     <SelectContent>
-                      {customers.map(customer => (
-                        <SelectItem key={customer.id} value={customer.id}>
+                      {customers.map(customer => <SelectItem key={customer.id} value={customer.id}>
                           {customer.name}
-                        </SelectItem>
-                      ))}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <Label>Order Number</Label>
-                  <Input 
-                    value={newInvoice.orderNumber}
-                    onChange={(e) => setNewInvoice({...newInvoice, orderNumber: e.target.value})}
-                    placeholder="Enter order number"
-                  />
+                  <Input value={newInvoice.orderNumber} onChange={e => setNewInvoice({
+                  ...newInvoice,
+                  orderNumber: e.target.value
+                })} placeholder="Enter order number" />
                 </div>
 
                 <div>
                   <Label>Shipping Date</Label>
-                  <Input 
-                    type="date"
-                    value={newInvoice.shippingDate}
-                    onChange={(e) => setNewInvoice({...newInvoice, shippingDate: e.target.value})}
-                  />
+                  <Input type="date" value={newInvoice.shippingDate} onChange={e => setNewInvoice({
+                  ...newInvoice,
+                  shippingDate: e.target.value
+                })} />
                 </div>
 
                 <div>
                   <Label>Incoterms</Label>
-                  <Select value={newInvoice.incoterms} onValueChange={(value) => setNewInvoice({...newInvoice, incoterms: value})}>
+                  <Select value={newInvoice.incoterms} onValueChange={value => setNewInvoice({
+                  ...newInvoice,
+                  incoterms: value
+                })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select incoterms" />
                     </SelectTrigger>
@@ -480,51 +460,45 @@ export default function Invoicing() {
               {/* Shipping Address */}
               <div>
                 <Label>Shipping Address *</Label>
-                <Textarea 
-                  value={newInvoice.shippingAddress}
-                  onChange={(e) => setNewInvoice({...newInvoice, shippingAddress: e.target.value})}
-                  placeholder="Shipping address (auto-filled from customer)"
-                  rows={3}
-                />
+                <Textarea value={newInvoice.shippingAddress} onChange={e => setNewInvoice({
+                ...newInvoice,
+                shippingAddress: e.target.value
+              })} placeholder="Shipping address (auto-filled from customer)" rows={3} />
               </div>
 
               {/* Declaration Number and Packing */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>Declaration Number *</Label>
-                  <Select value={newInvoice.declarationNumber} onValueChange={(value) => setNewInvoice({...newInvoice, declarationNumber: value})}>
+                  <Select value={newInvoice.declarationNumber} onValueChange={value => setNewInvoice({
+                  ...newInvoice,
+                  declarationNumber: value
+                })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select declaration number" />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedCustomer?.declaration_numbers?.map((number, index) => (
-                        <SelectItem key={index} value={number}>
+                      {selectedCustomer?.declaration_numbers?.map((number, index) => <SelectItem key={index} value={number}>
                           {number}
-                        </SelectItem>
-                      ))}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <Label>Packing (packages)</Label>
-                  <Input 
-                    type="number"
-                    value={newInvoice.packing}
-                    onChange={(e) => setNewInvoice({...newInvoice, packing: parseInt(e.target.value) || 1})}
-                    min="1"
-                  />
+                  <Input type="number" value={newInvoice.packing} onChange={e => setNewInvoice({
+                  ...newInvoice,
+                  packing: parseInt(e.target.value) || 1
+                })} min="1" />
                 </div>
 
                 <div>
                   <Label>TARA Weight (kg)</Label>
-                  <Input 
-                    type="number"
-                    step="0.01"
-                    value={newInvoice.taraWeight}
-                    onChange={(e) => setNewInvoice({...newInvoice, taraWeight: parseFloat(e.target.value) || 0})}
-                    min="0"
-                  />
+                  <Input type="number" step="0.01" value={newInvoice.taraWeight} onChange={e => setNewInvoice({
+                  ...newInvoice,
+                  taraWeight: parseFloat(e.target.value) || 0
+                })} min="0" />
                 </div>
               </div>
 
@@ -535,70 +509,42 @@ export default function Invoicing() {
                 </div>
 
                 <div className="space-y-3">
-                  {invoiceItems.map((item, index) => (
-                    <div key={index} className="grid grid-cols-5 gap-2 p-3 border rounded-lg">
+                  {invoiceItems.map((item, index) => <div key={index} className="grid grid-cols-5 gap-2 p-3 border rounded-lg">
                       <div>
                         <Label className="text-xs">Product</Label>
-                        <Select 
-                          value={item.inventoryId} 
-                          onValueChange={(value) => updateInvoiceItem(index, 'inventoryId', value)}
-                        >
+                        <Select value={item.inventoryId} onValueChange={value => updateInvoiceItem(index, 'inventoryId', value)}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select product" />
                           </SelectTrigger>
                           <SelectContent>
-                            {inventoryItems.map(invItem => (
-                              <SelectItem key={invItem.id} value={invItem.id}>
+                            {inventoryItems.map(invItem => <SelectItem key={invItem.id} value={invItem.id}>
                                 {invItem.name}
-                              </SelectItem>
-                            ))}
+                              </SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div>
                         <Label className="text-xs">Quantity</Label>
-                        <Input 
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                          min="1"
-                        />
+                        <Input type="number" value={item.quantity} onChange={e => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)} min="1" />
                       </div>
 
                       <div>
                         <Label className="text-xs">Unit Price</Label>
-                        <Input 
-                          type="number"
-                          step="0.01"
-                          value={item.unitPrice}
-                          onChange={(e) => updateInvoiceItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                          min="0"
-                        />
+                        <Input type="number" step="0.01" value={item.unitPrice} onChange={e => updateInvoiceItem(index, 'unitPrice', parseFloat(e.target.value) || 0)} min="0" />
                       </div>
 
                       <div>
                         <Label className="text-xs">Total</Label>
-                        <Input 
-                          value={(item.quantity * item.unitPrice).toFixed(2)}
-                          disabled
-                          className="bg-muted"
-                        />
+                        <Input value={(item.quantity * item.unitPrice).toFixed(2)} disabled className="bg-muted" />
                       </div>
 
                       <div className="flex items-end">
-                        <Button 
-                          type="button"
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => removeInvoiceItem(index)}
-                          disabled={invoiceItems.length === 1}
-                        >
+                        <Button type="button" variant="outline" size="sm" onClick={() => removeInvoiceItem(index)} disabled={invoiceItems.length === 1}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                    </div>
-                  ))}
+                    </div>)}
                 </div>
                 
                 <div className="mt-3">
@@ -609,8 +555,7 @@ export default function Invoicing() {
               </div>
 
               {/* Calculations Display */}
-              {selectedCustomer && (
-                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              {selectedCustomer && <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Total Quantity:</span>
@@ -639,18 +584,15 @@ export default function Invoicing() {
                       <span>{totals.total.toFixed(2)} {totals.currency === 'BAM' ? 'KM' : totals.currency}</span>
                     </div>
                   </div>
-                </div>
-              )}
+                </div>}
 
               {/* Notes */}
               <div>
                 <Label>Notes</Label>
-                <Textarea 
-                  value={newInvoice.notes}
-                  onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
-                  placeholder="Additional notes..."
-                  rows={3}
-                />
+                <Textarea value={newInvoice.notes} onChange={e => setNewInvoice({
+                ...newInvoice,
+                notes: e.target.value
+              })} placeholder="Additional notes..." rows={3} />
               </div>
             </div>
 
@@ -725,12 +667,7 @@ export default function Invoicing() {
       <div className="flex items-center space-x-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Search invoices..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+          <Input placeholder="Search invoices..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
         </div>
         <Select value={selectedStatus} onValueChange={setSelectedStatus}>
           <SelectTrigger className="w-40">
@@ -753,17 +690,10 @@ export default function Invoicing() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {filteredInvoices.map((invoice) => (
-              <div 
-                key={invoice.id} 
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors min-h-[80px]"
-              >
+            {filteredInvoices.map(invoice => <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors min-h-[80px]">
                 <div className="flex items-center space-x-4 flex-1">
                   <div className="min-w-[120px]">
-                    <button
-                      onClick={() => handleViewInvoice(invoice)}
-                      className="text-primary hover:underline font-medium text-left"
-                    >
+                    <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline font-medium text-left">
                       {invoice.invoice_number}
                     </button>
                   </div>
@@ -776,10 +706,7 @@ export default function Invoicing() {
                     <p className="font-medium">{invoice.customers?.name}</p>
                   </div>
                   <div className="min-w-[100px]">
-                    <Badge
-                      variant="outline"
-                      className={getStatusColor(invoice.status)}
-                    >
+                    <Badge variant="outline" className={getStatusColor(invoice.status)}>
                       {invoice.status === 'paid' ? 'Paid' : 'Unpaid'}
                     </Badge>
                   </div>
@@ -790,20 +717,10 @@ export default function Invoicing() {
                 </div>
                 
                 <div className="flex gap-1 ml-4">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleViewInvoice(invoice)}
-                    title="View Invoice"
-                  >
+                  <Button variant="ghost" size="icon" onClick={() => handleViewInvoice(invoice)} title="View Invoice">
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEditInvoice(invoice)}
-                    title="Edit Invoice"
-                  >
+                  <Button variant="ghost" size="icon" onClick={() => handleEditInvoice(invoice)} title="Edit Invoice">
                     <Edit className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" title="Download">
@@ -831,8 +748,7 @@ export default function Invoicing() {
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-              </div>
-            ))}
+              </div>)}
           </div>
         </CardContent>
       </Card>
@@ -840,17 +756,9 @@ export default function Invoicing() {
       {/* Printable Invoice Dialog */}
       <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:!max-w-none print:!w-full print:!h-full print:!max-h-none print:!p-0 print:!m-0 print:!shadow-none print:!border-none print:!rounded-none">
-          <DialogHeader className="print:hidden">
-            <DialogTitle className="text-2xl">
-              Invoice {selectedInvoice?.invoice_number}
-            </DialogTitle>
-            <DialogDescription>
-              Printable invoice view
-            </DialogDescription>
-          </DialogHeader>
           
-          {selectedInvoice && (
-            <>
+          
+          {selectedInvoice && <>
               <style>{`
                 @media print {
                   @page {
@@ -901,33 +809,28 @@ export default function Invoicing() {
               `}</style>
               
               <div className="print-invoice space-y-6 print:text-black print:bg-white">
-                {/* Company Logo and Header Row */}
-                {companyInfo && (
-                  <div className="company-header print:mb-6">
-                    {companyInfo.logo_url && (
-                      <div className="mb-3">
-                        <img 
-                          src={companyInfo.logo_url} 
-                          alt="Company Logo" 
-                          className="h-16 print:h-20 object-contain"
-                        />
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm print:text-sm">
-                        <div className="inline-block">
-                          <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
-                            {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
-                          </p>
-                        </div>
-                      </div>
-                      {/* INVOICE Title */}
-                      <div className="bg-[#f3daaf] px-2 h-[25px] flex items-center justify-center" style={{ marginRight: '4cm' }}>
-                        <span className="text-lg font-medium text-black">INVOICE</span>
+                {/* Company Logo and Info - Top Left */}
+                {companyInfo && <div className="company-header print:mb-6">
+                    {companyInfo.logo_url && <div className="mb-3">
+                        <img src={companyInfo.logo_url} alt="Company Logo" className="h-16 print:h-20 object-contain" />
+                      </div>}
+                    <div className="text-sm print:text-sm">
+                      <div className="inline-block">
+                        <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
+                          {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
+                        </p>
                       </div>
                     </div>
+                  </div>}
+
+                {/* INVOICE Title */}
+                <div className="relative flex justify-end" style={{
+              marginRight: '4cm'
+            }}>
+                  <div className="bg-[#f3daaf] px-2 h-[25px] flex items-center justify-center">
+                    <span className="text-lg font-medium text-black">INVOICE</span>
                   </div>
-                )}
+                </div>
 
                 {/* Invoice Header */}
                 <div className="invoice-header grid grid-cols-2 gap-6 print:mb-8">
@@ -941,15 +844,9 @@ export default function Invoicing() {
                       <p className="print:text-sm"><span className="font-medium">Invoice Number:</span> {selectedInvoice.invoice_number}</p>
                       <p className="print:text-sm"><span className="font-medium">Issue Date:</span> {new Date(selectedInvoice.issue_date).toLocaleDateString()}</p>
                       <p className="print:text-sm"><span className="font-medium">Due Date:</span> {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'N/A'}</p>
-                      {selectedInvoice.order_number && (
-                        <p className="print:text-sm"><span className="font-medium">Order Number:</span> {selectedInvoice.order_number}</p>
-                      )}
-                      {selectedInvoice.shipping_date && (
-                        <p className="print:text-sm"><span className="font-medium">Shipping Date:</span> {new Date(selectedInvoice.shipping_date).toLocaleDateString()}</p>
-                      )}
-                      {selectedInvoice.incoterms && (
-                        <p className="print:text-sm"><span className="font-medium">Incoterms:</span> {selectedInvoice.incoterms}</p>
-                      )}
+                      {selectedInvoice.order_number && <p className="print:text-sm"><span className="font-medium">Order Number:</span> {selectedInvoice.order_number}</p>}
+                      {selectedInvoice.shipping_date && <p className="print:text-sm"><span className="font-medium">Shipping Date:</span> {new Date(selectedInvoice.shipping_date).toLocaleDateString()}</p>}
+                      {selectedInvoice.incoterms && <p className="print:text-sm"><span className="font-medium">Incoterms:</span> {selectedInvoice.incoterms}</p>}
                     </div>
                   </div>
                 </div>
@@ -967,14 +864,12 @@ export default function Invoicing() {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedInvoice.invoice_items?.map((item, index) => (
-                        <tr key={index} className="print:border-black">
+                      {selectedInvoice.invoice_items?.map((item, index) => <tr key={index} className="print:border-black">
                           <td className="border p-2 print:border-black">{item.description}</td>
                           <td className="border p-2 print:border-black">{item.quantity}</td>
                          <td className="border p-2 print:border-black">{item.unit_price.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
                          <td className="border p-2 print:border-black">{item.total.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
-                        </tr>
-                      ))}
+                        </tr>)}
                     </tbody>
                   </table>
                 </div>
@@ -988,9 +883,7 @@ export default function Invoicing() {
                       <p><span className="font-medium">Net Weight:</span> {selectedInvoice.net_weight} kg</p>
                       <p><span className="font-medium">Total Weight:</span> {selectedInvoice.total_weight} kg</p>
                       <p><span className="font-medium">Packing:</span> {selectedInvoice.packing} {selectedInvoice.packing === 1 ? 'package' : 'packages'}</p>
-                      {selectedInvoice.declaration_number && (
-                        <p><span className="font-medium">Declaration Number:</span> {selectedInvoice.declaration_number}</p>
-                      )}
+                      {selectedInvoice.declaration_number && <p><span className="font-medium">Declaration Number:</span> {selectedInvoice.declaration_number}</p>}
                     </div>
                   </div>
                   
@@ -1012,12 +905,10 @@ export default function Invoicing() {
                   </div>
                 </div>
 
-                {selectedInvoice.notes && (
-                  <div className="no-page-break print:mt-6">
+                {selectedInvoice.notes && <div className="no-page-break print:mt-6">
                     <h3 className="font-semibold mb-2 print:text-base">Notes</h3>
                     <p className="text-sm whitespace-pre-line print:text-sm">{selectedInvoice.notes}</p>
-                  </div>
-                )}
+                  </div>}
 
                 <div className="flex gap-2 pt-4 print:hidden">
                   <Button onClick={() => window.print()}>
@@ -1029,10 +920,8 @@ export default function Invoicing() {
                   </Button>
                 </div>
               </div>
-            </>
-          )}
+            </>}
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 }
