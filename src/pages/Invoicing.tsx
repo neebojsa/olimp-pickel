@@ -879,7 +879,7 @@ export default function Invoicing() {
                   <table className="invoice-items-table w-full border-collapse print:border-black">
                     <thead>
                       <tr className="print:border-black">
-                        <th className="border p-2 print:border-black print:bg-gray-100">Description</th>
+                        <th className="border p-2 text-left print:border-black print:bg-gray-100">Description</th>
                         <th className="border p-2 print:border-black print:bg-gray-100">Quantity</th>
                         <th className="border p-2 print:border-black print:bg-gray-100">Unit Price</th>
                         <th className="border p-2 print:border-black print:bg-gray-100">Total</th>
