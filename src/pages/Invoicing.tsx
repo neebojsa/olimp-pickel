@@ -901,7 +901,7 @@ export default function Invoicing() {
               `}</style>
               
               <div className="print-invoice space-y-6 print:text-black print:bg-white">
-                {/* Company Logo and Info - Top Left */}
+                {/* Company Logo and Header Row */}
                 {companyInfo && (
                   <div className="company-header print:mb-6">
                     {companyInfo.logo_url && (
@@ -913,22 +913,21 @@ export default function Invoicing() {
                         />
                       </div>
                     )}
-                    <div className="text-sm print:text-sm">
-                      <div className="inline-block">
-                        <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
-                          {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
-                        </p>
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm print:text-sm">
+                        <div className="inline-block">
+                          <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
+                            {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
+                          </p>
+                        </div>
+                      </div>
+                      {/* INVOICE Title */}
+                      <div className="bg-[#f3daaf] px-2 h-[25px] flex items-center justify-center" style={{ marginRight: '4cm' }}>
+                        <span className="text-lg font-medium text-black">INVOICE</span>
                       </div>
                     </div>
                   </div>
                 )}
-
-                {/* INVOICE Title */}
-                <div className="relative flex justify-end" style={{ marginRight: '4cm' }}>
-                  <div className="bg-[#f3daaf] px-2 h-[25px] flex items-center justify-center">
-                    <span className="text-lg font-medium text-black">INVOICE</span>
-                  </div>
-                </div>
 
                 {/* Invoice Header */}
                 <div className="invoice-header grid grid-cols-2 gap-6 print:mb-8">
