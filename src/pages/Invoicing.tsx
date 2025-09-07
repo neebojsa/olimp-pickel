@@ -785,26 +785,32 @@ export default function Invoicing() {
                     margin-bottom: 30px !important;
                   }
                   
-                  .invoice-items-table {
-                    width: 100% !important;
-                    border-collapse: collapse !important;
-                    margin: 20px 0 !important;
-                  }
-                  
-                   .invoice-items-table th,
-                   .invoice-items-table td {
-                     border: 1px solid #000 !important;
-                     padding: 8px !important;
-                     text-align: left !important;
-                     font-size: 14pt !important;
+                   .invoice-items-table {
+                     width: 100% !important;
+                     border-collapse: collapse !important;
+                     margin: 20px 0 !important;
                    }
-                  
-                   .invoice-items-table th {
-                     background-color: #f5f5f5 !important;
-                     font-weight: bold !important;
-                     -webkit-print-color-adjust: exact !important;
-                     color-adjust: exact !important;
-                   }
+                   
+                    .invoice-items-table th,
+                    .invoice-items-table td {
+                      border-left: none !important;
+                      border-right: none !important;
+                      border-top: 1px solid #6b7280 !important;
+                      border-bottom: 1px solid #6b7280 !important;
+                      padding: 8px !important;
+                      text-align: left !important;
+                      font-size: 14pt !important;
+                    }
+                   
+                    .invoice-items-table th {
+                      background-color: #f5f5f5 !important;
+                      font-weight: bold !important;
+                      font-size: 10pt !important;
+                      border-top: 1px solid #000 !important;
+                      border-bottom: 1px solid #000 !important;
+                      -webkit-print-color-adjust: exact !important;
+                      color-adjust: exact !important;
+                    }
                    
                    .print-invoice-bg {
                      background-color: #f3daaf !important;
@@ -878,31 +884,31 @@ export default function Invoicing() {
                 <div className="no-page-break">
                   
                   <table className="invoice-items-table w-full border-collapse print:border-black">
-                    <thead>
-                      <tr className="print:border-black">
-                        <th className="border p-2 text-left print:border-black print:bg-gray-100">Part name</th>
-                        <th className="border p-2 print:border-black print:bg-gray-100">Part number</th>
-                        <th className="border p-2 print:border-black print:bg-gray-100">Unit</th>
-                        <th className="border p-2 print:border-black print:bg-gray-100">Quantity</th>
-                        <th className="border p-2 print:border-black print:bg-gray-100">Subtotal weight</th>
-                        <th className="border p-2 print:border-black print:bg-gray-100">Price</th>
-                        <th className="border p-2 text-right print:border-black print:bg-gray-100">Amount</th>
-                      </tr>
-                    </thead>
+                     <thead>
+                       <tr>
+                         <th className="p-2 text-left text-sm">Part name</th>
+                         <th className="p-2 text-sm">Part number</th>
+                         <th className="p-2 text-sm">Unit</th>
+                         <th className="p-2 text-sm">Quantity</th>
+                         <th className="p-2 text-sm">Subtotal weight</th>
+                         <th className="p-2 text-sm">Price</th>
+                         <th className="p-2 text-right text-sm">Amount</th>
+                       </tr>
+                     </thead>
                     <tbody>
-                      {selectedInvoice.invoice_items?.map((item, index) => {
-                        const inventoryItem = inventoryItems.find(inv => inv.name === item.description);
-                        const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
-                        return <tr key={index} className="print:border-black">
-                          <td className="border p-2 print:border-black">{item.description}</td>
-                          <td className="border p-2 print:border-black">{inventoryItem?.part_number || '-'}</td>
-                          <td className="border p-2 print:border-black">{inventoryItem?.unit || 'piece'}</td>
-                          <td className="border p-2 print:border-black">{item.quantity}</td>
-                          <td className="border p-2 print:border-black">{subtotalWeight.toFixed(2)} kg</td>
-                          <td className="border p-2 print:border-black">{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
-                          <td className="border p-2 text-right print:border-black">{formatCurrency(item.total, selectedInvoice.currency)}</td>
-                        </tr>
-                      })}
+                       {selectedInvoice.invoice_items?.map((item, index) => {
+                         const inventoryItem = inventoryItems.find(inv => inv.name === item.description);
+                         const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
+                         return <tr key={index}>
+                           <td className="p-2">{item.description}</td>
+                           <td className="p-2">{inventoryItem?.part_number || '-'}</td>
+                           <td className="p-2">{inventoryItem?.unit || 'piece'}</td>
+                           <td className="p-2">{item.quantity}</td>
+                           <td className="p-2">{subtotalWeight.toFixed(2)} kg</td>
+                           <td className="p-2">{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
+                           <td className="p-2 text-right">{formatCurrency(item.total, selectedInvoice.currency)}</td>
+                         </tr>
+                       })}
                     </tbody>
                   </table>
                 </div>
