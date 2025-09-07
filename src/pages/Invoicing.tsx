@@ -766,13 +766,15 @@ export default function Invoicing() {
                     size: A4;
                   }
                   
-                  .print-invoice {
-                    font-family: 'Arial', sans-serif !important;
-                    font-size: 12pt !important;
-                    line-height: 1.4 !important;
-                    color: black !important;
-                    background: white !important;
-                  }
+                   .print-invoice {
+                     font-family: 'Arial', sans-serif !important;
+                     font-size: 16pt !important;
+                     line-height: 1.4 !important;
+                     color: black !important;
+                     background: white !important;
+                     -webkit-print-color-adjust: exact !important;
+                     color-adjust: exact !important;
+                   }
                   
                   .invoice-header {
                     display: flex !important;
@@ -786,19 +788,40 @@ export default function Invoicing() {
                     margin: 20px 0 !important;
                   }
                   
-                  .invoice-items-table th,
-                  .invoice-items-table td {
-                    border: 1px solid #000 !important;
-                    padding: 8px !important;
-                    text-align: left !important;
-                  }
+                   .invoice-items-table th,
+                   .invoice-items-table td {
+                     border: 1px solid #000 !important;
+                     padding: 8px !important;
+                     text-align: left !important;
+                     font-size: 14pt !important;
+                   }
                   
-                  .invoice-items-table th {
-                    background-color: #f5f5f5 !important;
-                    font-weight: bold !important;
-                  }
-                  
-                  .page-break {
+                   .invoice-items-table th {
+                     background-color: #f5f5f5 !important;
+                     font-weight: bold !important;
+                     -webkit-print-color-adjust: exact !important;
+                     color-adjust: exact !important;
+                   }
+                   
+                   .print-invoice-bg {
+                     background-color: #f3daaf !important;
+                     -webkit-print-color-adjust: exact !important;
+                     color-adjust: exact !important;
+                   }
+                   
+                   .print-text-lg {
+                     font-size: 18pt !important;
+                   }
+                   
+                   .print-text-base {
+                     font-size: 16pt !important;
+                   }
+                   
+                   .print-text-sm {
+                     font-size: 14pt !important;
+                   }
+                   
+                   .page-break {
                     page-break-before: always !important;
                   }
                   
@@ -815,42 +838,42 @@ export default function Invoicing() {
                       {companyInfo.logo_url && <div className="mb-3">
                           <img src={companyInfo.logo_url} alt="Company Logo" className="h-16 print:h-20 object-contain" />
                         </div>}
-                      <div className="text-sm print:text-sm">
-                        <div className="inline-block">
-                          <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
-                            {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
-                          </p>
-                        </div>
-                      </div>
+                       <div className="text-sm print-text-sm">
+                         <div className="inline-block">
+                           <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
+                             {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
+                           </p>
+                         </div>
+                       </div>
                     </div>
                     
-                    <div className="bg-[#f3daaf] pl-2 pr-[30px] h-[25px] flex items-center justify-center">
-                      <span className="text-lg font-medium text-black">INVOICE</span>
+                    <div className="bg-[#f3daaf] print-invoice-bg pl-2 pr-[30px] h-[25px] flex items-center justify-center">
+                      <span className="text-lg print-text-lg font-medium text-black">INVOICE</span>
                     </div>
                   </div>}
 
                 {/* Invoice Header */}
                 <div className="invoice-header grid grid-cols-2 gap-6 print:mb-8">
                   <div>
-                    <h3 className="font-semibold mb-2 print:text-lg">Bill To:</h3>
-                    <p className="font-medium print:text-base">{selectedInvoice.customers?.name}</p>
-                    <p className="text-sm whitespace-pre-line print:text-sm">{selectedInvoice.shipping_address}</p>
+                     <h3 className="font-semibold mb-2 print-text-lg">Bill To:</h3>
+                     <p className="font-medium print-text-base">{selectedInvoice.customers?.name}</p>
+                     <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.shipping_address}</p>
                   </div>
                   <div className="text-right">
                     <div className="space-y-1 print:space-y-2">
-                      <p className="print:text-sm"><span className="font-medium">Invoice Number:</span> {selectedInvoice.invoice_number}</p>
-                      <p className="print:text-sm"><span className="font-medium">Issue Date:</span> {new Date(selectedInvoice.issue_date).toLocaleDateString()}</p>
-                      <p className="print:text-sm"><span className="font-medium">Due Date:</span> {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'N/A'}</p>
-                      {selectedInvoice.order_number && <p className="print:text-sm"><span className="font-medium">Order Number:</span> {selectedInvoice.order_number}</p>}
-                      {selectedInvoice.shipping_date && <p className="print:text-sm"><span className="font-medium">Shipping Date:</span> {new Date(selectedInvoice.shipping_date).toLocaleDateString()}</p>}
-                      {selectedInvoice.incoterms && <p className="print:text-sm"><span className="font-medium">Incoterms:</span> {selectedInvoice.incoterms}</p>}
+                       <p className="print-text-sm"><span className="font-medium">Invoice Number:</span> {selectedInvoice.invoice_number}</p>
+                       <p className="print-text-sm"><span className="font-medium">Issue Date:</span> {new Date(selectedInvoice.issue_date).toLocaleDateString()}</p>
+                       <p className="print-text-sm"><span className="font-medium">Due Date:</span> {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'N/A'}</p>
+                       {selectedInvoice.order_number && <p className="print-text-sm"><span className="font-medium">Order Number:</span> {selectedInvoice.order_number}</p>}
+                       {selectedInvoice.shipping_date && <p className="print-text-sm"><span className="font-medium">Shipping Date:</span> {new Date(selectedInvoice.shipping_date).toLocaleDateString()}</p>}
+                       {selectedInvoice.incoterms && <p className="print-text-sm"><span className="font-medium">Incoterms:</span> {selectedInvoice.incoterms}</p>}
                     </div>
                   </div>
                 </div>
 
                 {/* Invoice Items */}
                 <div className="no-page-break">
-                  <h3 className="font-semibold mb-3 print:text-lg print:mb-4">Items</h3>
+                  <h3 className="font-semibold mb-3 print-text-lg print:mb-4">Items</h3>
                   <table className="invoice-items-table w-full border-collapse print:border-black">
                     <thead>
                       <tr className="print:border-black">
@@ -874,8 +897,8 @@ export default function Invoicing() {
                 {/* Invoice Summary */}
                 <div className="grid grid-cols-2 gap-6 no-page-break print:mt-8">
                   <div>
-                    <h3 className="font-semibold mb-2 print:text-base">Summary</h3>
-                    <div className="space-y-1 text-sm print:space-y-2 print:text-sm">
+                     <h3 className="font-semibold mb-2 print-text-base">Summary</h3>
+                     <div className="space-y-1 text-sm print:space-y-2 print-text-sm">
                       <p><span className="font-medium">Total Quantity:</span> {selectedInvoice.total_quantity} pcs</p>
                       <p><span className="font-medium">Net Weight:</span> {selectedInvoice.net_weight} kg</p>
                       <p><span className="font-medium">Total Weight:</span> {selectedInvoice.total_weight} kg</p>
@@ -886,15 +909,15 @@ export default function Invoicing() {
                   
                   <div className="text-right">
                     <div className="space-y-2 print:space-y-3">
-                       <div className="flex justify-between print:text-sm">
-                         <span>Subtotal:</span>
-                         <span>{((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
-                       </div>
-                       <div className="flex justify-between print:text-sm">
-                         <span>VAT ({selectedInvoice.vat_rate}%):</span>
-                         <span>{((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
-                       </div>
-                       <div className="flex justify-between font-bold text-lg border-t pt-2 print:text-base print:border-black print:pt-3">
+                        <div className="flex justify-between print-text-sm">
+                          <span>Subtotal:</span>
+                          <span>{((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
+                        </div>
+                        <div className="flex justify-between print-text-sm">
+                          <span>VAT ({selectedInvoice.vat_rate}%):</span>
+                          <span>{((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-lg border-t pt-2 print-text-base print:border-black print:pt-3">
                          <span>Total:</span>
                          <span>{(selectedInvoice.amount || 0).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
                        </div>
@@ -903,8 +926,8 @@ export default function Invoicing() {
                 </div>
 
                 {selectedInvoice.notes && <div className="no-page-break print:mt-6">
-                    <h3 className="font-semibold mb-2 print:text-base">Notes</h3>
-                    <p className="text-sm whitespace-pre-line print:text-sm">{selectedInvoice.notes}</p>
+                     <h3 className="font-semibold mb-2 print-text-base">Notes</h3>
+                     <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.notes}</p>
                   </div>}
 
                 <div className="flex gap-2 pt-4 print:hidden">
