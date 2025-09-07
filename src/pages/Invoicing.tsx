@@ -879,19 +879,29 @@ export default function Invoicing() {
                   <table className="invoice-items-table w-full border-collapse print:border-black">
                     <thead>
                       <tr className="print:border-black">
-                        <th className="border p-2 text-left print:border-black print:bg-gray-100">Description</th>
+                        <th className="border p-2 text-left print:border-black print:bg-gray-100">Part name</th>
+                        <th className="border p-2 print:border-black print:bg-gray-100">Part number</th>
+                        <th className="border p-2 print:border-black print:bg-gray-100">Unit</th>
                         <th className="border p-2 print:border-black print:bg-gray-100">Quantity</th>
-                        <th className="border p-2 print:border-black print:bg-gray-100">Unit Price</th>
-                        <th className="border p-2 print:border-black print:bg-gray-100">Total</th>
+                        <th className="border p-2 print:border-black print:bg-gray-100">Subtotal weight</th>
+                        <th className="border p-2 print:border-black print:bg-gray-100">Price</th>
+                        <th className="border p-2 print:border-black print:bg-gray-100">Subtotal price</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedInvoice.invoice_items?.map((item, index) => <tr key={index} className="print:border-black">
+                      {selectedInvoice.invoice_items?.map((item, index) => {
+                        const inventoryItem = inventoryItems.find(inv => inv.name === item.description);
+                        const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
+                        return <tr key={index} className="print:border-black">
                           <td className="border p-2 print:border-black">{item.description}</td>
+                          <td className="border p-2 print:border-black">{inventoryItem?.part_number || '-'}</td>
+                          <td className="border p-2 print:border-black">{inventoryItem?.unit || 'piece'}</td>
                           <td className="border p-2 print:border-black">{item.quantity}</td>
-                         <td className="border p-2 print:border-black">{item.unit_price.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
-                         <td className="border p-2 print:border-black">{item.total.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
-                        </tr>)}
+                          <td className="border p-2 print:border-black">{subtotalWeight.toFixed(2)} kg</td>
+                          <td className="border p-2 print:border-black">{item.unit_price.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
+                          <td className="border p-2 print:border-black">{item.total.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
+                        </tr>
+                      })}
                     </tbody>
                   </table>
                 </div>
