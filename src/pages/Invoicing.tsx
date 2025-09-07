@@ -810,7 +810,7 @@ export default function Invoicing() {
               
               <div className="print-invoice space-y-6 print:text-black print:bg-white">
                 {/* Company Header with Invoice Title */}
-                {companyInfo && <div className="company-header print:mb-6 flex justify-between items-start">
+                {companyInfo && <div className="company-header print:mb-6 flex justify-between items-end">
                     <div>
                       {companyInfo.logo_url && <div className="mb-3">
                           <img src={companyInfo.logo_url} alt="Company Logo" className="h-16 print:h-20 object-contain" />
