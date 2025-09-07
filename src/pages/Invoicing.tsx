@@ -885,7 +885,7 @@ export default function Invoicing() {
                         <th className="border p-2 print:border-black print:bg-gray-100">Quantity</th>
                         <th className="border p-2 print:border-black print:bg-gray-100">Subtotal weight</th>
                         <th className="border p-2 print:border-black print:bg-gray-100">Price</th>
-                        <th className="border p-2 print:border-black print:bg-gray-100">Subtotal price</th>
+                        <th className="border p-2 text-right print:border-black print:bg-gray-100">Amount</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -899,7 +899,7 @@ export default function Invoicing() {
                           <td className="border p-2 print:border-black">{item.quantity}</td>
                           <td className="border p-2 print:border-black">{subtotalWeight.toFixed(2)} kg</td>
                           <td className="border p-2 print:border-black">{item.unit_price.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
-                          <td className="border p-2 print:border-black">{item.total.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
+                          <td className="border p-2 text-right print:border-black">{item.total.toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</td>
                         </tr>
                       })}
                     </tbody>
