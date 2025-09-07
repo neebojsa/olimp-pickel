@@ -685,8 +685,11 @@ export default function Invoicing() {
 
       {/* Invoices List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Invoices</CardTitle>
+          <Button onClick={() => setIsAddInvoiceOpen(true)}>
+            + Add Invoice
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
