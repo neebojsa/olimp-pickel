@@ -877,8 +877,9 @@ export default function Invoicing() {
                        <p className="print-text-sm"><span className="font-medium">Issue Date:</span> {new Date(selectedInvoice.issue_date).toLocaleDateString()}</p>
                        <p className="print-text-sm"><span className="font-medium">Due Date:</span> {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'N/A'}</p>
                        {selectedInvoice.order_number && <p className="print-text-sm"><span className="font-medium">Order Number:</span> {selectedInvoice.order_number}</p>}
-                       {selectedInvoice.shipping_date && <p className="print-text-sm"><span className="font-medium">Shipping Date:</span> {new Date(selectedInvoice.shipping_date).toLocaleDateString()}</p>}
-                       {selectedInvoice.incoterms && <p className="print-text-sm"><span className="font-medium">Incoterms:</span> {selectedInvoice.incoterms}</p>}
+                        {selectedInvoice.shipping_date && <p className="print-text-sm"><span className="font-medium">Shipping Date:</span> {new Date(selectedInvoice.shipping_date).toLocaleDateString()}</p>}
+                        {selectedInvoice.incoterms && <p className="print-text-sm"><span className="font-medium">Incoterms:</span> {selectedInvoice.incoterms}</p>}
+                        {selectedInvoice.declaration_number && <p className="print-text-sm"><span className="font-medium">Declaration Number:</span> {selectedInvoice.declaration_number}</p>}
                     </div>
                   </div>
                 </div>
@@ -921,11 +922,10 @@ export default function Invoicing() {
                   <div>
                      <h3 className="font-semibold mb-2 print-text-base">Summary</h3>
                      <div className="space-y-1 text-sm print:space-y-2 print-text-sm">
-                      <p><span className="font-medium">Total Quantity:</span> {selectedInvoice.total_quantity} pcs</p>
-                      <p><span className="font-medium">Net Weight:</span> {selectedInvoice.net_weight} kg</p>
-                      <p><span className="font-medium">Total Weight:</span> {selectedInvoice.total_weight} kg</p>
-                      <p><span className="font-medium">Packing:</span> {selectedInvoice.packing} {selectedInvoice.packing === 1 ? 'package' : 'packages'}</p>
-                      {selectedInvoice.declaration_number && <p><span className="font-medium">Declaration Number:</span> {selectedInvoice.declaration_number}</p>}
+                       <p><span className="font-medium">Total Quantity:</span> {selectedInvoice.total_quantity} pcs</p>
+                       <p><span className="font-medium">Net Weight:</span> {selectedInvoice.net_weight} kg</p>
+                       <p><span className="font-medium">Total Weight:</span> {selectedInvoice.total_weight} kg</p>
+                       <p><span className="font-medium">Packing:</span> {selectedInvoice.packing} {selectedInvoice.packing === 1 ? 'package' : 'packages'}</p>
                     </div>
                   </div>
                   
