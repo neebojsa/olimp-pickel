@@ -873,7 +873,7 @@ export default function Invoicing() {
 
                 {/* Invoice Items */}
                 <div className="no-page-break">
-                  <h3 className="font-semibold mb-3 print-text-lg print:mb-4">Items</h3>
+                  
                   <table className="invoice-items-table w-full border-collapse print:border-black">
                     <thead>
                       <tr className="print:border-black">
