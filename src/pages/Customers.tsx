@@ -48,6 +48,7 @@ export default function Customers() {
     email: '',
     phone: '',
     address: '',
+    city: '',
     industry: '',
     country: '',
     currency: 'EUR',
@@ -143,6 +144,7 @@ export default function Customers() {
         email: newCustomer.email,
         phone: newCustomer.phone,
         address: newCustomer.address,
+        city: newCustomer.city,
         country: newCustomer.country,
         currency: newCustomer.currency,
         contact_person: newCustomer.contactPerson,
@@ -168,6 +170,7 @@ export default function Customers() {
         email: '',
         phone: '',
         address: '',
+        city: '',
         industry: '',
         country: '',
         currency: 'EUR',
@@ -195,6 +198,7 @@ export default function Customers() {
       email: selectedCustomer.email || '',
       phone: selectedCustomer.phone || '',
       address: selectedCustomer.address || '',
+      city: selectedCustomer.city || '',
       industry: selectedCustomer.industry || '',
       country: selectedCustomer.country || '',
       currency: selectedCustomer.currency || 'EUR',
@@ -229,6 +233,7 @@ export default function Customers() {
         email: newCustomer.email,
         phone: newCustomer.phone,
         address: newCustomer.address,
+        city: newCustomer.city,
         country: newCustomer.country,
         currency: newCustomer.currency,
         contact_person: newCustomer.contactPerson,
@@ -252,6 +257,7 @@ export default function Customers() {
         email: '',
         phone: '',
         address: '',
+        city: '',
         industry: '',
         country: '',
         currency: 'EUR',
@@ -517,6 +523,14 @@ export default function Customers() {
                   placeholder="Enter full address" 
                   value={newCustomer.address}
                   onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>City</Label>
+                <Input 
+                  placeholder="Enter city" 
+                  value={newCustomer.city}
+                  onChange={(e) => setNewCustomer({...newCustomer, city: e.target.value})}
                 />
               </div>
               <div className="col-span-2">
