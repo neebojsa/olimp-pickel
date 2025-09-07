@@ -741,7 +741,7 @@ export default function Invoicing() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteInvoice(invoice.id)} className="rounded-none">
+                        <AlertDialogAction onClick={() => handleDeleteInvoice(invoice.id)}>
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -809,28 +809,25 @@ export default function Invoicing() {
               `}</style>
               
               <div className="print-invoice space-y-6 print:text-black print:bg-white">
-                {/* Company Logo and Info - Top Left */}
-                {companyInfo && <div className="company-header print:mb-6">
-                    {companyInfo.logo_url && <div className="mb-3">
-                        <img src={companyInfo.logo_url} alt="Company Logo" className="h-16 print:h-20 object-contain" />
-                      </div>}
-                    <div className="text-sm print:text-sm">
-                      <div className="inline-block">
-                        <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
-                          {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
-                        </p>
+                {/* Company Header with Invoice Title */}
+                {companyInfo && <div className="company-header print:mb-6 flex justify-between items-start">
+                    <div>
+                      {companyInfo.logo_url && <div className="mb-3">
+                          <img src={companyInfo.logo_url} alt="Company Logo" className="h-16 print:h-20 object-contain" />
+                        </div>}
+                      <div className="text-sm print:text-sm">
+                        <div className="inline-block">
+                          <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
+                            {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
+                          </p>
+                        </div>
                       </div>
                     </div>
+                    
+                    <div className="bg-[#f3daaf] pl-2 pr-[30px] h-[25px] flex items-center justify-center">
+                      <span className="text-lg font-medium text-black">INVOICE</span>
+                    </div>
                   </div>}
-
-                {/* INVOICE Title */}
-                <div className="relative flex justify-end" style={{
-              marginRight: '4cm'
-            }}>
-                  <div className="bg-[#f3daaf] px-2 h-[25px] flex items-center justify-center">
-                    <span className="text-lg font-medium text-black">INVOICE</span>
-                  </div>
-                </div>
 
                 {/* Invoice Header */}
                 <div className="invoice-header grid grid-cols-2 gap-6 print:mb-8">
