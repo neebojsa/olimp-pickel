@@ -919,10 +919,10 @@ export default function Invoicing() {
                           <span>VAT ({selectedInvoice.vat_rate}%):</span>
                           <span>{((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
                         </div>
-                        <div className="flex justify-between font-bold text-lg border-t pt-2 print-text-base print:border-black print:pt-3">
-                         <span>Total:</span>
-                         <span>{(selectedInvoice.amount || 0).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
-                       </div>
+                        <div className="flex justify-between font-bold text-lg bg-[#f3daaf] print-invoice-bg h-[25px] items-center px-2 print-text-base">
+                          <span>Total:</span>
+                          <span>{(selectedInvoice.amount || 0).toFixed(2)} {selectedInvoice.currency === 'BAM' ? 'KM' : selectedInvoice.currency}</span>
+                        </div>
                     </div>
                   </div>
                 </div>
