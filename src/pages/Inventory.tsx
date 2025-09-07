@@ -50,6 +50,7 @@ export default function Inventory() {
     supplier_id: "",
     minimum_stock: "",
     currency: "EUR",
+    unit: "piece",
     photo: null as File | null
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -113,7 +114,7 @@ export default function Inventory() {
         currentQuantity: item.quantity,
         minimumQuantity: 5,
         // Default minimum
-        unitOfMeasure: "pieces",
+        unitOfMeasure: item.unit || "piece",
         unitCost: item.unit_price,
         image: item.photo_url || null
       }));
@@ -320,6 +321,7 @@ export default function Inventory() {
       quantity: parseInt(formData.quantity),
       unit_price: parseFloat(formData.unit_price),
       currency: formData.currency,
+      unit: formData.unit,
       weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : 0,
       location: formData.location,
       category: formData.category,
@@ -354,6 +356,7 @@ export default function Inventory() {
         supplier_id: "",
         minimum_stock: "",
         currency: "EUR",
+        unit: "piece",
         photo: null
       });
       setPhotoPreview(null);
@@ -408,7 +411,8 @@ export default function Inventory() {
     setCurrentCategory(category);
     setFormData(prev => ({
       ...prev,
-      category
+      category,
+      unit: "piece"
     }));
     setIsAddDialogOpen(true);
   };
@@ -427,6 +431,7 @@ export default function Inventory() {
       supplier_id: item.supplier ? (suppliers.find(s => s.name === item.supplier)?.id || "") : "",
       minimum_stock: item.minimum_stock?.toString() || "",
       currency: item.currency || "EUR",
+      unit: item.unit || "piece",
       photo: null
     });
 
@@ -538,6 +543,7 @@ export default function Inventory() {
         quantity: parseInt(formData.quantity) || 0,
         unit_price: parseFloat(formData.unit_price) || 0,
         currency: formData.currency,
+        unit: formData.unit,
         weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : editingItem.weight || 0,
         location: formData.location,
         category: formData.category,
@@ -582,6 +588,7 @@ export default function Inventory() {
         supplier_id: "",
         minimum_stock: "",
         currency: "EUR",
+        unit: "piece",
         photo: null
       });
       setPhotoPreview(null);
@@ -1190,9 +1197,9 @@ export default function Inventory() {
                                              </span>
                                         </>;
                          })() : <>
-                                      <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
-                                        {item.quantity} pcs
-                                      </Badge>
+                                       <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
+                                         {item.quantity} {item.unit || "pcs"}
+                                       </Badge>
                                      {(item.category === "Parts" || item.category === "Machines") && item.weight > 0 && (
                                        <span className="text-sm text-muted-foreground">
                                          {item.weight} kg
@@ -1321,6 +1328,27 @@ export default function Inventory() {
                     <SelectItem value="DKK">DKK (kr)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="unit">Unit</Label>
+              <div className="relative">
+                <Input 
+                  id="unit" 
+                  value={formData.unit} 
+                  onChange={e => setFormData(prev => ({
+                    ...prev,
+                    unit: e.target.value
+                  }))} 
+                  placeholder="Enter or select unit"
+                  list="unit-options"
+                />
+                <datalist id="unit-options">
+                  <option value="piece" />
+                  <option value="set" />
+                  <option value="kg" />
+                  <option value="m" />
+                </datalist>
               </div>
             </div>
             {(currentCategory === "Parts" || currentCategory === "Machines") && (
@@ -1520,6 +1548,27 @@ export default function Inventory() {
                     <SelectItem value="DKK">DKK (kr)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit_unit">Unit</Label>
+              <div className="relative">
+                <Input 
+                  id="edit_unit" 
+                  value={formData.unit} 
+                  onChange={e => setFormData(prev => ({
+                    ...prev,
+                    unit: e.target.value
+                  }))} 
+                  placeholder="Enter or select unit"
+                  list="edit-unit-options"
+                />
+                <datalist id="edit-unit-options">
+                  <option value="piece" />
+                  <option value="set" />
+                  <option value="kg" />
+                  <option value="m" />
+                </datalist>
               </div>
             </div>
             {(editingItem?.category === "Parts" || editingItem?.category === "Machines") && (

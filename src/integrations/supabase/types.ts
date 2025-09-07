@@ -204,6 +204,7 @@ export type Database = {
           quantity: number
           supplier: string | null
           tools_used: Json | null
+          unit: string
           unit_price: number
           updated_at: string
           weight: number | null
@@ -226,6 +227,7 @@ export type Database = {
           quantity?: number
           supplier?: string | null
           tools_used?: Json | null
+          unit?: string
           unit_price?: number
           updated_at?: string
           weight?: number | null
@@ -248,6 +250,7 @@ export type Database = {
           quantity?: number
           supplier?: string | null
           tools_used?: Json | null
+          unit?: string
           unit_price?: number
           updated_at?: string
           weight?: number | null
