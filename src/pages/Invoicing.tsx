@@ -5,19 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Plus, Search, DollarSign, Calendar, Send, Trash2, Download, Eye, Edit, Settings } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
-
-type InvoiceSettings = Database['public']['Tables']['invoice_settings']['Row'];
-
 const getStatusColor = (status: string) => {
   switch (status) {
     case "paid":
@@ -32,213 +28,10 @@ const getStatusColor = (status: string) => {
       return "bg-gray-500/10 text-gray-700 border-gray-200";
   }
 };
-
-const InvoiceSettingsDialog = ({ children }: { children: React.ReactNode }) => {
-  const { toast } = useToast();
-  const [primaryColor, setPrimaryColor] = useState("#3b82f6");
-  const [domesticFooterCol1, setDomesticFooterCol1] = useState("");
-  const [domesticFooterCol2, setDomesticFooterCol2] = useState("");
-  const [domesticFooterCol3, setDomesticFooterCol3] = useState("");
-  const [foreignFooterCol1, setForeignFooterCol1] = useState("");
-  const [foreignFooterCol2, setForeignFooterCol2] = useState("");
-  const [foreignFooterCol3, setForeignFooterCol3] = useState("");
-  const [settingsId, setSettingsId] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      loadSettings();
-    }
-  }, [isOpen]);
-
-  const loadSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('invoice_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading settings:', error);
-        return;
-      }
-
-      if (data) {
-        setSettingsId(data.id);
-        setPrimaryColor(data.primary_color || "#3b82f6");
-        setDomesticFooterCol1(data.domestic_footer_column1 || "");
-        setDomesticFooterCol2(data.domestic_footer_column2 || "");
-        setDomesticFooterCol3(data.domestic_footer_column3 || "");
-        setForeignFooterCol1(data.foreign_footer_column1 || "");
-        setForeignFooterCol2(data.foreign_footer_column2 || "");
-        setForeignFooterCol3(data.foreign_footer_column3 || "");
-      }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      const settings = {
-        primary_color: primaryColor,
-        domestic_footer_column1: domesticFooterCol1,
-        domestic_footer_column2: domesticFooterCol2,
-        domestic_footer_column3: domesticFooterCol3,
-        foreign_footer_column1: foreignFooterCol1,
-        foreign_footer_column2: foreignFooterCol2,
-        foreign_footer_column3: foreignFooterCol3,
-      };
-
-      if (settingsId) {
-        const { error } = await supabase
-          .from('invoice_settings')
-          .update(settings)
-          .eq('id', settingsId);
-
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('invoice_settings')
-          .insert(settings)
-          .select()
-          .single();
-
-        if (error) throw error;
-        setSettingsId(data.id);
-      }
-
-      toast({
-        title: "Success",
-        description: "Settings saved successfully"
-      });
-      setIsOpen(false);
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save settings",
-        variant: "destructive"
-      });
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Invoice Settings</DialogTitle>
-          <DialogDescription>
-            Configure your invoice appearance and content
-          </DialogDescription>
-        </DialogHeader>
-        
-        <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="general">General Settings</TabsTrigger>
-            <TabsTrigger value="domestic">Domestic Invoices</TabsTrigger>
-            <TabsTrigger value="foreign">Foreign Invoices</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="general" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="primary-color">Primary Color</Label>
-              <div className="flex items-center space-x-2">
-                <Input
-                  id="primary-color"
-                  type="color"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="w-20 h-10"
-                />
-                <span className="text-sm text-muted-foreground">{primaryColor}</span>
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="domestic" className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="domestic-col1">Column 1</Label>
-                <Textarea
-                  id="domestic-col1"
-                  placeholder="Footer column 1..."
-                  value={domesticFooterCol1}
-                  onChange={(e) => setDomesticFooterCol1(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="domestic-col2">Column 2</Label>
-                <Textarea
-                  id="domestic-col2"
-                  placeholder="Footer column 2..."
-                  value={domesticFooterCol2}
-                  onChange={(e) => setDomesticFooterCol2(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="domestic-col3">Column 3</Label>
-                <Textarea
-                  id="domestic-col3"
-                  placeholder="Footer column 3..."
-                  value={domesticFooterCol3}
-                  onChange={(e) => setDomesticFooterCol3(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="foreign" className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="foreign-col1">Column 1</Label>
-                <Textarea
-                  id="foreign-col1"
-                  placeholder="Footer column 1..."
-                  value={foreignFooterCol1}
-                  onChange={(e) => setForeignFooterCol1(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="foreign-col2">Column 2</Label>
-                <Textarea
-                  id="foreign-col2"
-                  placeholder="Footer column 2..."
-                  value={foreignFooterCol2}
-                  onChange={(e) => setForeignFooterCol2(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="foreign-col3">Column 3</Label>
-                <Textarea
-                  id="foreign-col3"
-                  placeholder="Footer column 3..."
-                  value={foreignFooterCol3}
-                  onChange={(e) => setForeignFooterCol3(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        <DialogFooter>
-          <Button onClick={handleSave}>Save Settings</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 export default function Invoicing() {
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -246,6 +39,7 @@ export default function Invoicing() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [isAddInvoiceOpen, setIsAddInvoiceOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -265,66 +59,64 @@ export default function Invoicing() {
     quantity: 1,
     unitPrice: 0
   }]);
-
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [invoiceSettings, setInvoiceSettings] = useState({
+    primaryColor: '#000000',
+    domesticFooter: '',
+    foreignFooter: ''
+  });
   useEffect(() => {
     fetchInvoices();
     fetchCustomers();
     fetchInventoryItems();
     fetchCompanyInfo();
   }, []);
-
   const fetchInvoices = async () => {
-    const { data } = await supabase
-      .from('invoices')
-      .select(`
+    const {
+      data
+    } = await supabase.from('invoices').select(`
         *,
         customers!inner(id, name, country),
         invoice_items!fk_invoice_items_invoice(*)
-      `)
-      .order('created_at', { ascending: false });
-    
+      `).order('created_at', {
+      ascending: false
+    });
     if (data) {
       setInvoices(data);
     }
   };
-
   const fetchCustomers = async () => {
-    const { data } = await supabase.from('customers').select('*');
+    const {
+      data
+    } = await supabase.from('customers').select('*');
     if (data) setCustomers(data);
   };
-
   const fetchInventoryItems = async () => {
-    const { data } = await supabase
-      .from('inventory')
-      .select('*')
-      .eq('category', 'Parts');
+    const {
+      data
+    } = await supabase.from('inventory').select('*').eq('category', 'Parts');
     if (data) setInventoryItems(data);
   };
-
   const fetchCompanyInfo = async () => {
-    const { data } = await supabase
-      .from('company_info')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
+    const {
+      data
+    } = await supabase.from('company_info').select('*').limit(1).single();
     if (data) setCompanyInfo(data);
   };
-
   const getSelectedCustomer = () => {
     return customers.find(c => c.id === newInvoice.customerId);
   };
-
   const generateInvoiceNumber = async () => {
-    const { data } = await supabase.rpc('generate_invoice_number');
+    const {
+      data
+    } = await supabase.rpc('generate_invoice_number');
     return data;
   };
-
   const calculateTotals = () => {
     const customer = getSelectedCustomer();
     let totalQuantity = 0;
     let netWeight = 0;
     let subtotal = 0;
-
     invoiceItems.forEach(item => {
       const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
       if (inventoryItem) {
@@ -333,13 +125,11 @@ export default function Invoicing() {
         subtotal += item.quantity * item.unitPrice;
       }
     });
-
     const totalWeight = netWeight + newInvoice.taraWeight;
     const vatRate = customer?.country === 'Bosnia and Herzegovina' ? 17 : 0;
     const vatAmount = subtotal * (vatRate / 100);
     const total = subtotal + vatAmount;
     const currency = customer?.country === 'Bosnia and Herzegovina' ? 'BAM' : 'EUR';
-
     return {
       totalQuantity,
       netWeight,
@@ -351,7 +141,6 @@ export default function Invoicing() {
       currency
     };
   };
-
   const handleCreateInvoice = async () => {
     if (!newInvoice.customerId) {
       toast({
@@ -361,35 +150,31 @@ export default function Invoicing() {
       });
       return;
     }
-
     const invoiceNumber = await generateInvoiceNumber();
     const totals = calculateTotals();
     const customer = getSelectedCustomer();
-
-    const { data: invoiceData, error: invoiceError } = await supabase
-      .from('invoices')
-      .insert([{
-        invoice_number: invoiceNumber,
-        customer_id: newInvoice.customerId,
-        order_number: newInvoice.orderNumber,
-        shipping_date: newInvoice.shippingDate,
-        shipping_address: newInvoice.shippingAddress || customer?.address,
-        incoterms: newInvoice.incoterms,
-        declaration_number: newInvoice.declarationNumber,
-        packing: newInvoice.packing,
-        tara_weight: newInvoice.taraWeight,
-        total_quantity: totals.totalQuantity,
-        net_weight: totals.netWeight,
-        total_weight: totals.totalWeight,
-        amount: totals.total,
-        currency: totals.currency,
-        vat_rate: totals.vatRate,
-        notes: newInvoice.notes,
-        status: 'draft'
-      }])
-      .select()
-      .single();
-
+    const {
+      data: invoiceData,
+      error: invoiceError
+    } = await supabase.from('invoices').insert([{
+      invoice_number: invoiceNumber,
+      customer_id: newInvoice.customerId,
+      order_number: newInvoice.orderNumber,
+      shipping_date: newInvoice.shippingDate,
+      shipping_address: newInvoice.shippingAddress || customer?.address,
+      incoterms: newInvoice.incoterms,
+      declaration_number: newInvoice.declarationNumber,
+      packing: newInvoice.packing,
+      tara_weight: newInvoice.taraWeight,
+      total_quantity: totals.totalQuantity,
+      net_weight: totals.netWeight,
+      total_weight: totals.totalWeight,
+      amount: totals.total,
+      currency: totals.currency,
+      vat_rate: totals.vatRate,
+      notes: newInvoice.notes,
+      status: 'draft'
+    }]).select().single();
     if (invoiceError) {
       toast({
         title: "Error",
@@ -407,11 +192,9 @@ export default function Invoicing() {
       unit_price: item.unitPrice,
       total: item.quantity * item.unitPrice
     }));
-
-    const { error: itemsError } = await supabase
-      .from('invoice_items')
-      .insert(itemsData);
-
+    const {
+      error: itemsError
+    } = await supabase.from('invoice_items').insert(itemsData);
     if (!itemsError) {
       await fetchInvoices();
       setIsAddInvoiceOpen(false);
@@ -422,7 +205,6 @@ export default function Invoicing() {
       });
     }
   };
-
   const handleUpdateInvoice = async () => {
     if (!newInvoice.customerId || !selectedInvoice) {
       toast({
@@ -432,32 +214,29 @@ export default function Invoicing() {
       });
       return;
     }
-
     const totals = calculateTotals();
     const customer = getSelectedCustomer();
 
     // Update the invoice
-    const { error: invoiceError } = await supabase
-      .from('invoices')
-      .update({
-        customer_id: newInvoice.customerId,
-        order_number: newInvoice.orderNumber,
-        shipping_date: newInvoice.shippingDate,
-        shipping_address: newInvoice.shippingAddress || customer?.address,
-        incoterms: newInvoice.incoterms,
-        declaration_number: newInvoice.declarationNumber,
-        packing: newInvoice.packing,
-        tara_weight: newInvoice.taraWeight,
-        total_quantity: totals.totalQuantity,
-        net_weight: totals.netWeight,
-        total_weight: totals.totalWeight,
-        amount: totals.total,
-        currency: totals.currency,
-        vat_rate: totals.vatRate,
-        notes: newInvoice.notes
-      })
-      .eq('id', selectedInvoice.id);
-
+    const {
+      error: invoiceError
+    } = await supabase.from('invoices').update({
+      customer_id: newInvoice.customerId,
+      order_number: newInvoice.orderNumber,
+      shipping_date: newInvoice.shippingDate,
+      shipping_address: newInvoice.shippingAddress || customer?.address,
+      incoterms: newInvoice.incoterms,
+      declaration_number: newInvoice.declarationNumber,
+      packing: newInvoice.packing,
+      tara_weight: newInvoice.taraWeight,
+      total_quantity: totals.totalQuantity,
+      net_weight: totals.netWeight,
+      total_weight: totals.totalWeight,
+      amount: totals.total,
+      currency: totals.currency,
+      vat_rate: totals.vatRate,
+      notes: newInvoice.notes
+    }).eq('id', selectedInvoice.id);
     if (invoiceError) {
       toast({
         title: "Error",
@@ -468,10 +247,7 @@ export default function Invoicing() {
     }
 
     // Delete existing invoice items
-    await supabase
-      .from('invoice_items')
-      .delete()
-      .eq('invoice_id', selectedInvoice.id);
+    await supabase.from('invoice_items').delete().eq('invoice_id', selectedInvoice.id);
 
     // Insert updated invoice items
     const itemsData = invoiceItems.map(item => ({
@@ -481,11 +257,9 @@ export default function Invoicing() {
       unit_price: item.unitPrice,
       total: item.quantity * item.unitPrice
     }));
-
-    const { error: itemsError } = await supabase
-      .from('invoice_items')
-      .insert(itemsData);
-
+    const {
+      error: itemsError
+    } = await supabase.from('invoice_items').insert(itemsData);
     if (!itemsError) {
       await fetchInvoices();
       setIsAddInvoiceOpen(false);
@@ -496,7 +270,6 @@ export default function Invoicing() {
       });
     }
   };
-
   const handleSubmitInvoice = () => {
     if (isEditMode) {
       handleUpdateInvoice();
@@ -504,7 +277,6 @@ export default function Invoicing() {
       handleCreateInvoice();
     }
   };
-
   const resetForm = () => {
     setNewInvoice({
       customerId: '',
@@ -524,9 +296,10 @@ export default function Invoicing() {
     }]);
     setIsEditMode(false);
   };
-
   const handleDeleteInvoice = async (invoiceId: string) => {
-    const { error } = await supabase.from('invoices').delete().eq('id', invoiceId);
+    const {
+      error
+    } = await supabase.from('invoices').delete().eq('id', invoiceId);
     if (!error) {
       setInvoices(prev => prev.filter(invoice => invoice.id !== invoiceId));
       toast({
@@ -535,12 +308,10 @@ export default function Invoicing() {
       });
     }
   };
-
   const handleViewInvoice = (invoice: any) => {
     setSelectedInvoice(invoice);
     setIsPrintDialogOpen(true);
   };
-
   const handleEditInvoice = (invoice: any) => {
     setSelectedInvoice(invoice);
     setNewInvoice({
@@ -554,8 +325,7 @@ export default function Invoicing() {
       taraWeight: invoice.tara_weight || 0,
       notes: invoice.notes || ''
     });
-
-    setInvoiceItems(invoice.invoice_items?.map((item: any) => ({
+    setInvoiceItems(invoice.invoice_items?.map(item => ({
       inventoryId: inventoryItems.find(inv => inv.name === item.description)?.id || '',
       quantity: item.quantity,
       unitPrice: item.unit_price
@@ -564,11 +334,9 @@ export default function Invoicing() {
       quantity: 1,
       unitPrice: 0
     }]);
-
     setIsEditMode(true);
     setIsAddInvoiceOpen(true);
   };
-
   const addInvoiceItem = () => {
     setInvoiceItems([...invoiceItems, {
       inventoryId: '',
@@ -576,14 +344,15 @@ export default function Invoicing() {
       unitPrice: 0
     }]);
   };
-
   const removeInvoiceItem = (index: number) => {
     setInvoiceItems(invoiceItems.filter((_, i) => i !== index));
   };
-
   const updateInvoiceItem = (index: number, field: string, value: any) => {
     const updated = [...invoiceItems];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index] = {
+      ...updated[index],
+      [field]: value
+    };
 
     // Auto-fill unit price when inventory item is selected
     if (field === 'inventoryId') {
@@ -592,27 +361,20 @@ export default function Invoicing() {
         updated[index].unitPrice = inventoryItem.unit_price;
       }
     }
-
     setInvoiceItems(updated);
   };
-
   const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = 
-      invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) || invoice.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === "all" || invoice.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
-
   const totalRevenue = invoices.reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
   const paidInvoices = invoices.filter(inv => inv.status === "paid");
   const pendingInvoices = invoices.filter(inv => inv.status === "pending");
   const overdueInvoices = invoices.filter(inv => inv.status === "overdue");
   const totals = calculateTotals();
   const selectedCustomer = getSelectedCustomer();
-
-  return (
-    <div className="p-6 space-y-6">
+  return <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -621,34 +383,328 @@ export default function Invoicing() {
             Manage invoices and track payments
           </p>
         </div>
-        <div className="flex gap-2">
-          <InvoiceSettingsDialog>
-            <Button size="icon" variant="outline">
-              <Settings className="w-4 h-4" />
-            </Button>
-          </InvoiceSettingsDialog>
-          <Button onClick={() => setIsAddInvoiceOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Invoice
-          </Button>
-        </div>
+        <Button size="icon" onClick={() => setIsSettingsOpen(true)}>
+          <Settings className="w-4 h-4" />
+        </Button>
+        <Dialog open={isAddInvoiceOpen} onOpenChange={open => {
+        setIsAddInvoiceOpen(open);
+        if (!open) resetForm();
+      }}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</DialogTitle>
+              <DialogDescription>
+                Fill in the invoice details and add products
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {/* Customer and Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Customer *</Label>
+                  <Select value={newInvoice.customerId} onValueChange={value => {
+                  setNewInvoice({
+                    ...newInvoice,
+                    customerId: value
+                  });
+                  const customer = customers.find(c => c.id === value);
+                  if (customer) {
+                    setNewInvoice(prev => ({
+                      ...prev,
+                      shippingAddress: customer.address || '',
+                      declarationNumber: customer.declaration_numbers?.[0] || ''
+                    }));
+                  }
+                }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map(customer => <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Order Number</Label>
+                  <Input value={newInvoice.orderNumber} onChange={e => setNewInvoice({
+                  ...newInvoice,
+                  orderNumber: e.target.value
+                })} placeholder="Enter order number" />
+                </div>
+
+                <div>
+                  <Label>Shipping Date</Label>
+                  <Input type="date" value={newInvoice.shippingDate} onChange={e => setNewInvoice({
+                  ...newInvoice,
+                  shippingDate: e.target.value
+                })} />
+                </div>
+
+                <div>
+                  <Label>Incoterms</Label>
+                  <Select value={newInvoice.incoterms} onValueChange={value => setNewInvoice({
+                  ...newInvoice,
+                  incoterms: value
+                })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select incoterms" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EXW">EXW - Ex Works</SelectItem>
+                      <SelectItem value="DAP">DAP - Delivered At Place</SelectItem>
+                      <SelectItem value="FCO">FCO - Free Carrier</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Shipping Address */}
+              <div>
+                <Label>Shipping Address *</Label>
+                <Textarea value={newInvoice.shippingAddress} onChange={e => setNewInvoice({
+                ...newInvoice,
+                shippingAddress: e.target.value
+              })} placeholder="Shipping address (auto-filled from customer)" rows={3} />
+              </div>
+
+              {/* Declaration Number and Packing */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label>Declaration Number *</Label>
+                  <Select value={newInvoice.declarationNumber} onValueChange={value => setNewInvoice({
+                  ...newInvoice,
+                  declarationNumber: value
+                })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select declaration number" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedCustomer?.declaration_numbers?.map((number, index) => <SelectItem key={index} value={number}>
+                          {number}
+                        </SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Packing (packages)</Label>
+                  <Input type="number" value={newInvoice.packing} onChange={e => setNewInvoice({
+                  ...newInvoice,
+                  packing: parseInt(e.target.value) || 1
+                })} min="1" />
+                </div>
+
+                <div>
+                  <Label>TARA Weight (kg)</Label>
+                  <Input type="number" step="0.01" value={newInvoice.taraWeight} onChange={e => setNewInvoice({
+                  ...newInvoice,
+                  taraWeight: parseFloat(e.target.value) || 0
+                })} min="0" />
+                </div>
+              </div>
+
+              {/* Invoice Items */}
+              <div>
+                <div className="mb-4">
+                  <Label className="text-lg font-semibold">Invoice Items</Label>
+                </div>
+
+                <div className="space-y-3">
+                  {invoiceItems.map((item, index) => <div key={index} className="grid grid-cols-5 gap-2 p-3 border rounded-lg">
+                      <div>
+                        <Label className="text-xs">Product</Label>
+                        <Select value={item.inventoryId} onValueChange={value => updateInvoiceItem(index, 'inventoryId', value)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {inventoryItems.map(invItem => <SelectItem key={invItem.id} value={invItem.id}>
+                                {invItem.name}
+                              </SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label className="text-xs">Quantity</Label>
+                        <Input type="number" value={item.quantity} onChange={e => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)} min="1" />
+                      </div>
+
+                      <div>
+                        <Label className="text-xs">Unit Price</Label>
+                        <Input type="number" step="0.01" value={item.unitPrice} onChange={e => updateInvoiceItem(index, 'unitPrice', parseFloat(e.target.value) || 0)} min="0" />
+                      </div>
+
+                      <div>
+                        <Label className="text-xs">Total</Label>
+                        <Input value={(item.quantity * item.unitPrice).toFixed(2)} disabled className="bg-muted" />
+                      </div>
+
+                      <div className="flex items-end">
+                        <Button type="button" variant="outline" size="sm" onClick={() => removeInvoiceItem(index)} disabled={invoiceItems.length === 1}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>)}
+                </div>
+                
+                <div className="mt-3">
+                  <Button type="button" onClick={addInvoiceItem} size="sm" variant="outline">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Calculations Display */}
+              {selectedCustomer && <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Total Quantity:</span>
+                      <span className="font-medium">{totals.totalQuantity} pcs</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Net Weight:</span>
+                      <span className="font-medium">{totals.netWeight.toFixed(2)} kg</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Weight:</span>
+                      <span className="font-medium">{totals.totalWeight.toFixed(2)} kg</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span className="font-medium">{formatCurrency(totals.subtotal, totals.currency)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>VAT ({totals.vatRate}%):</span>
+                      <span className="font-medium">{formatCurrency(totals.vatAmount, totals.currency)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg">
+                      <span>Total:</span>
+                      <span>{formatCurrency(totals.total, totals.currency)}</span>
+                    </div>
+                  </div>
+                </div>}
+
+              {/* Notes */}
+              <div>
+                <Label>Notes</Label>
+                <Textarea value={newInvoice.notes} onChange={e => setNewInvoice({
+                ...newInvoice,
+                notes: e.target.value
+              })} placeholder="Additional notes..." rows={3} />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button className="flex-1" onClick={handleSubmitInvoice}>
+                {isEditMode ? 'Update Invoice' : 'Create Invoice'}
+              </Button>
+              <Button variant="outline" onClick={() => setIsAddInvoiceOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Settings Dialog */}
+        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Invoice Settings</DialogTitle>
+              <DialogDescription>
+                Configure invoice appearance and content
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Tabs defaultValue="general" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="general">General Settings</TabsTrigger>
+                <TabsTrigger value="domestic">Domestic Invoices</TabsTrigger>
+                <TabsTrigger value="foreign">Foreign Invoices</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="general" className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Primary Color</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      value={invoiceSettings.primaryColor}
+                      onChange={(e) => setInvoiceSettings(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      className="w-16 h-10 p-1 border rounded"
+                    />
+                    <Input
+                      type="text"
+                      value={invoiceSettings.primaryColor}
+                      onChange={(e) => setInvoiceSettings(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      placeholder="#000000"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="domestic" className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Footer Content for Domestic Invoices</Label>
+                  <Textarea
+                    value={invoiceSettings.domesticFooter}
+                    onChange={(e) => setInvoiceSettings(prev => ({ ...prev, domesticFooter: e.target.value }))}
+                    placeholder="Enter footer content for domestic invoices..."
+                    rows={6}
+                  />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="foreign" className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Footer Content for Foreign Invoices</Label>
+                  <Textarea
+                    value={invoiceSettings.foreignFooter}
+                    onChange={(e) => setInvoiceSettings(prev => ({ ...prev, foreignFooter: e.target.value }))}
+                    placeholder="Enter footer content for foreign invoices..."
+                    rows={6}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                // Save settings logic here
+                setIsSettingsOpen(false);
+              }}>
+                Save Settings
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalRevenue, 'EUR')}</div>
+            <div className="text-2xl font-bold">{totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              From {invoices.length} invoices
+              All time invoiced amount
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Paid Invoices</CardTitle>
@@ -657,11 +713,11 @@ export default function Invoicing() {
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{paidInvoices.length}</div>
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(paidInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0), 'EUR')}
+              {paidInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0).toLocaleString()} collected
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
@@ -670,11 +726,11 @@ export default function Invoicing() {
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{pendingInvoices.length}</div>
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0), 'EUR')}
+              {pendingInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0).toLocaleString()} pending
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Overdue</CardTitle>
@@ -683,26 +739,21 @@ export default function Invoicing() {
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{overdueInvoices.length}</div>
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(overdueInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0), 'EUR')}
+              {overdueInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0).toLocaleString()} overdue
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Search and Filters */}
-      <div className="flex gap-4">
+      <div className="flex items-center space-x-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search invoices or customers..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input placeholder="Search invoices..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
         </div>
         <Select value={selectedStatus} onValueChange={setSelectedStatus}>
           <SelectTrigger className="w-40">
-            <SelectValue />
+            <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
@@ -714,34 +765,41 @@ export default function Invoicing() {
         </Select>
       </div>
 
-      {/* Invoice List */}
+      {/* Invoices List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Invoices</CardTitle>
+          <Button onClick={() => setIsAddInvoiceOpen(true)}>
+            + Add Invoice
+          </Button>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredInvoices.map((invoice) => (
-              <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                <div className="flex items-center space-x-4">
-                  <div className="bg-primary/10 p-2 rounded-full">
-                    <FileText className="h-4 w-4 text-primary" />
+          <div className="space-y-2">
+            {filteredInvoices.map(invoice => <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors min-h-[80px]">
+                <div className="flex items-center space-x-4 flex-1">
+                  <div className="min-w-[120px]">
+                    <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline font-medium text-left">
+                      {invoice.invoice_number}
+                    </button>
                   </div>
-                  <div>
-                    <p className="font-medium">{invoice.invoice_number}</p>
-                    <p className="text-sm text-muted-foreground">{invoice.customers?.name}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(invoice.issue_date).toLocaleDateString()}</p>
+                  <div className="min-w-[100px]">
+                    <p className="text-sm text-muted-foreground">Issue Date</p>
+                    <p className="font-medium">{new Date(invoice.issue_date).toLocaleDateString()}</p>
                   </div>
+                  <div className="min-w-[150px]">
+                    <p className="text-sm text-muted-foreground">Customer</p>
+                    <p className="font-medium">{invoice.customers?.name}</p>
+                  </div>
+                  <div className="min-w-[100px]">
+                    <Badge variant="outline" className={getStatusColor(invoice.status)}>
+                      {invoice.status === 'paid' ? 'Paid' : 'Unpaid'}
+                    </Badge>
+                  </div>
+                   <div className="min-w-[120px] text-right">
+                     <p className="text-sm text-muted-foreground">Total</p>
+                     <p className="font-bold text-lg">{formatCurrency((invoice.amount || 0), invoice.currency)}</p>
+                   </div>
                 </div>
-                
-                <div className="flex items-center gap-4">
-                  <Badge className={getStatusColor(invoice.status)}>
-                    {invoice.status}
-                  </Badge>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">{formatCurrency((invoice.amount || 0), invoice.currency)}</p>
-                  </div>
-               </div>
                 
                 <div className="flex gap-1 ml-4">
                   <Button variant="ghost" size="icon" onClick={() => handleViewInvoice(invoice)} title="View Invoice">
@@ -775,593 +833,219 @@ export default function Invoicing() {
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-              </div>
-            ))}
+              </div>)}
           </div>
         </CardContent>
       </Card>
 
-      {/* Create/Edit Invoice Dialog */}
-      <Dialog open={isAddInvoiceOpen} onOpenChange={(open) => {
-        setIsAddInvoiceOpen(open);
-        if (!open) resetForm();
-      }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</DialogTitle>
-            <DialogDescription>
-              Fill in the invoice details and add products
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Customer and Basic Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Customer *</Label>
-                <Select value={newInvoice.customerId} onValueChange={(value) => {
-                  setNewInvoice({ ...newInvoice, customerId: value });
-                  const customer = customers.find(c => c.id === value);
-                  if (customer) {
-                    setNewInvoice(prev => ({
-                      ...prev,
-                      shippingAddress: customer.address || '',
-                      declarationNumber: customer.declaration_numbers?.[0] || ''
-                    }));
-                  }
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map(customer => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Order Number</Label>
-                <Input
-                  value={newInvoice.orderNumber}
-                  onChange={(e) => setNewInvoice({ ...newInvoice, orderNumber: e.target.value })}
-                  placeholder="Enter order number"
-                />
-              </div>
-
-              <div>
-                <Label>Shipping Date</Label>
-                <Input
-                  type="date"
-                  value={newInvoice.shippingDate}
-                  onChange={(e) => setNewInvoice({ ...newInvoice, shippingDate: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <Label>Incoterms</Label>
-                <Select value={newInvoice.incoterms} onValueChange={(value) => setNewInvoice({ ...newInvoice, incoterms: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select incoterms" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EXW">EXW - Ex Works</SelectItem>
-                    <SelectItem value="DAP">DAP - Delivered At Place</SelectItem>
-                    <SelectItem value="FCO">FCO - Free Carrier</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Shipping Address */}
-            <div>
-              <Label>Shipping Address *</Label>
-              <Textarea
-                value={newInvoice.shippingAddress}
-                onChange={(e) => setNewInvoice({ ...newInvoice, shippingAddress: e.target.value })}
-                placeholder="Shipping address (auto-filled from customer)"
-                rows={3}
-              />
-            </div>
-
-            {/* Declaration Number and Packing */}
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>Declaration Number *</Label>
-                <Select value={newInvoice.declarationNumber} onValueChange={(value) => setNewInvoice({ ...newInvoice, declarationNumber: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select declaration number" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedCustomer?.declaration_numbers?.map((number: any, index: number) => (
-                      <SelectItem key={index} value={number}>
-                        {number}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Packing</Label>
-                <Input
-                  type="number"
-                  value={newInvoice.packing}
-                  onChange={(e) => setNewInvoice({ ...newInvoice, packing: parseInt(e.target.value) || 1 })}
-                  min="1"
-                />
-              </div>
-
-              <div>
-                <Label>Tara Weight (kg)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={newInvoice.taraWeight}
-                  onChange={(e) => setNewInvoice({ ...newInvoice, taraWeight: parseFloat(e.target.value) || 0 })}
-                  min="0"
-                />
-              </div>
-            </div>
-
-            {/* Invoice Items */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <Label className="text-base font-semibold">Invoice Items</Label>
-                <Button type="button" onClick={addInvoiceItem} size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Item
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {invoiceItems.map((item, index) => (
-                  <div key={index} className="flex items-end gap-4 p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <Label>Part *</Label>
-                      <Select 
-                        value={item.inventoryId} 
-                        onValueChange={(value) => updateInvoiceItem(index, 'inventoryId', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select part" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {inventoryItems.map(inv => (
-                            <SelectItem key={inv.id} value={inv.id}>
-                              {inv.name} - {formatCurrency(inv.unit_price, 'EUR')}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="w-24">
-                      <Label>Quantity *</Label>
-                      <Input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                        min="1"
-                      />
-                    </div>
-
-                    <div className="w-32">
-                      <Label>Unit Price *</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={item.unitPrice}
-                        onChange={(e) => updateInvoiceItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                        min="0"
-                      />
-                    </div>
-
-                    <div className="w-32">
-                      <Label>Total</Label>
-                      <div className="h-10 flex items-center font-medium">
-                        {formatCurrency(item.quantity * item.unitPrice, totals.currency)}
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeInvoiceItem(index)}
-                      disabled={invoiceItems.length === 1}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <Label>Notes</Label>
-              <Textarea
-                value={newInvoice.notes}
-                onChange={(e) => setNewInvoice({ ...newInvoice, notes: e.target.value })}
-                placeholder="Additional notes or comments..."
-                rows={3}
-              />
-            </div>
-
-            {/* Invoice Summary */}
-            <div className="bg-muted/50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-4">Invoice Summary</h3>
-              
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Total Quantity:</span>
-                    <span>{totals.totalQuantity} pcs</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Net Weight:</span>
-                    <span>{totals.netWeight.toFixed(2)} kg</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total Weight:</span>
-                    <span>{totals.totalWeight.toFixed(2)} kg</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Currency:</span>
-                    <span>{totals.currency}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span>{formatCurrency(totals.subtotal, totals.currency)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>VAT ({totals.vatRate}%):</span>
-                    <span>{formatCurrency(totals.vatAmount, totals.currency)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-lg border-t pt-2">
-                    <span>Total:</span>
-                    <span>{formatCurrency(totals.total, totals.currency)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddInvoiceOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmitInvoice}>
-              {isEditMode ? 'Update Invoice' : 'Create Invoice'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Enhanced Printable Invoice Dialog with Footer */}
+      {/* Printable Invoice Dialog */}
       <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:!max-w-none print:!w-full print:!h-full print:!max-h-none print:!p-0 print:!m-0 print:!shadow-none print:!border-none print:!rounded-none">
-          {selectedInvoice && <InvoicePrintPreview invoice={selectedInvoice} />}
+          
+          
+          {selectedInvoice && <>
+              <style>{`
+                @media print {
+                  @page {
+                    margin: 0.5in;
+                    size: A4;
+                  }
+                  
+                   .print-invoice {
+                     font-family: 'Arial', sans-serif !important;
+                     font-size: 16pt !important;
+                     line-height: 1.4 !important;
+                     color: black !important;
+                     background: white !important;
+                     -webkit-print-color-adjust: exact !important;
+                     color-adjust: exact !important;
+                   }
+                  
+                  .invoice-header {
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    margin-bottom: 30px !important;
+                  }
+                  
+                   .invoice-items-table {
+                     width: 100% !important;
+                     border-collapse: collapse !important;
+                     margin: 20px 0 !important;
+                   }
+                   
+                    .invoice-items-table th,
+                    .invoice-items-table td {
+                      border-left: none !important;
+                      border-right: none !important;
+                      padding: 8px !important;
+                      text-align: left !important;
+                      font-size: 14pt !important;
+                    }
+                   
+                    .invoice-items-table th {
+                      background-color: #f5f5f5 !important;
+                      font-weight: bold !important;
+                      font-size: 10pt !important;
+                      border-top: 1px solid #000 !important;
+                      border-bottom: 1px solid #000 !important;
+                      -webkit-print-color-adjust: exact !important;
+                      color-adjust: exact !important;
+                    }
+                    
+                    .invoice-items-table td {
+                      border-top: 1px solid #6b7280 !important;
+                      border-bottom: 1px solid #6b7280 !important;
+                    }
+                   
+                   .print-invoice-bg {
+                     background-color: #f3daaf !important;
+                     -webkit-print-color-adjust: exact !important;
+                     color-adjust: exact !important;
+                   }
+                   
+                   .print-text-lg {
+                     font-size: 18pt !important;
+                   }
+                   
+                   .print-text-base {
+                     font-size: 16pt !important;
+                   }
+                   
+                   .print-text-sm {
+                     font-size: 14pt !important;
+                   }
+                   
+                   .page-break {
+                    page-break-before: always !important;
+                  }
+                  
+                  .no-page-break {
+                    page-break-inside: avoid !important;
+                  }
+                }
+              `}</style>
+              
+              <div className="print-invoice space-y-6 print:text-black print:bg-white">
+                {/* Company Header with Invoice Title */}
+                {companyInfo && <div className="company-header print:mb-6 flex justify-between items-end">
+                    <div>
+                      {companyInfo.logo_url && <div className="mb-3">
+                          <img src={companyInfo.logo_url} alt="Company Logo" className="h-16 print:h-20 object-contain" />
+                        </div>}
+                       <div className="text-sm print-text-sm">
+                         <div className="inline-block">
+                           <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
+                             {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
+                           </p>
+                         </div>
+                       </div>
+                    </div>
+                    
+                    <div className="bg-[#f3daaf] print-invoice-bg pl-2 pr-[30px] h-[25px] flex items-center justify-center">
+                      <span className="text-lg print-text-lg font-medium text-black">INVOICE</span>
+                    </div>
+                  </div>}
+
+                {/* Invoice Header */}
+                <div className="invoice-header grid grid-cols-2 gap-6 print:mb-8">
+                  <div>
+                     <h3 className="font-semibold mb-2 print-text-lg">Bill To:</h3>
+                     <p className="font-medium print-text-base">{selectedInvoice.customers?.name}</p>
+                     <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.shipping_address}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="space-y-1 print:space-y-2">
+                       <p className="print-text-sm"><span className="font-medium">Invoice Number:</span> {selectedInvoice.invoice_number}</p>
+                       <p className="print-text-sm"><span className="font-medium">Issue Date:</span> {new Date(selectedInvoice.issue_date).toLocaleDateString()}</p>
+                       <p className="print-text-sm"><span className="font-medium">Due Date:</span> {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'N/A'}</p>
+                       {selectedInvoice.order_number && <p className="print-text-sm"><span className="font-medium">Order Number:</span> {selectedInvoice.order_number}</p>}
+                        {selectedInvoice.shipping_date && <p className="print-text-sm"><span className="font-medium">Shipping Date:</span> {new Date(selectedInvoice.shipping_date).toLocaleDateString()}</p>}
+                        {selectedInvoice.incoterms && <p className="print-text-sm"><span className="font-medium">Incoterms:</span> {selectedInvoice.incoterms}</p>}
+                        {selectedInvoice.declaration_number && <p className="print-text-sm"><span className="font-medium">Declaration Number:</span> {selectedInvoice.declaration_number}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Invoice Items */}
+                <div className="no-page-break">
+                  
+                  <table className="invoice-items-table w-full border-collapse print:border-black">
+                     <thead>
+                       <tr>
+                         <th className="p-2 text-left text-sm">Part name</th>
+                         <th className="p-2 text-sm">Part number</th>
+                         <th className="p-2 text-sm">Unit</th>
+                         <th className="p-2 text-sm">Quantity</th>
+                         <th className="p-2 text-sm">Subtotal weight</th>
+                         <th className="p-2 text-sm">Price</th>
+                         <th className="p-2 text-right text-sm">Amount</th>
+                       </tr>
+                     </thead>
+                    <tbody>
+                       {selectedInvoice.invoice_items?.map((item, index) => {
+                         const inventoryItem = inventoryItems.find(inv => inv.name === item.description);
+                         const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
+                         return <tr key={index}>
+                           <td className="p-2">{item.description}</td>
+                           <td className="p-2">{inventoryItem?.part_number || '-'}</td>
+                           <td className="p-2">{inventoryItem?.unit || 'piece'}</td>
+                           <td className="p-2">{item.quantity}</td>
+                           <td className="p-2">{subtotalWeight.toFixed(2)} kg</td>
+                           <td className="p-2">{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
+                           <td className="p-2 text-right">{formatCurrency(item.total, selectedInvoice.currency)}</td>
+                         </tr>
+                       })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Invoice Summary */}
+                <div className="grid grid-cols-2 gap-6 no-page-break print:mt-8">
+                  <div>
+                     <h3 className="font-semibold mb-2 print-text-base">Summary</h3>
+                     <div className="space-y-1 text-sm print:space-y-2 print-text-sm">
+                       <p><span className="font-medium">Total Quantity:</span> {selectedInvoice.total_quantity} pcs</p>
+                       <p><span className="font-medium">Net Weight:</span> {selectedInvoice.net_weight} kg</p>
+                       <p><span className="font-medium">Total Weight:</span> {selectedInvoice.total_weight} kg</p>
+                       <p><span className="font-medium">Packing:</span> {selectedInvoice.packing} {selectedInvoice.packing === 1 ? 'package' : 'packages'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className="space-y-2 print:space-y-3">
+                        <div className="flex justify-between print-text-sm">
+                          <span>Subtotal:</span>
+                          <span>{formatCurrency(((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)), selectedInvoice.currency)}</span>
+                        </div>
+                        <div className="flex justify-between print-text-sm">
+                          <span>VAT ({selectedInvoice.vat_rate}%):</span>
+                          <span>{formatCurrency(((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)), selectedInvoice.currency)}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-lg bg-[#f3daaf] print-invoice-bg h-[25px] items-center px-2 print-text-base">
+                          <span>Total:</span>
+                          <span>{formatCurrency((selectedInvoice.amount || 0), selectedInvoice.currency)}</span>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedInvoice.notes && <div className="no-page-break print:mt-6">
+                     <h3 className="font-semibold mb-2 print-text-base">Notes</h3>
+                     <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.notes}</p>
+                  </div>}
+
+                <div className="flex gap-2 pt-4 print:hidden">
+                  <Button onClick={() => window.print()}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Print Invoice
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </>}
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 }
-
-// Invoice Print Preview Component with Footer
-const InvoicePrintPreview = ({ invoice }: { invoice: any }) => {
-  const [companyInfo, setCompanyInfo] = useState<any>(null);
-  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null);
-
-  useEffect(() => {
-    fetchCompanyInfo();
-    fetchInventoryItems();
-    fetchInvoiceSettings();
-  }, []);
-
-  const fetchCompanyInfo = async () => {
-    const { data } = await supabase
-      .from('company_info')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
-    if (data) setCompanyInfo(data);
-  };
-
-  const fetchInventoryItems = async () => {
-    const { data } = await supabase
-      .from('inventory')
-      .select('*')
-      .eq('category', 'Parts');
-    if (data) setInventoryItems(data);
-  };
-
-  const fetchInvoiceSettings = async () => {
-    const { data } = await supabase
-      .from('invoice_settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
-    if (data) setInvoiceSettings(data);
-  };
-
-  const isForeignCustomer = invoice.customers?.country && 
-    invoice.customers.country.toLowerCase() !== 'germany' &&
-    invoice.customers.country.toLowerCase() !== 'deutschland' &&
-    invoice.customers.country.toLowerCase() !== 'bosnia and herzegovina';
-
-  const getFooterContent = () => {
-    if (!invoiceSettings) return null;
-
-    if (isForeignCustomer) {
-      return {
-        col1: invoiceSettings.foreign_footer_column1,
-        col2: invoiceSettings.foreign_footer_column2,
-        col3: invoiceSettings.foreign_footer_column3,
-      };
-    } else {
-      return {
-        col1: invoiceSettings.domestic_footer_column1,
-        col2: invoiceSettings.domestic_footer_column2,
-        col3: invoiceSettings.domestic_footer_column3,
-      };
-    }
-  };
-
-  const footerContent = getFooterContent();
-
-  return (
-    <>
-      <style>{`
-        @media print {
-          @page {
-            margin: 0.5in;
-            size: A4;
-          }
-          
-          .print-invoice {
-            font-family: 'Arial', sans-serif !important;
-            font-size: 16pt !important;
-            line-height: 1.4 !important;
-            color: black !important;
-            background: white !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
-          
-          .invoice-header {
-            display: flex !important;
-            justify-content: space-between !important;
-            margin-bottom: 30px !important;
-          }
-          
-          .invoice-items-table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            margin: 20px 0 !important;
-          }
-          
-          .invoice-items-table th,
-          .invoice-items-table td {
-            border-left: none !important;
-            border-right: none !important;
-            padding: 8px !important;
-            text-align: left !important;
-            font-size: 14pt !important;
-          }
-          
-          .invoice-items-table th {
-            background-color: #f5f5f5 !important;
-            font-weight: bold !important;
-            font-size: 10pt !important;
-            border-top: 1px solid #000 !important;
-            border-bottom: 1px solid #000 !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
-          
-          .invoice-items-table td {
-            border-top: 1px solid #6b7280 !important;
-            border-bottom: 1px solid #6b7280 !important;
-          }
-          
-          .print-invoice-bg {
-            background-color: #f3daaf !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
-          
-          .print-text-lg {
-            font-size: 18pt !important;
-          }
-          
-          .print-text-base {
-            font-size: 16pt !important;
-          }
-          
-          .print-text-sm {
-            font-size: 14pt !important;
-          }
-          
-          .page-break {
-            page-break-before: always !important;
-          }
-          
-          .no-page-break {
-            page-break-inside: avoid !important;
-          }
-
-          .invoice-footer {
-            margin-top: 40px !important;
-            border-top: 2px solid ${invoiceSettings?.primary_color || '#3b82f6'} !important;
-            padding-top: 20px !important;
-          }
-        }
-      `}</style>
-      
-      <div className="print-invoice space-y-6 print:text-black print:bg-white">
-        {/* Company Header with Invoice Title */}
-        {companyInfo && (
-          <div className="company-header print:mb-6 flex justify-between items-end">
-            <div>
-              {companyInfo.logo_url && (
-                <div className="mb-3">
-                  <img src={companyInfo.logo_url} alt="Company Logo" className="h-16 print:h-20 object-contain" />
-                </div>
-              )}
-              <div className="text-sm print-text-sm">
-                <div className="inline-block">
-                  <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
-                    {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div 
-              className="pl-2 pr-[30px] h-[25px] flex items-center justify-center"
-              style={{ backgroundColor: invoiceSettings?.primary_color || '#f3daaf' }}
-            >
-              <span className="text-lg print-text-lg font-medium text-black">INVOICE</span>
-            </div>
-          </div>
-        )}
-
-        {/* Invoice Header */}
-        <div className="invoice-header grid grid-cols-2 gap-6 print:mb-8">
-          <div>
-            <h3 className="font-semibold mb-2 print-text-lg">Bill To:</h3>
-            <p className="font-medium print-text-base">{invoice.customers?.name}</p>
-            <p className="text-sm whitespace-pre-line print-text-sm">{invoice.shipping_address}</p>
-          </div>
-          <div className="text-right">
-            <div className="space-y-1 print:space-y-2">
-              <p className="print-text-sm"><span className="font-medium">Invoice Number:</span> {invoice.invoice_number}</p>
-              <p className="print-text-sm"><span className="font-medium">Issue Date:</span> {new Date(invoice.issue_date).toLocaleDateString()}</p>
-              <p className="print-text-sm"><span className="font-medium">Due Date:</span> {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'N/A'}</p>
-              {invoice.order_number && <p className="print-text-sm"><span className="font-medium">Order Number:</span> {invoice.order_number}</p>}
-              {invoice.shipping_date && <p className="print-text-sm"><span className="font-medium">Shipping Date:</span> {new Date(invoice.shipping_date).toLocaleDateString()}</p>}
-              {invoice.incoterms && <p className="print-text-sm"><span className="font-medium">Incoterms:</span> {invoice.incoterms}</p>}
-              {invoice.declaration_number && <p className="print-text-sm"><span className="font-medium">Declaration Number:</span> {invoice.declaration_number}</p>}
-            </div>
-          </div>
-        </div>
-
-        {/* Invoice Items */}
-        <div className="no-page-break">
-          <table className="invoice-items-table w-full border-collapse print:border-black">
-            <thead>
-              <tr>
-                <th className="p-2 text-left text-sm">Part name</th>
-                <th className="p-2 text-sm">Part number</th>
-                <th className="p-2 text-sm">Unit</th>
-                <th className="p-2 text-sm">Quantity</th>
-                <th className="p-2 text-sm">Subtotal weight</th>
-                <th className="p-2 text-sm">Price</th>
-                <th className="p-2 text-right text-sm">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.invoice_items?.map((item: any, index: number) => {
-                const inventoryItem = inventoryItems.find(inv => inv.name === item.description);
-                const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
-                return (
-                  <tr key={index}>
-                    <td className="p-2">{item.description}</td>
-                    <td className="p-2">{inventoryItem?.part_number || '-'}</td>
-                    <td className="p-2">{inventoryItem?.unit || 'piece'}</td>
-                    <td className="p-2">{item.quantity}</td>
-                    <td className="p-2">{subtotalWeight.toFixed(2)} kg</td>
-                    <td className="p-2">{formatCurrency(item.unit_price, invoice.currency)}</td>
-                    <td className="p-2 text-right">{formatCurrency(item.total, invoice.currency)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Invoice Summary */}
-        <div className="grid grid-cols-2 gap-6 no-page-break print:mt-8">
-          <div>
-            <h3 className="font-semibold mb-2 print-text-base">Summary</h3>
-            <div className="space-y-1 text-sm print:space-y-2 print-text-sm">
-              <p><span className="font-medium">Total Quantity:</span> {invoice.total_quantity} pcs</p>
-              <p><span className="font-medium">Net Weight:</span> {invoice.net_weight} kg</p>
-              <p><span className="font-medium">Total Weight:</span> {invoice.total_weight} kg</p>
-              <p><span className="font-medium">Packing:</span> {invoice.packing} {invoice.packing === 1 ? 'package' : 'packages'}</p>
-            </div>
-          </div>
-          
-          <div className="text-right">
-            <div className="space-y-2 print:space-y-3">
-              <div className="flex justify-between print-text-sm">
-                <span>Subtotal:</span>
-                <span>{formatCurrency(((invoice.amount || 0) / (1 + (invoice.vat_rate || 0) / 100)), invoice.currency)}</span>
-              </div>
-              <div className="flex justify-between print-text-sm">
-                <span>VAT ({invoice.vat_rate}%):</span>
-                <span>{formatCurrency(((invoice.amount || 0) - (invoice.amount || 0) / (1 + (invoice.vat_rate || 0) / 100)), invoice.currency)}</span>
-              </div>
-              <div 
-                className="flex justify-between font-bold text-lg h-[25px] items-center px-2 print-text-base"
-                style={{ backgroundColor: invoiceSettings?.primary_color || '#f3daaf' }}
-              >
-                <span>Total:</span>
-                <span>{formatCurrency((invoice.amount || 0), invoice.currency)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {invoice.notes && (
-          <div className="no-page-break print:mt-6">
-            <h3 className="font-semibold mb-2 print-text-base">Notes</h3>
-            <p className="text-sm whitespace-pre-line print-text-sm">{invoice.notes}</p>
-          </div>
-        )}
-
-        {/* Footer */}
-        {footerContent && (footerContent.col1 || footerContent.col2 || footerContent.col3) && (
-          <div className="invoice-footer">
-            <div className="grid grid-cols-3 gap-4 text-sm print-text-sm">
-              {footerContent.col1 && (
-                <div className="whitespace-pre-line">
-                  {footerContent.col1}
-                </div>
-              )}
-              {footerContent.col2 && (
-                <div className="whitespace-pre-line text-center">
-                  {footerContent.col2}
-                </div>
-              )}
-              {footerContent.col3 && (
-                <div className="whitespace-pre-line text-right">
-                  {footerContent.col3}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-2 pt-4 print:hidden">
-          <Button onClick={() => window.print()}>
-            <Download className="w-4 h-4 mr-2" />
-            Print Invoice
-          </Button>
-          <Button variant="outline" onClick={() => window.close()}>
-            Close
-          </Button>
-        </div>
-      </div>
-    </>
-  );
-};
