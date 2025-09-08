@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Plus, Search, DollarSign, Calendar, Send, Trash2, Download, Eye, Edit, Settings } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +59,12 @@ export default function Invoicing() {
     quantity: 1,
     unitPrice: 0
   }]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [invoiceSettings, setInvoiceSettings] = useState({
+    primaryColor: '#000000',
+    domesticFooter: '',
+    foreignFooter: ''
+  });
   useEffect(() => {
     fetchInvoices();
     fetchCustomers();
@@ -376,15 +383,13 @@ export default function Invoicing() {
             Manage invoices and track payments
           </p>
         </div>
+        <Button size="icon" onClick={() => setIsSettingsOpen(true)}>
+          <Settings className="w-4 h-4" />
+        </Button>
         <Dialog open={isAddInvoiceOpen} onOpenChange={open => {
         setIsAddInvoiceOpen(open);
         if (!open) resetForm();
       }}>
-          <DialogTrigger asChild>
-            <Button size="icon">
-              <Settings className="w-4 h-4" />
-            </Button>
-          </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</DialogTitle>
@@ -602,6 +607,83 @@ export default function Invoicing() {
               </Button>
               <Button variant="outline" onClick={() => setIsAddInvoiceOpen(false)}>
                 Cancel
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Settings Dialog */}
+        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Invoice Settings</DialogTitle>
+              <DialogDescription>
+                Configure invoice appearance and content
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Tabs defaultValue="general" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="general">General Settings</TabsTrigger>
+                <TabsTrigger value="domestic">Domestic Invoices</TabsTrigger>
+                <TabsTrigger value="foreign">Foreign Invoices</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="general" className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Primary Color</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      value={invoiceSettings.primaryColor}
+                      onChange={(e) => setInvoiceSettings(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      className="w-16 h-10 p-1 border rounded"
+                    />
+                    <Input
+                      type="text"
+                      value={invoiceSettings.primaryColor}
+                      onChange={(e) => setInvoiceSettings(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      placeholder="#000000"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="domestic" className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Footer Content for Domestic Invoices</Label>
+                  <Textarea
+                    value={invoiceSettings.domesticFooter}
+                    onChange={(e) => setInvoiceSettings(prev => ({ ...prev, domesticFooter: e.target.value }))}
+                    placeholder="Enter footer content for domestic invoices..."
+                    rows={6}
+                  />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="foreign" className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Footer Content for Foreign Invoices</Label>
+                  <Textarea
+                    value={invoiceSettings.foreignFooter}
+                    onChange={(e) => setInvoiceSettings(prev => ({ ...prev, foreignFooter: e.target.value }))}
+                    placeholder="Enter footer content for foreign invoices..."
+                    rows={6}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                // Save settings logic here
+                setIsSettingsOpen(false);
+              }}>
+                Save Settings
               </Button>
             </div>
           </DialogContent>
