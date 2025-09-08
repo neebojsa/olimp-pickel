@@ -313,6 +313,45 @@ export type Database = {
           },
         ]
       }
+      invoice_settings: {
+        Row: {
+          created_at: string
+          domestic_footer_column1: string | null
+          domestic_footer_column2: string | null
+          domestic_footer_column3: string | null
+          foreign_footer_column1: string | null
+          foreign_footer_column2: string | null
+          foreign_footer_column3: string | null
+          id: string
+          primary_color: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          domestic_footer_column1?: string | null
+          domestic_footer_column2?: string | null
+          domestic_footer_column3?: string | null
+          foreign_footer_column1?: string | null
+          foreign_footer_column2?: string | null
+          foreign_footer_column3?: string | null
+          id?: string
+          primary_color?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          domestic_footer_column1?: string | null
+          domestic_footer_column2?: string | null
+          domestic_footer_column3?: string | null
+          foreign_footer_column1?: string | null
+          foreign_footer_column2?: string | null
+          foreign_footer_column3?: string | null
+          id?: string
+          primary_color?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           amount: number
