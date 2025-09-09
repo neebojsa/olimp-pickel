@@ -104,6 +104,48 @@ export default function Invoicing() {
     } = await supabase.from('company_info').select('*').limit(1).single();
     if (data) setCompanyInfo(data);
   };
+
+  const saveInvoiceSettings = async () => {
+    try {
+      const { data: existingSettings } = await supabase
+        .from('invoice_settings')
+        .select('id')
+        .single();
+
+      const settingsData = {
+        primary_color: invoiceSettings.primaryColor,
+        domestic_footer_column1: invoiceSettings.domesticFooter,
+        foreign_footer_column1: invoiceSettings.foreignFooter
+      };
+
+      if (existingSettings) {
+        const { error } = await supabase
+          .from('invoice_settings')
+          .update(settingsData)
+          .eq('id', existingSettings.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('invoice_settings')
+          .insert(settingsData);
+        
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Settings saved",
+        description: "Invoice settings have been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error saving invoice settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save invoice settings. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
   const getSelectedCustomer = () => {
     return customers.find(c => c.id === newInvoice.customerId);
   };
@@ -680,8 +722,8 @@ export default function Invoicing() {
               <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => {
-                // Save settings logic here
+              <Button onClick={async () => {
+                await saveInvoiceSettings();
                 setIsSettingsOpen(false);
               }}>
                 Save Settings
