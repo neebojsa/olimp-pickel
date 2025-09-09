@@ -71,6 +71,7 @@ export default function Invoicing() {
     fetchCustomers();
     fetchInventoryItems();
     fetchCompanyInfo();
+    fetchInvoiceSettings();
   }, []);
   const fetchInvoices = async () => {
     const {
@@ -103,6 +104,27 @@ export default function Invoicing() {
       data
     } = await supabase.from('company_info').select('*').limit(1).single();
     if (data) setCompanyInfo(data);
+  };
+
+  const fetchInvoiceSettings = async () => {
+    try {
+      const { data } = await supabase
+        .from('invoice_settings')
+        .select('*')
+        .single();
+      
+      if (data) {
+        setInvoiceSettings({
+          primaryColor: data.primary_color || '#000000',
+          domesticFooter: [data.domestic_footer_column1, data.domestic_footer_column2, data.domestic_footer_column3]
+            .filter(Boolean).join('\n'),
+          foreignFooter: [data.foreign_footer_column1, data.foreign_footer_column2, data.foreign_footer_column3]
+            .filter(Boolean).join('\n')
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching invoice settings:', error);
+    }
   };
 
   const saveInvoiceSettings = async () => {
