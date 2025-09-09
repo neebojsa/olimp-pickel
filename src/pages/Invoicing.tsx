@@ -108,10 +108,11 @@ export default function Invoicing() {
 
   const fetchInvoiceSettings = async () => {
     try {
-      const { data } = await supabase
+      // Temporary workaround until types are updated
+      const { data } = await (supabase as any)
         .from('invoice_settings')
         .select('*')
-        .single();
+        .maybeSingle();
       
       if (data) {
         setInvoiceSettings({
@@ -129,10 +130,11 @@ export default function Invoicing() {
 
   const saveInvoiceSettings = async () => {
     try {
-      const { data: existingSettings } = await supabase
+      // Temporary workaround until types are updated
+      const { data: existingSettings } = await (supabase as any)
         .from('invoice_settings')
         .select('id')
-        .single();
+        .maybeSingle();
 
       const settingsData = {
         primary_color: invoiceSettings.primaryColor,
@@ -140,20 +142,19 @@ export default function Invoicing() {
         foreign_footer_column1: invoiceSettings.foreignFooter
       };
 
+      let error;
       if (existingSettings) {
-        const { error } = await supabase
+        ({ error } = await (supabase as any)
           .from('invoice_settings')
           .update(settingsData)
-          .eq('id', existingSettings.id);
-        
-        if (error) throw error;
+          .eq('id', existingSettings.id));
       } else {
-        const { error } = await supabase
+        ({ error } = await (supabase as any)
           .from('invoice_settings')
-          .insert(settingsData);
-        
-        if (error) throw error;
+          .insert(settingsData));
       }
+
+      if (error) throw error;
 
       toast({
         title: "Settings saved",
