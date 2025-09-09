@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { FileText, Plus, Search, DollarSign, Calendar, Send, Trash2, Download, Eye, Edit, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -1033,6 +1034,16 @@ export default function Invoicing() {
                      <h3 className="font-semibold mb-2 print-text-base">Notes</h3>
                      <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.notes}</p>
                   </div>}
+
+                {/* Footer with separator line */}
+                {invoiceSettings.foreignFooter && (
+                  <div className="print:mt-8">
+                    <Separator className="print:border-black print:border-t print:my-4" />
+                    <div className="text-xs print-text-xs whitespace-pre-line text-center">
+                      {invoiceSettings.foreignFooter}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-2 pt-4 print:hidden">
                   <Button onClick={() => window.print()}>
