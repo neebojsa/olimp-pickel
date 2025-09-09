@@ -325,7 +325,7 @@ export function ToolManagementDialog({
                   </Button>}
                 {!hasChildren && <div className="w-6" />}
                 
-                {hasChildren && (isExpanded ? <FolderOpen className="h-4 w-4 text-primary" /> : <Folder className="h-4 w-4 text-muted-foreground" />)}
+                {hasChildren ? isExpanded ? <FolderOpen className="h-4 w-4 text-primary" /> : <Folder className="h-4 w-4 text-muted-foreground" /> : <div className="w-4 h-4 rounded bg-muted" />}
                 
                 <div className="flex items-center gap-3">
                   {category.picture && <img src={category.picture} alt={category.title} className="w-8 h-8 rounded object-cover" />}
