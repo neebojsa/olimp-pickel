@@ -986,7 +986,7 @@ export default function Invoicing() {
                        </div>
                     </div>
                     
-                    <div className="bg-[#f3daaf] print-invoice-bg pl-2 pr-[30px] h-[25px] flex items-center justify-center">
+                    <div className="bg-[#f3daaf] print-invoice-bg pl-2 pr-[30px] h-[25px] flex items-center justify-center w-3/5 ml-auto">
                       <span className="text-lg print-text-lg font-medium text-black">INVOICE</span>
                     </div>
                   </div>}
