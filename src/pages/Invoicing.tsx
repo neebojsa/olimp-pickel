@@ -105,67 +105,55 @@ export default function Invoicing() {
     } = await supabase.from('company_info').select('*').limit(1).single();
     if (data) setCompanyInfo(data);
   };
-
   const fetchInvoiceSettings = async () => {
     try {
       // Temporary workaround until types are updated
-      const { data } = await (supabase as any)
-        .from('invoice_settings')
-        .select('*')
-        .maybeSingle();
-      
+      const {
+        data
+      } = await (supabase as any).from('invoice_settings').select('*').maybeSingle();
       if (data) {
         setInvoiceSettings({
           primaryColor: data.primary_color || '#000000',
-          domesticFooter: [data.domestic_footer_column1, data.domestic_footer_column2, data.domestic_footer_column3]
-            .filter(Boolean).join('\n'),
-          foreignFooter: [data.foreign_footer_column1, data.foreign_footer_column2, data.foreign_footer_column3]
-            .filter(Boolean).join('\n')
+          domesticFooter: [data.domestic_footer_column1, data.domestic_footer_column2, data.domestic_footer_column3].filter(Boolean).join('\n'),
+          foreignFooter: [data.foreign_footer_column1, data.foreign_footer_column2, data.foreign_footer_column3].filter(Boolean).join('\n')
         });
       }
     } catch (error) {
       console.error('Error fetching invoice settings:', error);
     }
   };
-
   const saveInvoiceSettings = async () => {
     try {
       // Temporary workaround until types are updated
-      const { data: existingSettings } = await (supabase as any)
-        .from('invoice_settings')
-        .select('id')
-        .maybeSingle();
-
+      const {
+        data: existingSettings
+      } = await (supabase as any).from('invoice_settings').select('id').maybeSingle();
       const settingsData = {
         primary_color: invoiceSettings.primaryColor,
         domestic_footer_column1: invoiceSettings.domesticFooter,
         foreign_footer_column1: invoiceSettings.foreignFooter
       };
-
       let error;
       if (existingSettings) {
-        ({ error } = await (supabase as any)
-          .from('invoice_settings')
-          .update(settingsData)
-          .eq('id', existingSettings.id));
+        ({
+          error
+        } = await (supabase as any).from('invoice_settings').update(settingsData).eq('id', existingSettings.id));
       } else {
-        ({ error } = await (supabase as any)
-          .from('invoice_settings')
-          .insert(settingsData));
+        ({
+          error
+        } = await (supabase as any).from('invoice_settings').insert(settingsData));
       }
-
       if (error) throw error;
-
       toast({
         title: "Settings saved",
-        description: "Invoice settings have been updated successfully.",
+        description: "Invoice settings have been updated successfully."
       });
     } catch (error) {
       console.error('Error saving invoice settings:', error);
       toast({
         title: "Error",
         description: "Failed to save invoice settings. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
@@ -699,19 +687,14 @@ export default function Invoicing() {
                 <div className="space-y-2">
                   <Label>Primary Color</Label>
                   <div className="flex items-center gap-2">
-                    <Input
-                      type="color"
-                      value={invoiceSettings.primaryColor}
-                      onChange={(e) => setInvoiceSettings(prev => ({ ...prev, primaryColor: e.target.value }))}
-                      className="w-16 h-10 p-1 border rounded"
-                    />
-                    <Input
-                      type="text"
-                      value={invoiceSettings.primaryColor}
-                      onChange={(e) => setInvoiceSettings(prev => ({ ...prev, primaryColor: e.target.value }))}
-                      placeholder="#000000"
-                      className="flex-1"
-                    />
+                    <Input type="color" value={invoiceSettings.primaryColor} onChange={e => setInvoiceSettings(prev => ({
+                    ...prev,
+                    primaryColor: e.target.value
+                  }))} className="w-16 h-10 p-1 border rounded" />
+                    <Input type="text" value={invoiceSettings.primaryColor} onChange={e => setInvoiceSettings(prev => ({
+                    ...prev,
+                    primaryColor: e.target.value
+                  }))} placeholder="#000000" className="flex-1" />
                   </div>
                 </div>
               </TabsContent>
@@ -719,24 +702,20 @@ export default function Invoicing() {
               <TabsContent value="domestic" className="space-y-4">
                 <div className="space-y-2">
                   <Label>Footer Content for Domestic Invoices</Label>
-                  <Textarea
-                    value={invoiceSettings.domesticFooter}
-                    onChange={(e) => setInvoiceSettings(prev => ({ ...prev, domesticFooter: e.target.value }))}
-                    placeholder="Enter footer content for domestic invoices..."
-                    rows={6}
-                  />
+                  <Textarea value={invoiceSettings.domesticFooter} onChange={e => setInvoiceSettings(prev => ({
+                  ...prev,
+                  domesticFooter: e.target.value
+                }))} placeholder="Enter footer content for domestic invoices..." rows={6} />
                 </div>
               </TabsContent>
               
               <TabsContent value="foreign" className="space-y-4">
                 <div className="space-y-2">
                   <Label>Footer Content for Foreign Invoices</Label>
-                  <Textarea
-                    value={invoiceSettings.foreignFooter}
-                    onChange={(e) => setInvoiceSettings(prev => ({ ...prev, foreignFooter: e.target.value }))}
-                    placeholder="Enter footer content for foreign invoices..."
-                    rows={6}
-                  />
+                  <Textarea value={invoiceSettings.foreignFooter} onChange={e => setInvoiceSettings(prev => ({
+                  ...prev,
+                  foreignFooter: e.target.value
+                }))} placeholder="Enter footer content for foreign invoices..." rows={6} />
                 </div>
               </TabsContent>
             </Tabs>
@@ -746,9 +725,9 @@ export default function Invoicing() {
                 Cancel
               </Button>
               <Button onClick={async () => {
-                await saveInvoiceSettings();
-                setIsSettingsOpen(false);
-              }}>
+              await saveInvoiceSettings();
+              setIsSettingsOpen(false);
+            }}>
                 Save Settings
               </Button>
             </div>
@@ -863,7 +842,7 @@ export default function Invoicing() {
                   </div>
                    <div className="min-w-[120px] text-right">
                      <p className="text-sm text-muted-foreground">Total</p>
-                     <p className="font-bold text-lg">{formatCurrency((invoice.amount || 0), invoice.currency)}</p>
+                     <p className="font-bold text-lg">{formatCurrency(invoice.amount || 0, invoice.currency)}</p>
                    </div>
                 </div>
                 
@@ -1049,9 +1028,9 @@ export default function Invoicing() {
                      </thead>
                     <tbody>
                        {selectedInvoice.invoice_items?.map((item, index) => {
-                         const inventoryItem = inventoryItems.find(inv => inv.name === item.description);
-                         const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
-                         return <tr key={index}>
+                    const inventoryItem = inventoryItems.find(inv => inv.name === item.description);
+                    const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
+                    return <tr key={index}>
                            <td className="p-2">{item.description}</td>
                            <td className="p-2">{inventoryItem?.part_number || '-'}</td>
                            <td className="p-2">{inventoryItem?.unit || 'piece'}</td>
@@ -1059,8 +1038,8 @@ export default function Invoicing() {
                            <td className="p-2">{subtotalWeight.toFixed(2)} kg</td>
                            <td className="p-2">{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
                            <td className="p-2 text-right">{formatCurrency(item.total, selectedInvoice.currency)}</td>
-                         </tr>
-                       })}
+                         </tr>;
+                  })}
                     </tbody>
                   </table>
                 </div>
@@ -1081,15 +1060,15 @@ export default function Invoicing() {
                     <div className="space-y-2 print:space-y-3">
                         <div className="flex justify-between print-text-sm">
                           <span>Subtotal:</span>
-                          <span>{formatCurrency(((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)), selectedInvoice.currency)}</span>
+                          <span>{formatCurrency((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
                         </div>
                         <div className="flex justify-between print-text-sm">
                           <span>VAT ({selectedInvoice.vat_rate}%):</span>
-                          <span>{formatCurrency(((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)), selectedInvoice.currency)}</span>
+                          <span>{formatCurrency((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
                         </div>
-                        <div className="flex justify-between font-bold text-lg bg-[#f3daaf] print-invoice-bg h-[25px] items-center px-2 print-text-base">
+                        <div className="flex justify-between font-bold text-lg bg-[#f3daaf] print-invoice-bg h-[25px] items-center print-text-base px-0">
                           <span>Total:</span>
-                          <span>{formatCurrency((selectedInvoice.amount || 0), selectedInvoice.currency)}</span>
+                          <span>{formatCurrency(selectedInvoice.amount || 0, selectedInvoice.currency)}</span>
                         </div>
                     </div>
                   </div>
@@ -1104,14 +1083,12 @@ export default function Invoicing() {
                 <div className="print:flex-grow"></div>
 
                 {/* Footer with separator line */}
-                {invoiceSettings.foreignFooter && (
-                  <div className="print:mt-auto">
+                {invoiceSettings.foreignFooter && <div className="print:mt-auto">
                     <Separator className="print:border-black print:border-t print:my-4" />
                     <div className="text-xs print-text-xs whitespace-pre-line text-center">
                       {invoiceSettings.foreignFooter}
                     </div>
-                  </div>
-                )}
+                  </div>}
 
                 <div className="flex gap-2 pt-4 print:hidden">
                   <Button onClick={() => window.print()}>
