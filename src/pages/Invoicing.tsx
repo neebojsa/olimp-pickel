@@ -63,8 +63,8 @@ export default function Invoicing() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [invoiceSettings, setInvoiceSettings] = useState({
     primaryColor: '#000000',
-    domesticFooter: '',
-    foreignFooter: ''
+    domesticFooter: ['', '', ''],
+    foreignFooter: ['', '', '']
   });
   useEffect(() => {
     fetchInvoices();
@@ -114,8 +114,8 @@ export default function Invoicing() {
       if (data) {
         setInvoiceSettings({
           primaryColor: data.primary_color || '#000000',
-          domesticFooter: [data.domestic_footer_column1, data.domestic_footer_column2, data.domestic_footer_column3].filter(Boolean).join('\n'),
-          foreignFooter: [data.foreign_footer_column1, data.foreign_footer_column2, data.foreign_footer_column3].filter(Boolean).join('\n')
+          domesticFooter: [data.domestic_footer_column1 || '', data.domestic_footer_column2 || '', data.domestic_footer_column3 || ''],
+          foreignFooter: [data.foreign_footer_column1 || '', data.foreign_footer_column2 || '', data.foreign_footer_column3 || '']
         });
       }
     } catch (error) {
@@ -130,8 +130,12 @@ export default function Invoicing() {
       } = await (supabase as any).from('invoice_settings').select('id').maybeSingle();
       const settingsData = {
         primary_color: invoiceSettings.primaryColor,
-        domestic_footer_column1: invoiceSettings.domesticFooter,
-        foreign_footer_column1: invoiceSettings.foreignFooter
+        domestic_footer_column1: invoiceSettings.domesticFooter[0],
+        domestic_footer_column2: invoiceSettings.domesticFooter[1],
+        domestic_footer_column3: invoiceSettings.domesticFooter[2],
+        foreign_footer_column1: invoiceSettings.foreignFooter[0],
+        foreign_footer_column2: invoiceSettings.foreignFooter[1],
+        foreign_footer_column3: invoiceSettings.foreignFooter[2]
       };
       let error;
       if (existingSettings) {
@@ -700,22 +704,90 @@ export default function Invoicing() {
               </TabsContent>
               
               <TabsContent value="domestic" className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Footer Content for Domestic Invoices</Label>
-                  <Textarea value={invoiceSettings.domesticFooter} onChange={e => setInvoiceSettings(prev => ({
-                  ...prev,
-                  domesticFooter: e.target.value
-                }))} placeholder="Enter footer content for domestic invoices..." rows={6} />
+                <div className="space-y-4">
+                  <Label>Footer Content for Domestic Invoices (3 Columns)</Label>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-sm">Column 1</Label>
+                      <Textarea 
+                        value={invoiceSettings.domesticFooter[0]} 
+                        onChange={e => setInvoiceSettings(prev => ({
+                          ...prev,
+                          domesticFooter: [e.target.value, prev.domesticFooter[1], prev.domesticFooter[2]]
+                        }))} 
+                        placeholder="Enter content for column 1..." 
+                        rows={4} 
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm">Column 2</Label>
+                      <Textarea 
+                        value={invoiceSettings.domesticFooter[1]} 
+                        onChange={e => setInvoiceSettings(prev => ({
+                          ...prev,
+                          domesticFooter: [prev.domesticFooter[0], e.target.value, prev.domesticFooter[2]]
+                        }))} 
+                        placeholder="Enter content for column 2..." 
+                        rows={4} 
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm">Column 3</Label>
+                      <Textarea 
+                        value={invoiceSettings.domesticFooter[2]} 
+                        onChange={e => setInvoiceSettings(prev => ({
+                          ...prev,
+                          domesticFooter: [prev.domesticFooter[0], prev.domesticFooter[1], e.target.value]
+                        }))} 
+                        placeholder="Enter content for column 3..." 
+                        rows={4} 
+                      />
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
               
               <TabsContent value="foreign" className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Footer Content for Foreign Invoices</Label>
-                  <Textarea value={invoiceSettings.foreignFooter} onChange={e => setInvoiceSettings(prev => ({
-                  ...prev,
-                  foreignFooter: e.target.value
-                }))} placeholder="Enter footer content for foreign invoices..." rows={6} />
+                <div className="space-y-4">
+                  <Label>Footer Content for Foreign Invoices (3 Columns)</Label>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-sm">Column 1</Label>
+                      <Textarea 
+                        value={invoiceSettings.foreignFooter[0]} 
+                        onChange={e => setInvoiceSettings(prev => ({
+                          ...prev,
+                          foreignFooter: [e.target.value, prev.foreignFooter[1], prev.foreignFooter[2]]
+                        }))} 
+                        placeholder="Enter content for column 1..." 
+                        rows={4} 
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm">Column 2</Label>
+                      <Textarea 
+                        value={invoiceSettings.foreignFooter[1]} 
+                        onChange={e => setInvoiceSettings(prev => ({
+                          ...prev,
+                          foreignFooter: [prev.foreignFooter[0], e.target.value, prev.foreignFooter[2]]
+                        }))} 
+                        placeholder="Enter content for column 2..." 
+                        rows={4} 
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm">Column 3</Label>
+                      <Textarea 
+                        value={invoiceSettings.foreignFooter[2]} 
+                        onChange={e => setInvoiceSettings(prev => ({
+                          ...prev,
+                          foreignFooter: [prev.foreignFooter[0], prev.foreignFooter[1], e.target.value]
+                        }))} 
+                        placeholder="Enter content for column 3..." 
+                        rows={4} 
+                      />
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>
@@ -1083,10 +1155,22 @@ export default function Invoicing() {
                 <div className="print:flex-grow"></div>
 
                 {/* Footer with separator line */}
-                {invoiceSettings.foreignFooter && <div className="print:mt-auto">
+                {(invoiceSettings.foreignFooter.some(col => col.trim()) || invoiceSettings.domesticFooter.some(col => col.trim())) && <div className="print:mt-auto">
                     <Separator className="print:border-black print:border-t print:my-4" />
-                    <div className="text-xs print-text-xs whitespace-pre-line text-center">
-                      {invoiceSettings.foreignFooter}
+                    <div className="text-xs print-text-xs grid grid-cols-3 gap-4">
+                      {selectedInvoice.customers?.country === 'Bosnia and Herzegovina' ? (
+                        <>
+                          <div className="whitespace-pre-line text-left">{invoiceSettings.domesticFooter[0]}</div>
+                          <div className="whitespace-pre-line text-center">{invoiceSettings.domesticFooter[1]}</div>
+                          <div className="whitespace-pre-line text-right">{invoiceSettings.domesticFooter[2]}</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="whitespace-pre-line text-left">{invoiceSettings.foreignFooter[0]}</div>
+                          <div className="whitespace-pre-line text-center">{invoiceSettings.foreignFooter[1]}</div>
+                          <div className="whitespace-pre-line text-right">{invoiceSettings.foreignFooter[2]}</div>
+                        </>
+                      )}
                     </div>
                   </div>}
 
