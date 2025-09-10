@@ -1079,15 +1079,15 @@ export default function Invoicing() {
                   
                   <div className="text-right">
                     <div className="space-y-2 print:space-y-3">
-                        <div className="flex justify-between print-text-sm">
+                        <div className="flex justify-end gap-8 print-text-sm">
                           <span>Subtotal:</span>
                           <span>{formatCurrency(((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)), selectedInvoice.currency)}</span>
                         </div>
-                        <div className="flex justify-between print-text-sm">
+                        <div className="flex justify-end gap-8 print-text-sm">
                           <span>VAT ({selectedInvoice.vat_rate}%):</span>
                           <span>{formatCurrency(((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100)), selectedInvoice.currency)}</span>
                         </div>
-                        <div className="flex justify-between font-bold text-lg bg-[#f3daaf] print-invoice-bg h-[25px] items-center px-2 print-text-base">
+                        <div className="flex justify-end gap-8 font-bold text-lg bg-[#f3daaf] print-invoice-bg h-[25px] items-center px-2 print-text-base">
                           <span>Total:</span>
                           <span>{formatCurrency((selectedInvoice.amount || 0), selectedInvoice.currency)}</span>
                         </div>
