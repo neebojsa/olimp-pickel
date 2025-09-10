@@ -1058,7 +1058,7 @@ export default function Invoicing() {
                        </div>
                     </div>
                     
-                    <div className="bg-[#f3daaf] print-invoice-bg pl-2 pr-[30px] h-[25px] flex items-center justify-center">
+                    <div className="print-invoice-bg pl-2 pr-[30px] h-[25px] flex items-center justify-center" style={{ backgroundColor: invoiceSettings.primaryColor }}>
                       <span className="text-lg print-text-lg font-medium text-black">INVOICE</span>
                     </div>
                   </div>}
@@ -1138,7 +1138,7 @@ export default function Invoicing() {
                           <span>VAT ({selectedInvoice.vat_rate}%):</span>
                           <span>{formatCurrency((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
                         </div>
-                        <div className="flex justify-between font-bold text-lg bg-[#f3daaf] print-invoice-bg h-[25px] items-center print-text-base px-0">
+                        <div className="flex justify-between font-bold text-lg print-invoice-bg h-[25px] items-center print-text-base px-0" style={{ backgroundColor: invoiceSettings.primaryColor }}>
                           <span>Total:</span>
                           <span>{formatCurrency(selectedInvoice.amount || 0, selectedInvoice.currency)}</span>
                         </div>
