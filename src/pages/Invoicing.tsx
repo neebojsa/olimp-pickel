@@ -1077,7 +1077,7 @@ export default function Invoicing() {
                     </div>
                   </div>
                   
-                  <div className="text-right">
+                   <div className="text-right w-3/5 ml-auto">
                     <div className="space-y-2 print:space-y-3">
                         <div className="flex justify-between print-text-sm">
                           <span>Subtotal:</span>
