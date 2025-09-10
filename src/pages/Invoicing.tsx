@@ -991,7 +991,7 @@ export default function Invoicing() {
                 }
               `}</style>
               
-              <div className="print-invoice space-y-6 print:text-black print:bg-white">
+              <div className="print-invoice print:text-black print:bg-white print:min-h-[calc(100vh-1in)] print:flex print:flex-col space-y-6">
                 {/* Company Header with Invoice Title */}
                 {companyInfo && <div className="company-header print:mb-6 flex justify-between items-end">
                     <div>
@@ -1100,9 +1100,12 @@ export default function Invoicing() {
                      <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.notes}</p>
                   </div>}
 
+                {/* Spacer to push footer to bottom */}
+                <div className="print:flex-grow"></div>
+
                 {/* Footer with separator line */}
                 {invoiceSettings.foreignFooter && (
-                  <div className="print:mt-8">
+                  <div className="print:mt-auto">
                     <Separator className="print:border-black print:border-t print:my-4" />
                     <div className="text-xs print-text-xs whitespace-pre-line text-center">
                       {invoiceSettings.foreignFooter}
