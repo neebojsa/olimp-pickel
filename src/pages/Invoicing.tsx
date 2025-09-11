@@ -709,39 +709,24 @@ export default function Invoicing() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label className="text-sm">Column 1</Label>
-                      <Textarea 
-                        value={invoiceSettings.domesticFooter[0]} 
-                        onChange={e => setInvoiceSettings(prev => ({
-                          ...prev,
-                          domesticFooter: [e.target.value, prev.domesticFooter[1], prev.domesticFooter[2]]
-                        }))} 
-                        placeholder="Enter content for column 1..." 
-                        rows={4} 
-                      />
+                      <Textarea value={invoiceSettings.domesticFooter[0]} onChange={e => setInvoiceSettings(prev => ({
+                      ...prev,
+                      domesticFooter: [e.target.value, prev.domesticFooter[1], prev.domesticFooter[2]]
+                    }))} placeholder="Enter content for column 1..." rows={4} />
                     </div>
                     <div>
                       <Label className="text-sm">Column 2</Label>
-                      <Textarea 
-                        value={invoiceSettings.domesticFooter[1]} 
-                        onChange={e => setInvoiceSettings(prev => ({
-                          ...prev,
-                          domesticFooter: [prev.domesticFooter[0], e.target.value, prev.domesticFooter[2]]
-                        }))} 
-                        placeholder="Enter content for column 2..." 
-                        rows={4} 
-                      />
+                      <Textarea value={invoiceSettings.domesticFooter[1]} onChange={e => setInvoiceSettings(prev => ({
+                      ...prev,
+                      domesticFooter: [prev.domesticFooter[0], e.target.value, prev.domesticFooter[2]]
+                    }))} placeholder="Enter content for column 2..." rows={4} />
                     </div>
                     <div>
                       <Label className="text-sm">Column 3</Label>
-                      <Textarea 
-                        value={invoiceSettings.domesticFooter[2]} 
-                        onChange={e => setInvoiceSettings(prev => ({
-                          ...prev,
-                          domesticFooter: [prev.domesticFooter[0], prev.domesticFooter[1], e.target.value]
-                        }))} 
-                        placeholder="Enter content for column 3..." 
-                        rows={4} 
-                      />
+                      <Textarea value={invoiceSettings.domesticFooter[2]} onChange={e => setInvoiceSettings(prev => ({
+                      ...prev,
+                      domesticFooter: [prev.domesticFooter[0], prev.domesticFooter[1], e.target.value]
+                    }))} placeholder="Enter content for column 3..." rows={4} />
                     </div>
                   </div>
                 </div>
@@ -753,39 +738,24 @@ export default function Invoicing() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label className="text-sm">Column 1</Label>
-                      <Textarea 
-                        value={invoiceSettings.foreignFooter[0]} 
-                        onChange={e => setInvoiceSettings(prev => ({
-                          ...prev,
-                          foreignFooter: [e.target.value, prev.foreignFooter[1], prev.foreignFooter[2]]
-                        }))} 
-                        placeholder="Enter content for column 1..." 
-                        rows={4} 
-                      />
+                      <Textarea value={invoiceSettings.foreignFooter[0]} onChange={e => setInvoiceSettings(prev => ({
+                      ...prev,
+                      foreignFooter: [e.target.value, prev.foreignFooter[1], prev.foreignFooter[2]]
+                    }))} placeholder="Enter content for column 1..." rows={4} />
                     </div>
                     <div>
                       <Label className="text-sm">Column 2</Label>
-                      <Textarea 
-                        value={invoiceSettings.foreignFooter[1]} 
-                        onChange={e => setInvoiceSettings(prev => ({
-                          ...prev,
-                          foreignFooter: [prev.foreignFooter[0], e.target.value, prev.foreignFooter[2]]
-                        }))} 
-                        placeholder="Enter content for column 2..." 
-                        rows={4} 
-                      />
+                      <Textarea value={invoiceSettings.foreignFooter[1]} onChange={e => setInvoiceSettings(prev => ({
+                      ...prev,
+                      foreignFooter: [prev.foreignFooter[0], e.target.value, prev.foreignFooter[2]]
+                    }))} placeholder="Enter content for column 2..." rows={4} />
                     </div>
                     <div>
                       <Label className="text-sm">Column 3</Label>
-                      <Textarea 
-                        value={invoiceSettings.foreignFooter[2]} 
-                        onChange={e => setInvoiceSettings(prev => ({
-                          ...prev,
-                          foreignFooter: [prev.foreignFooter[0], prev.foreignFooter[1], e.target.value]
-                        }))} 
-                        placeholder="Enter content for column 3..." 
-                        rows={4} 
-                      />
+                      <Textarea value={invoiceSettings.foreignFooter[2]} onChange={e => setInvoiceSettings(prev => ({
+                      ...prev,
+                      foreignFooter: [prev.foreignFooter[0], prev.foreignFooter[1], e.target.value]
+                    }))} placeholder="Enter content for column 3..." rows={4} />
                     </div>
                   </div>
                 </div>
@@ -957,7 +927,7 @@ export default function Invoicing() {
 
       {/* Printable Invoice Dialog */}
       <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:!max-w-none print:!w-full print:!h-full print:!max-h-none print:!p-0 print:!m-0 print:!shadow-none print:!border-none print:!rounded-none">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:!max-w-none print:!w-full print:!h-full print:!max-h-none print:!p-0 print:!m-0 print:!shadow-none print:!border-none print:!rounded-none mx-[3px] px-[7px]">
           
           
           {selectedInvoice && <>
@@ -1058,7 +1028,9 @@ export default function Invoicing() {
                        </div>
                     </div>
                     
-                    <div className="print-invoice-bg pl-2 pr-[50px] h-[30px] flex items-center justify-center" style={{ backgroundColor: invoiceSettings.primaryColor }}>
+                    <div className="print-invoice-bg pl-2 pr-[50px] h-[30px] flex items-center justify-center" style={{
+                backgroundColor: invoiceSettings.primaryColor
+              }}>
                       <span className="text-lg print-text-lg font-medium text-black">INVOICE</span>
                     </div>
                   </div>}
@@ -1138,7 +1110,9 @@ export default function Invoicing() {
                           <span>VAT ({selectedInvoice.vat_rate}%):</span>
                           <span>{formatCurrency((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
                         </div>
-                        <div className="flex justify-between font-bold text-lg print-invoice-bg h-[30px] items-center print-text-base pr-[20px]" style={{ backgroundColor: invoiceSettings.primaryColor }}>
+                        <div className="flex justify-between font-bold text-lg print-invoice-bg h-[30px] items-center print-text-base pr-[20px]" style={{
+                    backgroundColor: invoiceSettings.primaryColor
+                  }}>
                           <span>Total:</span>
                           <span>{formatCurrency(selectedInvoice.amount || 0, selectedInvoice.currency)}</span>
                         </div>
@@ -1158,19 +1132,15 @@ export default function Invoicing() {
                 {(invoiceSettings.foreignFooter.some(col => col.trim()) || invoiceSettings.domesticFooter.some(col => col.trim())) && <div className="print:mt-auto">
                     <Separator className="print:border-black print:border-t print:my-4" />
                     <div className="text-xs print-text-xs grid grid-cols-3 gap-4">
-                      {selectedInvoice.customers?.country === 'Bosnia and Herzegovina' ? (
-                        <>
+                      {selectedInvoice.customers?.country === 'Bosnia and Herzegovina' ? <>
                           <div className="whitespace-pre-line text-left">{invoiceSettings.domesticFooter[0]}</div>
                           <div className="whitespace-pre-line text-center">{invoiceSettings.domesticFooter[1]}</div>
                           <div className="whitespace-pre-line text-right">{invoiceSettings.domesticFooter[2]}</div>
-                        </>
-                      ) : (
-                        <>
+                        </> : <>
                           <div className="whitespace-pre-line text-left">{invoiceSettings.foreignFooter[0]}</div>
                           <div className="whitespace-pre-line text-center">{invoiceSettings.foreignFooter[1]}</div>
                           <div className="whitespace-pre-line text-right">{invoiceSettings.foreignFooter[2]}</div>
-                        </>
-                      )}
+                        </>}
                     </div>
                   </div>}
 
