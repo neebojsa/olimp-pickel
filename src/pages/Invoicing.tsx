@@ -984,31 +984,45 @@ export default function Invoicing() {
                       border-bottom: 1px solid #6b7280 !important;
                     }
                    
-                   .print-invoice-bg {
-                     background-color: #f3daaf !important;
-                     -webkit-print-color-adjust: exact !important;
-                     color-adjust: exact !important;
+                    .print-invoice-bg {
+                      -webkit-print-color-adjust: exact !important;
+                      color-adjust: exact !important;
+                    }
+                    
+                    .print-text-lg {
+                      font-size: 18pt !important;
+                    }
+                    
+                    .print-text-base {
+                      font-size: 16pt !important;
+                    }
+                    
+                    .print-text-sm {
+                      font-size: 14pt !important;
+                    }
+                    
+                    .page-break {
+                     page-break-before: always !important;
                    }
                    
-                   .print-text-lg {
-                     font-size: 18pt !important;
+                   .no-page-break {
+                     page-break-inside: avoid !important;
                    }
-                   
-                   .print-text-base {
-                     font-size: 16pt !important;
+
+                   .invoice-title-bg {
+                     position: absolute !important;
+                     width: 286px !important;
+                     padding-left: 23px !important;
+                     right: 7px !important;
+                     justify-content: left !important;
                    }
-                   
-                   .print-text-sm {
-                     font-size: 14pt !important;
+
+                   .total-amount-bg {
+                     position: absolute !important;
+                     width: 286px !important;
+                     padding-left: 23px !important;
+                     right: 7px !important;
                    }
-                   
-                   .page-break {
-                    page-break-before: always !important;
-                  }
-                  
-                  .no-page-break {
-                    page-break-inside: avoid !important;
-                  }
                 }
               `}</style>
               
@@ -1028,7 +1042,7 @@ export default function Invoicing() {
                        </div>
                     </div>
                     
-                    <div className="print-invoice-bg h-[30px] flex items-center" style={{
+                    <div className="print-invoice-bg h-[30px] flex items-center invoice-title-bg" style={{
                 backgroundColor: invoiceSettings.primaryColor,
                 position: 'absolute',
                 width: '286px',
@@ -1121,7 +1135,7 @@ export default function Invoicing() {
                     width: '286px',
                     paddingLeft: '23px',
                     right: '7px'
-                  }} className="flex justify-between font-bold text-lg print-invoice-bg h-[35px] items-center print-text-base pr-[20px]">
+                  }} className="flex justify-between font-bold text-lg print-invoice-bg h-[35px] items-center print-text-base total-amount-bg">
                           <span>Total:</span>
                           <span>{formatCurrency(selectedInvoice.amount || 0, selectedInvoice.currency)}</span>
                         </div>
