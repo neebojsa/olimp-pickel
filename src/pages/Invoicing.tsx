@@ -1138,7 +1138,7 @@ export default function Invoicing() {
                           <span>VAT ({selectedInvoice.vat_rate}%):</span>
                           <span>{formatCurrency((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
                         </div>
-                        <div className="flex justify-between font-bold text-lg print-invoice-bg h-[60px] items-center print-text-base pr-[20px]" style={{ backgroundColor: invoiceSettings.primaryColor }}>
+                        <div className="position-absolute flex justify-between font-bold text-lg print-invoice-bg h-[35px] items-center print-text-base pr-[20px]" style={{ backgroundColor: invoiceSettings.primaryColor }}>
                           <span>Total:</span>
                           <span>{formatCurrency(selectedInvoice.amount || 0, selectedInvoice.currency)}</span>
                         </div>
