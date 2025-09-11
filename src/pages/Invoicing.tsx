@@ -1028,8 +1028,13 @@ export default function Invoicing() {
                        </div>
                     </div>
                     
-                    <div className="print-invoice-bg pl-2 pr-[50px] h-[30px] flex items-center justify-center" style={{
-                backgroundColor: invoiceSettings.primaryColor
+                    <div className="print-invoice-bg h-[30px] flex items-center" style={{
+                backgroundColor: invoiceSettings.primaryColor,
+                position: 'absolute',
+                width: '286px',
+                paddingLeft: '23px',
+                right: '7px',
+                justifyContent: 'left'
               }}>
                       <span className="text-lg print-text-lg font-medium text-black">INVOICE</span>
                     </div>
