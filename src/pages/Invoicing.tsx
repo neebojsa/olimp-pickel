@@ -1111,7 +1111,11 @@ export default function Invoicing() {
                           <span>{formatCurrency((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
                         </div>
                         <div style={{
-                    backgroundColor: invoiceSettings.primaryColor
+                    backgroundColor: invoiceSettings.primaryColor,
+                    position: 'absolute',
+                    width: '286px',
+                    paddingLeft: '23px',
+                    right: '7px'
                   }} className="flex justify-between font-bold text-lg print-invoice-bg h-[35px] items-center print-text-base pr-[20px]">
                           <span>Total:</span>
                           <span>{formatCurrency(selectedInvoice.amount || 0, selectedInvoice.currency)}</span>
