@@ -924,6 +924,66 @@ export default function Settings() {
                 </div>
                 
                 <Separator />
+                
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Themes</h4>
+                  <div className="space-y-2">
+                    <Label>Application Theme</Label>
+                    <Select 
+                      value={preferences.theme_color} 
+                      onValueChange={(value) => {
+                        setPreferences(prev => ({ ...prev, theme_color: value }));
+                        // Apply theme immediately
+                        document.documentElement.setAttribute('data-theme', value);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="blue">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+                            Ocean Blue
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="green">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full bg-green-500"></div>
+                            Forest Green
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="purple">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full bg-purple-500"></div>
+                            Royal Purple
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="orange">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full bg-orange-500"></div>
+                            Sunset Orange
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="rose">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full bg-rose-500"></div>
+                            Rose Pink
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="slate">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full bg-slate-500"></div>
+                            Slate Gray
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">Choose your preferred color theme for the application</p>
+                  </div>
+                </div>
+                
+                <Separator />
 
                 <div className="flex justify-end">
                   <Button onClick={handleSavePreferences} className="px-8">

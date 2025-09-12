@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import Login from "./pages/Login";
 import Inventory from "./pages/Inventory";
 import WorkOrders from "./pages/WorkOrders";
@@ -47,16 +48,18 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; page?: string }> = (
   return <>{children}</>;
 };
 
-const queryClient = new QueryClient();
+const AppContent: React.FC = () => {
+  const { staff } = useAuth();
+  const { loadUserTheme } = useTheme();
 
-const App: React.FC = () => {
+  useEffect(() => {
+    if (staff) {
+      loadUserTheme();
+    }
+  }, [staff, loadUserTheme]);
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AuthProvider>
-          <BrowserRouter>
+    <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<Navigate to="/inventory" replace />} />
@@ -117,8 +120,21 @@ const App: React.FC = () => {
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+const queryClient = new QueryClient();
+
+const App: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <AppContent />
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

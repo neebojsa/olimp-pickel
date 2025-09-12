@@ -49,20 +49,78 @@ All colors MUST be HSL.
     --chart-8: 258 90% 75%;   /* Indigo */
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Green Theme */
+  :root[data-theme="green"] {
+    --primary: 142 76% 55%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 142 20% 84%;
+    --secondary-foreground: 142 76% 35%;
+    --accent: 213 94% 68%;
+    --accent-foreground: 213 94% 15%;
+    --ring: 142 76% 55%;
+    --chart-1: 142 76% 55%;
+    --chart-2: 213 94% 68%;
+  }
+
+  /* Purple Theme */
+  :root[data-theme="purple"] {
+    --primary: 270 95% 75%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 270 20% 84%;
+    --secondary-foreground: 270 95% 45%;
+    --accent: 43 89% 70%;
+    --accent-foreground: 43 89% 15%;
+    --ring: 270 95% 75%;
+    --chart-1: 270 95% 75%;
+    --chart-2: 43 89% 70%;
+  }
+
+  /* Orange Theme */
+  :root[data-theme="orange"] {
+    --primary: 25 95% 65%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 25 20% 84%;
+    --secondary-foreground: 25 95% 35%;
+    --accent: 270 95% 75%;
+    --accent-foreground: 270 95% 15%;
+    --ring: 25 95% 65%;
+    --chart-1: 25 95% 65%;
+    --chart-2: 270 95% 75%;
+  }
+
+  /* Rose Theme */
+  :root[data-theme="rose"] {
+    --primary: 340 82% 70%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 340 20% 84%;
+    --secondary-foreground: 340 82% 40%;
+    --accent: 142 76% 73%;
+    --accent-foreground: 142 76% 15%;
+    --ring: 340 82% 70%;
+    --chart-1: 340 82% 70%;
+    --chart-2: 142 76% 73%;
+  }
+
+  /* Slate Theme */
+  :root[data-theme="slate"] {
+    --primary: 215 28% 60%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 215 15% 84%;
+    --secondary-foreground: 215 28% 30%;
+    --accent: 43 89% 70%;
+    --accent-foreground: 43 89% 15%;
+    --ring: 215 28% 60%;
+    --chart-1: 215 28% 60%;
+    --chart-2: 43 89% 70%;
   }
 
   .dark {
@@ -111,6 +169,37 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Dark theme variants */
+  .dark[data-theme="green"] {
+    --primary: 142 76% 60%;
+    --ring: 142 76% 60%;
+    --chart-1: 142 76% 60%;
+  }
+
+  .dark[data-theme="purple"] {
+    --primary: 270 95% 80%;
+    --ring: 270 95% 80%;
+    --chart-1: 270 95% 80%;
+  }
+
+  .dark[data-theme="orange"] {
+    --primary: 25 95% 70%;
+    --ring: 25 95% 70%;
+    --chart-1: 25 95% 70%;
+  }
+
+  .dark[data-theme="rose"] {
+    --primary: 340 82% 75%;
+    --ring: 340 82% 75%;
+    --chart-1: 340 82% 75%;
+  }
+
+  .dark[data-theme="slate"] {
+    --primary: 215 28% 65%;
+    --ring: 215 28% 65%;
+    --chart-1: 215 28% 65%;
   }
 }
 
