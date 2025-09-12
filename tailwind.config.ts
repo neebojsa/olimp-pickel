@@ -74,9 +74,20 @@ export default {
 				}
 			},
 			borderRadius: {
+				'theme': 'var(--radius)',
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			boxShadow: {
+				'theme-sm': 'var(--shadow-sm)',
+				'theme': 'var(--shadow)',
+				'theme-md': 'var(--shadow-md)',
+				'theme-lg': 'var(--shadow-lg)',
+				'theme-xl': 'var(--shadow-xl)'
+			},
+			borderWidth: {
+				'theme': 'var(--border-width)'
 			},
 			keyframes: {
 				'accordion-down': {

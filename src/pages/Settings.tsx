@@ -926,7 +926,7 @@ export default function Settings() {
                 <Separator />
                 
                 <div className="space-y-4">
-                  <h4 className="text-sm font-medium">Themes</h4>
+                  <h4 className="text-sm font-medium">Appearance Themes</h4>
                   <div className="space-y-2">
                     <Label>Application Theme</Label>
                     <Select 
@@ -942,44 +942,71 @@ export default function Settings() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="blue">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                            Ocean Blue
+                            <div>
+                              <div className="font-medium">Classic Blue</div>
+                              <div className="text-xs text-muted-foreground">Traditional rounded corners</div>
+                            </div>
                           </div>
                         </SelectItem>
-                        <SelectItem value="green">
-                          <div className="flex items-center gap-2">
+                        <SelectItem value="modern">
+                          <div className="flex items-center gap-3">
+                            <div className="w-4 h-4 rounded-lg bg-blue-600"></div>
+                            <div>
+                              <div className="font-medium">Modern</div>
+                              <div className="text-xs text-muted-foreground">Clean shadows, larger radius</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="soft">
+                          <div className="flex items-center gap-3">
                             <div className="w-4 h-4 rounded-full bg-green-500"></div>
-                            Forest Green
+                            <div>
+                              <div className="font-medium">Soft Green</div>
+                              <div className="text-xs text-muted-foreground">Very rounded, gentle shadows</div>
+                            </div>
                           </div>
                         </SelectItem>
-                        <SelectItem value="purple">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-purple-500"></div>
-                            Royal Purple
+                        <SelectItem value="sharp">
+                          <div className="flex items-center gap-3">
+                            <div className="w-4 h-4 rounded bg-purple-500"></div>
+                            <div>
+                              <div className="font-medium">Sharp Purple</div>
+                              <div className="text-xs text-muted-foreground">Angular, bold borders</div>
+                            </div>
                           </div>
                         </SelectItem>
-                        <SelectItem value="orange">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-orange-500"></div>
-                            Sunset Orange
+                        <SelectItem value="warm">
+                          <div className="flex items-center gap-3">
+                            <div className="w-4 h-4 rounded-md bg-orange-500"></div>
+                            <div>
+                              <div className="font-medium">Warm Orange</div>
+                              <div className="text-xs text-muted-foreground">Cozy, warm shadows</div>
+                            </div>
                           </div>
                         </SelectItem>
-                        <SelectItem value="rose">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-rose-500"></div>
-                            Rose Pink
+                        <SelectItem value="cool">
+                          <div className="flex items-center gap-3">
+                            <div className="w-4 h-4 rounded-xl bg-rose-500"></div>
+                            <div>
+                              <div className="font-medium">Cool Rose</div>
+                              <div className="text-xs text-muted-foreground">Elegant, refined appearance</div>
+                            </div>
                           </div>
                         </SelectItem>
-                        <SelectItem value="slate">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-slate-500"></div>
-                            Slate Gray
+                        <SelectItem value="minimal">
+                          <div className="flex items-center gap-3">
+                            <div className="w-4 h-4 rounded-sm bg-slate-500"></div>
+                            <div>
+                              <div className="font-medium">Minimal</div>
+                              <div className="text-xs text-muted-foreground">Subtle shadows, understated</div>
+                            </div>
                           </div>
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-sm text-muted-foreground">Choose your preferred color theme for the application</p>
+                    <p className="text-sm text-muted-foreground">Each theme changes colors, shadows, borders, and corner radius for a completely different feel</p>
                   </div>
                 </div>
                 
