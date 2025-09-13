@@ -38,16 +38,6 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
-    /* Modern Design Tokens */
-    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
-    --shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
-    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.1), 0 8px 10px -6px hsl(0 0% 0% / 0.1);
-    
-    --border-width: 1px;
-    --border-style: solid;
-    
     /* Chart colors - mild and pleasant */
     --chart-1: 213 94% 68%;   /* Blue */
     --chart-2: 142 76% 73%;   /* Green */
@@ -68,110 +58,67 @@ All colors MUST be HSL.
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  /* Modern Theme - Clean and minimal */
-  :root[data-theme="modern"] {
-    --primary: 213 94% 68%;
+  /* Green Theme */
+  :root[data-theme="green"] {
+    --primary: 142 76% 55%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 213 27% 90%;
-    --secondary-foreground: 213 94% 42%;
-    --accent: 142 76% 73%;
-    --accent-foreground: 142 84% 17%;
-    --ring: 213 94% 68%;
-    --radius: 1rem;
-    --shadow: 0 4px 8px -2px hsl(0 0% 0% / 0.08), 0 2px 4px -2px hsl(0 0% 0% / 0.05);
-    --shadow-md: 0 8px 16px -4px hsl(0 0% 0% / 0.08), 0 4px 8px -4px hsl(0 0% 0% / 0.05);
-    --shadow-lg: 0 16px 32px -8px hsl(0 0% 0% / 0.1), 0 8px 16px -8px hsl(0 0% 0% / 0.08);
-    --border-width: 1px;
-    --chart-1: 213 94% 68%;
-    --chart-2: 142 76% 73%;
-  }
-
-  /* Soft Theme - Rounded and gentle */
-  :root[data-theme="soft"] {
-    --primary: 142 76% 60%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 142 25% 88%;
+    --secondary: 142 20% 84%;
     --secondary-foreground: 142 76% 35%;
     --accent: 213 94% 68%;
     --accent-foreground: 213 94% 15%;
-    --ring: 142 76% 60%;
-    --radius: 1.5rem;
-    --shadow: 0 2px 12px -2px hsl(0 0% 0% / 0.05), 0 1px 4px -1px hsl(0 0% 0% / 0.03);
-    --shadow-md: 0 6px 20px -4px hsl(0 0% 0% / 0.06), 0 3px 8px -3px hsl(0 0% 0% / 0.04);
-    --shadow-lg: 0 12px 32px -8px hsl(0 0% 0% / 0.08), 0 6px 16px -6px hsl(0 0% 0% / 0.06);
-    --border-width: 0px;
-    --chart-1: 142 76% 60%;
+    --ring: 142 76% 55%;
+    --chart-1: 142 76% 55%;
     --chart-2: 213 94% 68%;
   }
 
-  /* Sharp Theme - Angular and bold */
-  :root[data-theme="sharp"] {
-    --primary: 270 95% 70%;
+  /* Purple Theme */
+  :root[data-theme="purple"] {
+    --primary: 270 95% 75%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 270 20% 85%;
-    --secondary-foreground: 270 95% 40%;
+    --secondary: 270 20% 84%;
+    --secondary-foreground: 270 95% 45%;
     --accent: 43 89% 70%;
     --accent-foreground: 43 89% 15%;
-    --ring: 270 95% 70%;
-    --radius: 0.25rem;
-    --shadow: 0 2px 4px 0 hsl(0 0% 0% / 0.12), 0 1px 2px 0 hsl(0 0% 0% / 0.08);
-    --shadow-md: 0 4px 8px 0 hsl(0 0% 0% / 0.12), 0 2px 4px 0 hsl(0 0% 0% / 0.08);
-    --shadow-lg: 0 8px 16px 0 hsl(0 0% 0% / 0.15), 0 4px 8px 0 hsl(0 0% 0% / 0.12);
-    --border-width: 2px;
-    --chart-1: 270 95% 70%;
+    --ring: 270 95% 75%;
+    --chart-1: 270 95% 75%;
     --chart-2: 43 89% 70%;
   }
 
-  /* Warm Theme - Orange and cozy */
-  :root[data-theme="warm"] {
+  /* Orange Theme */
+  :root[data-theme="orange"] {
     --primary: 25 95% 65%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 25 30% 88%;
+    --secondary: 25 20% 84%;
     --secondary-foreground: 25 95% 35%;
     --accent: 270 95% 75%;
     --accent-foreground: 270 95% 15%;
     --ring: 25 95% 65%;
-    --radius: 0.875rem;
-    --shadow: 0 3px 6px -1px hsl(25 30% 20% / 0.08), 0 1px 3px -1px hsl(25 30% 20% / 0.06);
-    --shadow-md: 0 6px 12px -2px hsl(25 30% 20% / 0.1), 0 3px 6px -2px hsl(25 30% 20% / 0.08);
-    --shadow-lg: 0 12px 24px -4px hsl(25 30% 20% / 0.12), 0 6px 12px -4px hsl(25 30% 20% / 0.1);
-    --border-width: 1px;
     --chart-1: 25 95% 65%;
     --chart-2: 270 95% 75%;
   }
 
-  /* Cool Theme - Rose and elegant */
-  :root[data-theme="cool"] {
+  /* Rose Theme */
+  :root[data-theme="rose"] {
     --primary: 340 82% 70%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 340 25% 88%;
+    --secondary: 340 20% 84%;
     --secondary-foreground: 340 82% 40%;
     --accent: 142 76% 73%;
     --accent-foreground: 142 76% 15%;
     --ring: 340 82% 70%;
-    --radius: 1.25rem;
-    --shadow: 0 4px 12px -2px hsl(340 20% 30% / 0.06), 0 2px 6px -2px hsl(340 20% 30% / 0.04);
-    --shadow-md: 0 8px 20px -4px hsl(340 20% 30% / 0.08), 0 4px 10px -4px hsl(340 20% 30% / 0.06);
-    --shadow-lg: 0 16px 32px -8px hsl(340 20% 30% / 0.1), 0 8px 16px -8px hsl(340 20% 30% / 0.08);
-    --border-width: 1px;
     --chart-1: 340 82% 70%;
     --chart-2: 142 76% 73%;
   }
 
-  /* Minimal Theme - Slate and understated */
-  :root[data-theme="minimal"] {
+  /* Slate Theme */
+  :root[data-theme="slate"] {
     --primary: 215 28% 60%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 215 15% 90%;
+    --secondary: 215 15% 84%;
     --secondary-foreground: 215 28% 30%;
     --accent: 43 89% 70%;
     --accent-foreground: 43 89% 15%;
     --ring: 215 28% 60%;
-    --radius: 0.5rem;
-    --shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.05), 0 1px 2px -1px hsl(0 0% 0% / 0.05);
-    --shadow-md: 0 2px 6px -1px hsl(0 0% 0% / 0.05), 0 1px 3px -1px hsl(0 0% 0% / 0.05);
-    --shadow-lg: 0 4px 12px -2px hsl(0 0% 0% / 0.08), 0 2px 6px -2px hsl(0 0% 0% / 0.05);
-    --border-width: 1px;
     --chart-1: 215 28% 60%;
     --chart-2: 43 89% 70%;
   }
@@ -205,13 +152,6 @@ All colors MUST be HSL.
     --input: 215 25% 27%;
     --ring: 213 94% 68%;
 
-    /* Dark mode shadows - softer and less prominent */
-    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
-    --shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.3), 0 1px 2px -1px hsl(0 0% 0% / 0.3);
-    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.3), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
-    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.3), 0 4px 6px -4px hsl(0 0% 0% / 0.3);
-    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.3), 0 8px 10px -6px hsl(0 0% 0% / 0.3);
-
     /* Chart colors for dark mode */
     --chart-1: 213 94% 68%;   
     --chart-2: 142 76% 73%;   
@@ -231,59 +171,35 @@ All colors MUST be HSL.
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  /* Dark theme variants with custom shadows */
-  .dark[data-theme="modern"] {
-    --primary: 213 94% 75%;
-    --ring: 213 94% 75%;
-    --chart-1: 213 94% 75%;
-    --shadow: 0 4px 12px -2px hsl(0 0% 0% / 0.4), 0 2px 6px -2px hsl(0 0% 0% / 0.3);
-    --shadow-md: 0 8px 20px -4px hsl(0 0% 0% / 0.4), 0 4px 10px -4px hsl(0 0% 0% / 0.3);
-    --shadow-lg: 0 16px 32px -8px hsl(0 0% 0% / 0.5), 0 8px 16px -8px hsl(0 0% 0% / 0.4);
+  /* Dark theme variants */
+  .dark[data-theme="green"] {
+    --primary: 142 76% 60%;
+    --ring: 142 76% 60%;
+    --chart-1: 142 76% 60%;
   }
 
-  .dark[data-theme="soft"] {
-    --primary: 142 76% 65%;
-    --ring: 142 76% 65%;
-    --chart-1: 142 76% 65%;
-    --shadow: 0 2px 16px -2px hsl(0 0% 0% / 0.25), 0 1px 6px -1px hsl(0 0% 0% / 0.2);
-    --shadow-md: 0 6px 24px -4px hsl(0 0% 0% / 0.3), 0 3px 10px -3px hsl(0 0% 0% / 0.25);
-    --shadow-lg: 0 12px 40px -8px hsl(0 0% 0% / 0.35), 0 6px 20px -6px hsl(0 0% 0% / 0.3);
-  }
-
-  .dark[data-theme="sharp"] {
+  .dark[data-theme="purple"] {
     --primary: 270 95% 80%;
     --ring: 270 95% 80%;
     --chart-1: 270 95% 80%;
-    --shadow: 0 2px 6px 0 hsl(0 0% 0% / 0.5), 0 1px 3px 0 hsl(0 0% 0% / 0.4);
-    --shadow-md: 0 4px 12px 0 hsl(0 0% 0% / 0.5), 0 2px 6px 0 hsl(0 0% 0% / 0.4);
-    --shadow-lg: 0 8px 20px 0 hsl(0 0% 0% / 0.6), 0 4px 12px 0 hsl(0 0% 0% / 0.5);
   }
 
-  .dark[data-theme="warm"] {
-    --primary: 25 95% 75%;
-    --ring: 25 95% 75%;
-    --chart-1: 25 95% 75%;
-    --shadow: 0 3px 8px -1px hsl(25 20% 10% / 0.4), 0 1px 4px -1px hsl(25 20% 10% / 0.3);
-    --shadow-md: 0 6px 16px -2px hsl(25 20% 10% / 0.5), 0 3px 8px -2px hsl(25 20% 10% / 0.4);
-    --shadow-lg: 0 12px 28px -4px hsl(25 20% 10% / 0.6), 0 6px 16px -4px hsl(25 20% 10% / 0.5);
+  .dark[data-theme="orange"] {
+    --primary: 25 95% 70%;
+    --ring: 25 95% 70%;
+    --chart-1: 25 95% 70%;
   }
 
-  .dark[data-theme="cool"] {
-    --primary: 340 82% 80%;
-    --ring: 340 82% 80%;
-    --chart-1: 340 82% 80%;
-    --shadow: 0 4px 16px -2px hsl(340 10% 10% / 0.3), 0 2px 8px -2px hsl(340 10% 10% / 0.25);
-    --shadow-md: 0 8px 24px -4px hsl(340 10% 10% / 0.4), 0 4px 12px -4px hsl(340 10% 10% / 0.3);
-    --shadow-lg: 0 16px 40px -8px hsl(340 10% 10% / 0.5), 0 8px 20px -8px hsl(340 10% 10% / 0.4);
+  .dark[data-theme="rose"] {
+    --primary: 340 82% 75%;
+    --ring: 340 82% 75%;
+    --chart-1: 340 82% 75%;
   }
 
-  .dark[data-theme="minimal"] {
-    --primary: 215 28% 70%;
-    --ring: 215 28% 70%;
-    --chart-1: 215 28% 70%;
-    --shadow: 0 1px 4px 0 hsl(0 0% 0% / 0.2), 0 1px 2px -1px hsl(0 0% 0% / 0.2);
-    --shadow-md: 0 2px 8px -1px hsl(0 0% 0% / 0.25), 0 1px 4px -1px hsl(0 0% 0% / 0.2);
-    --shadow-lg: 0 4px 16px -2px hsl(0 0% 0% / 0.3), 0 2px 8px -2px hsl(0 0% 0% / 0.25);
+  .dark[data-theme="slate"] {
+    --primary: 215 28% 65%;
+    --ring: 215 28% 65%;
+    --chart-1: 215 28% 65%;
   }
 }
 
@@ -294,36 +210,5 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-  }
-}
-
-@layer utilities {
-  .shadow-theme-sm {
-    box-shadow: var(--shadow-sm);
-  }
-  
-  .shadow-theme {
-    box-shadow: var(--shadow);
-  }
-  
-  .shadow-theme-md {
-    box-shadow: var(--shadow-md);
-  }
-  
-  .shadow-theme-lg {
-    box-shadow: var(--shadow-lg);
-  }
-  
-  .shadow-theme-xl {
-    box-shadow: var(--shadow-xl);
-  }
-  
-  .border-theme {
-    border-width: var(--border-width);
-    border-style: var(--border-style);
-  }
-  
-  .rounded-theme {
-    border-radius: var(--radius);
   }
 }
