@@ -32,6 +32,7 @@ export default function Settings() {
   const [preferences, setPreferences] = useState({
     dark_mode: false,
     theme_color: "blue",
+    appearance_style: "modern",
     font_size: "medium",
     push_notifications: true,
     email_notifications: true,
@@ -110,7 +111,11 @@ export default function Settings() {
     }
     
     if (data) {
-      setPreferences(data);
+      setPreferences({
+        ...preferences, // Use current preferences as base
+        ...data, // Override with database data
+        appearance_style: (data as any).appearance_style || 'modern' // Safe fallback
+      });
     }
   };
 
@@ -925,61 +930,131 @@ export default function Settings() {
                 
                 <Separator />
                 
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium">Themes</h4>
-                  <div className="space-y-2">
-                    <Label>Application Theme</Label>
-                    <Select 
-                      value={preferences.theme_color} 
-                      onValueChange={(value) => {
-                        setPreferences(prev => ({ ...prev, theme_color: value }));
-                        // Apply theme immediately
-                        document.documentElement.setAttribute('data-theme', value);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="blue">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                            Ocean Blue
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-sm font-medium mb-4">Color Theme</h4>
+                    <div className="space-y-2">
+                      <Label>Application Colors</Label>
+                      <Select 
+                        value={preferences.theme_color} 
+                        onValueChange={(value) => {
+                          setPreferences(prev => ({ ...prev, theme_color: value }));
+                          document.documentElement.setAttribute('data-theme', value);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="blue">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+                              Ocean Blue
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="green">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded-full bg-green-500"></div>
+                              Forest Green
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="purple">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded-full bg-purple-500"></div>
+                              Royal Purple
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="orange">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded-full bg-orange-500"></div>
+                              Sunset Orange
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="rose">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded-full bg-rose-500"></div>
+                              Rose Pink
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="slate">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded-full bg-slate-500"></div>
+                              Slate Gray
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <Separator />
+                  
+                  <div>
+                    <h4 className="text-sm font-medium mb-4">Appearance Style</h4>
+                    <div className="space-y-4">
+                      <Label>Visual Style</Label>
+                      <div className="grid grid-cols-1 gap-4">
+                        {[
+                          {
+                            name: "modern",
+                            label: "Modern",
+                            description: "Clean lines with subtle shadows",
+                            preview: "shadow-md rounded-md border"
+                          },
+                          {
+                            name: "minimal", 
+                            label: "Minimal",
+                            description: "Ultra-clean with sharp corners",
+                            preview: "shadow-sm rounded-sm border"
+                          },
+                          {
+                            name: "rounded",
+                            label: "Rounded", 
+                            description: "Soft curves with enhanced shadows",
+                            preview: "shadow-lg rounded-xl border-2"
+                          },
+                          {
+                            name: "elegant",
+                            label: "Elegant",
+                            description: "Refined design with balanced elements", 
+                            preview: "shadow-md rounded-lg border"
+                          }
+                        ].map((style) => (
+                          <div
+                            key={style.name}
+                            className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                              preferences.appearance_style === style.name 
+                                ? 'border-primary bg-primary/5' 
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                            onClick={() => {
+                              setPreferences(prev => ({ ...prev, appearance_style: style.name }));
+                              document.documentElement.setAttribute('data-appearance', style.name);
+                            }}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 bg-primary/20 ${style.preview}`}></div>
+                                <div>
+                                  <div className="font-medium">{style.label}</div>
+                                  <div className="text-sm text-muted-foreground">{style.description}</div>
+                                </div>
+                              </div>
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                preferences.appearance_style === style.name 
+                                  ? 'border-primary bg-primary' 
+                                  : 'border-border'
+                              }`}>
+                                {preferences.appearance_style === style.name && (
+                                  <div className="w-2 h-2 bg-white rounded-full m-auto mt-0.5"></div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </SelectItem>
-                        <SelectItem value="green">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-green-500"></div>
-                            Forest Green
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="purple">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-purple-500"></div>
-                            Royal Purple
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="orange">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-orange-500"></div>
-                            Sunset Orange
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="rose">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-rose-500"></div>
-                            Rose Pink
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="slate">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-slate-500"></div>
-                            Slate Gray
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-sm text-muted-foreground">Choose your preferred color theme for the application</p>
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Choose the overall visual style that affects shadows, borders, and corners</p>
+                    </div>
                   </div>
                 </div>
                 

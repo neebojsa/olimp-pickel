@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const useTheme = () => {
   const [theme, setTheme] = useState('blue');
+  const [appearance, setAppearance] = useState('modern');
 
   useEffect(() => {
     loadUserTheme();
@@ -18,9 +19,11 @@ export const useTheme = () => {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (!error && data?.theme_color) {
-      setTheme(data.theme_color);
-      document.documentElement.setAttribute('data-theme', data.theme_color);
+    if (!error && data) {
+      if (data.theme_color) {
+        setTheme(data.theme_color);
+        document.documentElement.setAttribute('data-theme', data.theme_color);
+      }
     }
   };
 
@@ -29,5 +32,16 @@ export const useTheme = () => {
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
-  return { theme, updateTheme, loadUserTheme };
+  const updateAppearance = (newAppearance: string) => {
+    setAppearance(newAppearance);
+    document.documentElement.setAttribute('data-appearance', newAppearance);
+  };
+
+  return { 
+    theme, 
+    appearance, 
+    updateTheme, 
+    updateAppearance, 
+    loadUserTheme 
+  };
 };

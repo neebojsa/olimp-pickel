@@ -8,35 +8,44 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Base Colors */
     --background: 210 20% 98%;
     --foreground: 224 71% 15%;
-
     --card: 0 0% 100%;
     --card-foreground: 224 71% 15%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 224 71% 15%;
-
     --primary: 213 94% 68%;
     --primary-foreground: 0 0% 98%;
-
     --secondary: 213 27% 84%;
     --secondary-foreground: 213 94% 42%;
-
     --muted: 213 27% 94%;
     --muted-foreground: 215 16% 47%;
-
     --accent: 142 76% 73%;
     --accent-foreground: 142 84% 17%;
-
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-
     --border: 213 27% 84%;
     --input: 213 27% 84%;
     --ring: 213 94% 68%;
 
+    /* Modern Design Tokens */
     --radius: 0.75rem;
+    --radius-sm: 0.5rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+    
+    /* Shadows */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+    
+    /* Borders */
+    --border-width: 1px;
+    --border-style: solid;
 
     /* Chart colors - mild and pleasant */
     --chart-1: 213 94% 68%;   /* Blue */
@@ -56,6 +65,48 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Modern Minimal Theme */
+  :root[data-appearance="minimal"] {
+    --radius: 0.25rem;
+    --radius-sm: 0.125rem;
+    --radius-lg: 0.375rem;
+    --radius-xl: 0.5rem;
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.02);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+    --shadow-md: 0 2px 4px 0 rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 4px 8px 0 rgb(0 0 0 / 0.05);
+    --shadow-xl: 0 8px 16px 0 rgb(0 0 0 / 0.06);
+    --border-width: 1px;
+  }
+
+  /* Rounded Theme */
+  :root[data-appearance="rounded"] {
+    --radius: 1rem;
+    --radius-sm: 0.75rem;
+    --radius-lg: 1.25rem;
+    --radius-xl: 2rem;
+    --shadow-xs: 0 1px 3px 0 rgb(0 0 0 / 0.08);
+    --shadow-sm: 0 2px 8px 0 rgb(0 0 0 / 0.1);
+    --shadow-md: 0 8px 16px 0 rgb(0 0 0 / 0.12);
+    --shadow-lg: 0 16px 32px 0 rgb(0 0 0 / 0.15);
+    --shadow-xl: 0 24px 48px 0 rgb(0 0 0 / 0.18);
+    --border-width: 2px;
+  }
+
+  /* Elegant Theme */
+  :root[data-appearance="elegant"] {
+    --radius: 0.5rem;
+    --radius-sm: 0.375rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --shadow-xs: 0 2px 4px 0 rgb(0 0 0 / 0.08);
+    --shadow-sm: 0 4px 12px 0 rgb(0 0 0 / 0.12);
+    --shadow-md: 0 12px 24px 0 rgb(0 0 0 / 0.15);
+    --shadow-lg: 0 20px 40px 0 rgb(0 0 0 / 0.18);
+    --shadow-xl: 0 32px 64px 0 rgb(0 0 0 / 0.22);
+    --border-width: 1px;
   }
 
   /* Green Theme */

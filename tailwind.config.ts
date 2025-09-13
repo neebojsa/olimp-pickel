@@ -74,9 +74,25 @@ export default {
 				}
 			},
 			borderRadius: {
-				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				lg: 'var(--radius-lg)',
+				md: 'var(--radius)',
+				sm: 'var(--radius-sm)',
+				xl: 'var(--radius-xl)',
+				'2xl': 'calc(var(--radius-xl) * 1.5)',
+				'3xl': 'calc(var(--radius-xl) * 2)'
+			},
+			boxShadow: {
+				'xs': 'var(--shadow-xs)',
+				'sm': 'var(--shadow-sm)',
+				'md': 'var(--shadow-md)', 
+				'lg': 'var(--shadow-lg)',
+				'xl': 'var(--shadow-xl)',
+				'inner': 'var(--shadow-inner)'
+			},
+			borderWidth: {
+				'1': 'var(--border-width)',
+				'2': 'calc(var(--border-width) * 2)',
+				'3': 'calc(var(--border-width) * 3)'
 			},
 			keyframes: {
 				'accordion-down': {
