@@ -1058,7 +1058,7 @@ export default function Invoicing() {
                 <div className="invoice-header grid grid-cols-2 gap-6 print:mb-8">
                   <div>
                      <h3 className="font-semibold mb-2 print-text-lg">Bill To:</h3>
-                     <p className="font-medium print-text-base">{selectedInvoice.customers?.name}</p>
+                     <p className="font-bold print-text-base print:font-bold">{selectedInvoice.customers?.name}</p>
                      <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.shipping_address}</p>
                   </div>
                   <div className="text-right">
