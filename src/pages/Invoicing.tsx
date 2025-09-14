@@ -1026,7 +1026,7 @@ export default function Invoicing() {
                 }
               `}</style>
               
-              <div className="print-invoice print:text-black print:bg-white print:min-h-[calc(100vh-1in)] print:flex print:flex-col space-y-6">
+              <div className="print-invoice print:text-black print:bg-white print:min-h-[calc(100vh-1in)] print:flex print:flex-col space-y-3">
                 {/* Company Header with Invoice Title */}
                 {companyInfo && <div className="company-header print:mb-6 flex justify-between items-end">
                     <div>
@@ -1055,7 +1055,7 @@ export default function Invoicing() {
                   </div>}
 
                 {/* Invoice Header */}
-                <div className="invoice-header grid grid-cols-2 gap-6 mt-3">
+                <div className="invoice-header grid grid-cols-2 gap-6">
                   <div>
                      <h3 className="mb-2 print-text-sm text-sm font-normal">Bill To:</h3>
                      <p className="font-bold print-text-base print:font-bold">{selectedInvoice.customers?.name}</p>
