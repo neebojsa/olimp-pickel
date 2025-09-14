@@ -1035,7 +1035,7 @@ export default function Invoicing() {
                         </div>}
                        <div className="text-sm print-text-sm">
                          <div className="inline-block">
-                           <p className="font-medium border-b-[2px] border-foreground print:border-black pb-1 inline-block">
+                           <p className="font-medium border-b border-foreground print:border-black pb-1 inline-block">
                              {companyInfo.legal_name || companyInfo.company_name} - {companyInfo.address} - {companyInfo.postal_code} {companyInfo.city} - BA
                            </p>
                          </div>
