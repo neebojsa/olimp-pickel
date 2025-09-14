@@ -1031,7 +1031,7 @@ export default function Invoicing() {
                 {companyInfo && <div className="company-header print:mb-6 flex justify-between items-end">
                     <div>
                       {companyInfo.logo_url && <div className="mb-3">
-                          <img src={companyInfo.logo_url} alt="Company Logo" className="h-16 print:h-20 object-contain" />
+                          <img src={companyInfo.logo_url} alt="Company Logo" className="h-11 print:h-14 object-contain" />
                         </div>}
                        <div className="text-sm print-text-sm">
                          <div className="inline-block">
