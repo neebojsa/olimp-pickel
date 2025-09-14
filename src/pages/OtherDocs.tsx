@@ -62,7 +62,8 @@ export default function OtherDocs() {
     if (!error) {
       setDocuments(prev => prev.filter(doc => doc.id !== documentId));
       toast({
-        description: "Successfully deleted",
+        title: "Document Deleted",
+        description: "The document has been successfully deleted.",
       });
     }
   };

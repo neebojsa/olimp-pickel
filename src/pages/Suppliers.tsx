@@ -83,7 +83,8 @@ export default function Suppliers() {
     if (!error) {
       setSuppliers(prev => prev.filter(supplier => supplier.id !== supplierId));
       toast({
-        description: "Successfully deleted",
+        title: "Supplier Deleted",
+        description: "The supplier has been successfully deleted.",
       });
     }
   };
