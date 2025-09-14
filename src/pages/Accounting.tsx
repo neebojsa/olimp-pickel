@@ -202,8 +202,7 @@ export default function Accounting() {
     if (!error) {
       setTransactions(prev => prev.filter(txn => txn.id !== transactionId));
       toast({
-        title: "Transaction Deleted",
-        description: "The transaction has been successfully deleted.",
+        description: "Successfully deleted",
       });
     }
   };

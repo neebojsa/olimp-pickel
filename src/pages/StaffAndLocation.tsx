@@ -266,8 +266,7 @@ const Settings = () => {
       });
     } else {
       toast({
-        title: "Success",
-        description: "Location deleted successfully"
+        description: "Successfully deleted"
       });
       fetchStockLocations();
     }
@@ -287,8 +286,7 @@ const Settings = () => {
       });
     } else {
       toast({
-        title: "Success",
-        description: "Staff member deleted successfully"
+        description: "Successfully deleted"
       });
       fetchStaff();
     }

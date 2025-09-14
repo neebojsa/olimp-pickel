@@ -109,8 +109,7 @@ export default function Customers() {
 
       setCustomers(prev => prev.filter(customer => customer.id !== customerId));
       toast({
-        title: "Customer Deleted",
-        description: "The customer has been successfully deleted.",
+        description: "Successfully deleted",
       });
     } catch (error) {
       console.error('Unexpected error:', error);
