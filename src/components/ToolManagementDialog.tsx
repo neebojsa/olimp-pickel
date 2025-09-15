@@ -380,7 +380,7 @@ export function ToolManagementDialog({
                 <div className="mb-3">
                   <Label className="text-xs font-medium text-muted-foreground mb-2 block">Karakteristike</Label>
                   <div className="flex flex-wrap gap-1">
-                    {['Length', 'Diameter', 'Radius', 'Thickness', 'Angle', 'Number of Inserts', 'Free-form'].map(preset => <Button key={preset} variant="outline" size="sm" onClick={() => addPresetSpecField(category.id, preset)} className="h-6 text-xs px-2">
+                    {['Length', 'Diameter', 'Radius', 'Thickness', 'Angle', 'Number of Inserts', 'Number of Flutes', 'Free-form'].map(preset => <Button key={preset} variant="outline" size="sm" onClick={() => addPresetSpecField(category.id, preset)} className="h-6 text-xs px-2">
                         {preset}
                       </Button>)}
                   </div>
