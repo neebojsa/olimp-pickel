@@ -17,7 +17,7 @@ import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
 import PartHistoryDialog from "@/components/PartHistoryDialog";
 import { MaterialForm, MaterialData } from "@/components/MaterialForm";
 import { ProductionStatusDialog } from "@/components/ProductionStatusDialog";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dateUtils";
 import { getCurrencyForCountry, formatCurrency } from "@/lib/currencyUtils";
 import { importInventoryFromSpreadsheet } from "@/utils/importInventory";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -799,7 +799,7 @@ export default function Inventory() {
 
       // 1. Created in system
       historyEntries.push({
-        date: format(new Date(item.created_at), 'dd/MM/yyyy'),
+        date: formatDate(item.created_at),
         time: format(new Date(item.created_at), 'HH:mm'),
         activity: 'Created in system',
         details: `Initial quantity: ${item.quantity}`,
@@ -813,7 +813,7 @@ export default function Inventory() {
       if (workOrders) {
         workOrders.forEach(wo => {
           historyEntries.push({
-            date: format(new Date(wo.created_at), 'dd/MM/yyyy'),
+            date: formatDate(wo.created_at),
             time: format(new Date(wo.created_at), 'HH:mm'),
             activity: 'Work Order Created',
             details: wo.title,
@@ -821,7 +821,7 @@ export default function Inventory() {
           });
           if (wo.status === 'completed') {
             historyEntries.push({
-              date: format(new Date(wo.updated_at), 'dd/MM/yyyy'),
+              date: formatDate(wo.updated_at),
               time: format(new Date(wo.updated_at), 'HH:mm'),
               activity: 'Work Order Completed',
               details: wo.title,
@@ -846,7 +846,7 @@ export default function Inventory() {
         invoiceItems.forEach((invoiceItem: any) => {
           if (invoiceItem.invoices) {
             historyEntries.push({
-              date: format(new Date(invoiceItem.invoices.issue_date), 'dd/MM/yyyy'),
+              date: formatDate(invoiceItem.invoices.issue_date),
               time: '09:00',
               // Default time since we don't have time in date field
               activity: 'Sold',

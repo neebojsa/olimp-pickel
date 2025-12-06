@@ -13,6 +13,7 @@ import Inventory from "./pages/Inventory";
 import WorkOrders from "./pages/WorkOrders";
 import Invoicing from "./pages/Invoicing";
 import Accounting from "./pages/Accounting";
+import CostManagement from "./pages/CostManagement";
 import Labels from "./pages/Labels";
 import Sales from "./pages/Sales";
 import Customers from "./pages/Customers";
@@ -20,6 +21,7 @@ import Suppliers from "./pages/Suppliers";
 import OtherDocs from "./pages/OtherDocs";
 import Settings from "./pages/Settings";
 import StaffAndLocation from "./pages/StaffAndLocation";
+import InvoiceView from "./pages/InvoiceView";
 import NotFound from "./pages/NotFound";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; page?: string }> = ({ children, page }) => {
@@ -83,6 +85,11 @@ const AppContent: React.FC = () => {
                   <Layout><Accounting /></Layout>
                 </ProtectedRoute>
               } />
+              <Route path="/cost-management" element={
+                <ProtectedRoute page="cost-management">
+                  <Layout><CostManagement /></Layout>
+                </ProtectedRoute>
+              } />
               <Route path="/labels" element={
                 <ProtectedRoute page="labels">
                   <Layout><Labels /></Layout>
@@ -116,6 +123,11 @@ const AppContent: React.FC = () => {
               <Route path="/staff-and-location" element={
                 <ProtectedRoute page="settings">
                   <Layout><StaffAndLocation /></Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/invoice/:id" element={
+                <ProtectedRoute page="invoicing">
+                  <InvoiceView />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

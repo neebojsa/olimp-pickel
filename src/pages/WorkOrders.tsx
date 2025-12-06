@@ -20,6 +20,8 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDate } from "@/lib/dateUtils";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 // Predefined tools and machines for suggestions
 const toolsList = [
@@ -350,6 +352,8 @@ export default function WorkOrders() {
   const [selectedPartId, setSelectedPartId] = useState("");
   const [materials, setMaterials] = useState([{ name: "", notes: "" }]);
   const [materialItems, setMaterialItems] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchWorkOrders();
@@ -550,6 +554,12 @@ export default function WorkOrders() {
     }
   };
 
+  // Pagination
+  const totalPages = Math.ceil(workOrders.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedWorkOrders = workOrders.slice(startIndex, endIndex);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -580,7 +590,7 @@ export default function WorkOrders() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {workOrders.map((workOrder) => (
+                {paginatedWorkOrders.map((workOrder) => (
                   <TableRow key={workOrder.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleWorkOrderClick(workOrder)}>
                     <TableCell className="font-medium">
                       <button className="text-primary hover:underline font-medium">
@@ -670,6 +680,42 @@ export default function WorkOrders() {
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, workOrders.length)} of {workOrders.length} work orders
+              </p>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1174,7 +1220,7 @@ export default function WorkOrders() {
 
               {/* Footer */}
               <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
-                Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+                Generated on {formatDate(new Date())} at {new Date().toLocaleTimeString()}
               </div>
             </div>
           )}

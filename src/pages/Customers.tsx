@@ -20,6 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 import { countryToCurrency } from "@/lib/currencyUtils";
+import { formatDate, formatDateForInput } from "@/lib/dateUtils";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -55,8 +57,13 @@ export default function Customers() {
     webpage: '',
     vatNumber: '',
     notes: '',
-    declarationNumbers: ''
+    declarationNumbers: '',
+    dueDate: '',
+    dapAddress: '',
+    fcoAddress: ''
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchCustomers();
@@ -80,7 +87,7 @@ export default function Customers() {
         status: "Active", // Placeholder
         totalOrders: 0, // Would calculate from invoices
         totalValue: 0, // Would calculate from invoices
-        lastOrderDate: new Date().toISOString().split('T')[0],
+        lastOrderDate: formatDateForInput(new Date()),
         paymentTerms: "Net 30", // Placeholder
         notes: "", // Placeholder
         webpage: customer.webpage || "",
@@ -151,14 +158,18 @@ export default function Customers() {
         industry: newCustomer.industry,
         webpage: newCustomer.webpage,
         vat_number: newCustomer.vatNumber,
-        declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null
+        payment_terms: newCustomer.dueDate ? parseInt(newCustomer.dueDate) : null,
+        declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null,
+        dap_address: newCustomer.dapAddress || null,
+        fco_address: newCustomer.fcoAddress || null
       }])
       .select();
 
     if (error) {
+      console.error('Save customer error:', error);
       toast({
         title: "Error",
-        description: "Failed to save customer",
+        description: `Failed to save customer: ${error.message}`,
         variant: "destructive"
       });
     } else {
@@ -177,7 +188,10 @@ export default function Customers() {
         webpage: '',
         vatNumber: '',
         notes: '',
-        declarationNumbers: ''
+        declarationNumbers: '',
+        dueDate: '',
+        dapAddress: '',
+        fcoAddress: ''
       });
       toast({
         title: "Success",
@@ -205,7 +219,10 @@ export default function Customers() {
       webpage: selectedCustomer.webpage || '',
       vatNumber: selectedCustomer.vat_number || '',
       notes: selectedCustomer.notes || '',
-      declarationNumbers: selectedCustomer.declaration_numbers?.join(', ') || ''
+      declarationNumbers: selectedCustomer.declaration_numbers?.join(', ') || '',
+      dueDate: selectedCustomer.payment_terms?.toString() || '',
+      dapAddress: selectedCustomer.dap_address || '',
+      fcoAddress: selectedCustomer.fco_address || ''
     });
     setIsCustomerDialogOpen(false);
     setIsEditCustomerOpen(true);
@@ -240,7 +257,10 @@ export default function Customers() {
         industry: newCustomer.industry,
         webpage: newCustomer.webpage,
         vat_number: newCustomer.vatNumber,
-        declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null
+        payment_terms: newCustomer.dueDate ? parseInt(newCustomer.dueDate) : null,
+        declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null,
+        dap_address: newCustomer.dapAddress || null,
+        fco_address: newCustomer.fcoAddress || null
       })
       .eq('id', selectedCustomer.id);
 
@@ -264,13 +284,17 @@ export default function Customers() {
         webpage: '',
         vatNumber: '',
         notes: '',
-        declarationNumbers: ''
+        declarationNumbers: '',
+        dueDate: '',
+        dapAddress: '',
+        fcoAddress: ''
       });
       setIsEditCustomerOpen(false);
     } else {
+      console.error('Update customer error:', error);
       toast({
         title: "Error",
-        description: "Failed to update customer",
+        description: `Failed to update customer: ${error.message}`,
         variant: "destructive"
       });
     }
@@ -307,11 +331,7 @@ export default function Customers() {
       // Date
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      const currentDate = new Date().toLocaleDateString('en-GB', { 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
-      });
+      const currentDate = formatDate(new Date());
       pdf.text(`Generated: ${currentDate}`, 20, 30);
       
       let yPosition = 50;
@@ -413,7 +433,7 @@ export default function Customers() {
       }
       
       // Save PDF
-      const fileName = `Stock_Report_${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Stock_Report_${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}_${formatDateForInput(new Date())}.pdf`;
       pdf.save(fileName);
       
       toast({
@@ -430,6 +450,12 @@ export default function Customers() {
       });
     }
   };
+
+  // Pagination
+  const totalPages = Math.ceil(customers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCustomers = customers.slice(startIndex, endIndex);
 
   return (
     <div className="p-6 space-y-6">
@@ -517,6 +543,19 @@ export default function Customers() {
                   onChange={(e) => setNewCustomer({...newCustomer, vatNumber: e.target.value})}
                 />
               </div>
+              <div>
+                <Label>Payment Terms</Label>
+                <Input 
+                  type="number"
+                  placeholder="Enter payment terms in days" 
+                  value={newCustomer.dueDate}
+                  onChange={(e) => setNewCustomer({...newCustomer, dueDate: e.target.value})}
+                  min="0"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Payment terms in days (e.g., 30 for Net 30)
+                </p>
+              </div>
               <div className="col-span-2">
                 <Label>Address</Label>
                 <Input 
@@ -550,6 +589,28 @@ export default function Customers() {
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Enter multiple declaration numbers separated by commas (e.g., "DEC001, DEC002")
+                </p>
+              </div>
+              <div className="col-span-2">
+                <Label>DAP Address</Label>
+                <Input 
+                  placeholder="Enter DAP delivery address" 
+                  value={newCustomer.dapAddress}
+                  onChange={(e) => setNewCustomer({...newCustomer, dapAddress: e.target.value})}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Address to use when DAP incoterm is selected in invoices
+                </p>
+              </div>
+              <div className="col-span-2">
+                <Label>FCO Address</Label>
+                <Input 
+                  placeholder="Enter FCO delivery address" 
+                  value={newCustomer.fcoAddress}
+                  onChange={(e) => setNewCustomer({...newCustomer, fcoAddress: e.target.value})}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Address to use when FCO incoterm is selected in invoices
                 </p>
               </div>
               <div className="col-span-2">
@@ -594,7 +655,7 @@ export default function Customers() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customers.map((customer) => (
+                {paginatedCustomers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell>
                       <button 
@@ -664,6 +725,42 @@ export default function Customers() {
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, customers.length)} of {customers.length} customers
+              </p>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -695,8 +792,25 @@ export default function Customers() {
                       <p className="font-medium">{selectedCustomer.industry}</p>
                     </div>
                     <div>
+                      <p className="text-sm text-muted-foreground">Address</p>
+                      <p className="font-medium">{selectedCustomer.address}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">City</p>
+                      <p className="font-medium">{selectedCustomer.city}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Country</p>
+                      <p className="font-medium">{selectedCustomer.country}</p>
+                    </div>
+                    <div>
                       <p className="text-sm text-muted-foreground">Payment Terms</p>
-                      <p className="font-medium">{selectedCustomer.paymentTerms}</p>
+                      <p className="font-medium">
+                        {selectedCustomer.payment_terms 
+                          ? `Net ${selectedCustomer.payment_terms} days`
+                          : 'Not set'
+                        }
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
@@ -733,10 +847,6 @@ export default function Customers() {
                       <a href={selectedCustomer.webpage} target="_blank" rel="noopener noreferrer" className="hover:underline">
                         {selectedCustomer.webpage}
                       </a>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                      <span className="text-sm">{selectedCustomer.address}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -928,6 +1038,44 @@ export default function Customers() {
                 onChange={(e) => setNewCustomer(prev => ({ ...prev, vatNumber: e.target.value }))}
                 placeholder="Enter VAT number"
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-payment-terms">Payment Terms</Label>
+              <Input
+                id="edit-payment-terms"
+                type="number"
+                value={newCustomer.dueDate}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, dueDate: e.target.value }))}
+                placeholder="Enter payment terms in days"
+                min="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                Payment terms in days (e.g., 30 for Net 30)
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-dap-address">DAP Address</Label>
+              <Input
+                id="edit-dap-address"
+                value={newCustomer.dapAddress}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, dapAddress: e.target.value }))}
+                placeholder="Enter DAP delivery address"
+              />
+              <p className="text-xs text-muted-foreground">
+                Address to use when DAP incoterm is selected in invoices
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-fco-address">FCO Address</Label>
+              <Input
+                id="edit-fco-address"
+                value={newCustomer.fcoAddress}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, fcoAddress: e.target.value }))}
+                placeholder="Enter FCO delivery address"
+              />
+              <p className="text-xs text-muted-foreground">
+                Address to use when FCO incoterm is selected in invoices
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-declaration-numbers">Declaration Numbers</Label>

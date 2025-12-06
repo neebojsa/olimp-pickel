@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
   Users, 
   BarChart3,
   Filter,
-  Download
+  RefreshCcw
 } from "lucide-react";
 import {
   ChartContainer,
@@ -42,46 +42,11 @@ import {
   Area,
   AreaChart,
 } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/currencyUtils";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
-// Mock data for sales analytics
-const salesData = [
-  { month: "Jan", revenue: 45000, orders: 156, customers: 89, parts: 234 },
-  { month: "Feb", revenue: 52000, orders: 178, customers: 102, parts: 267 },
-  { month: "Mar", revenue: 48000, orders: 165, customers: 95, parts: 245 },
-  { month: "Apr", revenue: 61000, orders: 203, customers: 118, parts: 312 },
-  { month: "May", revenue: 55000, orders: 187, customers: 107, parts: 278 },
-  { month: "Jun", revenue: 67000, orders: 221, customers: 134, parts: 345 },
-  { month: "Jul", revenue: 72000, orders: 245, customers: 142, parts: 389 },
-  { month: "Aug", revenue: 68000, orders: 234, customers: 138, parts: 367 },
-  { month: "Sep", revenue: 74000, orders: 256, customers: 151, parts: 401 },
-  { month: "Oct", revenue: 69000, orders: 238, customers: 145, parts: 378 },
-  { month: "Nov", revenue: 78000, orders: 267, customers: 162, parts: 423 },
-  { month: "Dec", revenue: 85000, orders: 289, customers: 175, parts: 456 },
-];
-
-const customerSalesData = [
-  { name: "Acme Corp", revenue: 125000, orders: 45, parts: 189, country: "USA" },
-  { name: "Tech Solutions", revenue: 98000, orders: 32, parts: 142, country: "Canada" },
-  { name: "Global Industries", revenue: 87000, orders: 28, parts: 134, country: "UK" },
-  { name: "Precision Manufacturing", revenue: 76000, orders: 24, parts: 98, country: "Germany" },
-  { name: "Innovation Labs", revenue: 65000, orders: 21, parts: 87, country: "France" },
-];
-
-const partSalesData = [
-  { name: "Precision Bracket", revenue: 145000, quantity: 1250, category: "Brackets" },
-  { name: "Custom Housing", revenue: 98000, quantity: 780, category: "Housings" },
-  { name: "Machined Shaft", revenue: 87000, quantity: 650, category: "Shafts" },
-  { name: "CNC Plate", revenue: 76000, quantity: 890, category: "Plates" },
-  { name: "Aluminum Mount", revenue: 65000, quantity: 420, category: "Mounts" },
-];
-
-const pieChartData = [
-  { name: "Brackets", value: 35, fill: "hsl(var(--chart-1))" },
-  { name: "Housings", value: 25, fill: "hsl(var(--chart-2))" },
-  { name: "Shafts", value: 20, fill: "hsl(var(--chart-3))" },
-  { name: "Plates", value: 12, fill: "hsl(var(--chart-4))" },
-  { name: "Mounts", value: 8, fill: "hsl(var(--chart-5))" },
-];
+const monthLabels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] as const;
 
 const chartConfig = {
   revenue: { label: "Revenue", color: "hsl(var(--chart-1))" },
@@ -91,32 +56,139 @@ const chartConfig = {
 };
 
 export default function Sales() {
-  const [selectedYear, setSelectedYear] = useState("2024");
+  const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedCustomer, setSelectedCustomer] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [activeTab, setActiveTab] = useState("overview");
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [customerPage, setCustomerPage] = useState(1);
+  const [partPage, setPartPage] = useState(1);
+  const itemsPerPage = 10;
 
-  // Filter data based on selections
-  const filteredData = useMemo(() => {
-    let filtered = [...salesData];
-    
-    if (selectedMonth !== "all") {
-      filtered = filtered.filter(item => item.month === selectedMonth);
-    }
-    
-    return filtered;
-  }, [selectedMonth]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: invoiceData } = await supabase
+        .from('invoices')
+        .select(`*, customers!inner(id,name,country), invoice_items!fk_invoice_items_invoice(*)`)
+        .order('created_at', { ascending: true });
+      if (invoiceData) setInvoices(invoiceData as any[]);
 
-  const totalRevenue = filteredData.reduce((sum, item) => sum + item.revenue, 0);
-  const totalOrders = filteredData.reduce((sum, item) => sum + item.orders, 0);
-  const totalCustomers = filteredData.reduce((sum, item) => sum + item.customers, 0);
-  const avgOrderValue = totalRevenue / totalOrders;
+      const { data: inventory } = await supabase.from('inventory').select('*');
+      if (inventory) setInventoryItems(inventory as any[]);
+    };
+    fetchData();
+  }, []);
 
-  const revenueGrowth = filteredData.length > 1 
-    ? ((filteredData[filteredData.length - 1].revenue - filteredData[0].revenue) / filteredData[0].revenue * 100)
+  // Compute analytics from invoices and items
+  const { monthlyData, customerData, partData, categoryPieData, totalsByCurrency, ordersByCurrency } = useMemo(() => {
+    const isAllYears = selectedYear === 'all';
+    const yearNum = isAllYears ? undefined : parseInt(selectedYear, 10);
+    const rangeFrom = dateRange.from?.getTime();
+    const rangeTo = dateRange.to?.getTime();
+
+    const filteredInvoices = invoices.filter(inv => {
+      const issue = new Date(inv.issue_date || inv.created_at).getTime();
+      const yearOk = isAllYears ? true : new Date(inv.issue_date || inv.created_at).getFullYear() === yearNum;
+      const rangeOk = (!rangeFrom || issue >= rangeFrom) && (!rangeTo || issue <= rangeTo);
+      const customerOk = selectedCustomer === 'all' || inv.customers?.name === selectedCustomer;
+      return yearOk && rangeOk && customerOk;
+    });
+
+    const monthlyMap: Record<string, { month: string; revenue: number; orders: number; customers: number; parts: number; }> = {};
+    const seenCustomersByMonth: Record<string, Set<string>> = {};
+    monthLabels.forEach((m, idx) => {
+      const key = isAllYears ? `${idx+1}` : `${yearNum}-${idx+1}`;
+      monthlyMap[key] = { month: m, revenue: 0, orders: 0, customers: 0, parts: 0 };
+      seenCustomersByMonth[key] = new Set();
+    });
+
+    const customerMap: Record<string, { name: string; revenueTotal: number; revenueByCurrency: Record<string, number>; orders: number; parts: number; country?: string }> = {};
+    const partMap: Record<string, { name: string; revenueTotal: number; revenueByCurrency: Record<string, number>; quantity: number; category: string }> = {};
+    const totalsByCurrency: Record<string, number> = {};
+    const ordersByCurrency: Record<string, number> = {};
+
+    filteredInvoices.forEach(inv => {
+      const d = new Date(inv.issue_date || inv.created_at);
+      const key = isAllYears ? `${d.getMonth()+1}` : `${d.getFullYear()}-${d.getMonth()+1}`;
+      const customerName = inv.customers?.name || 'Unknown';
+
+      if (monthlyMap[key]) {
+        monthlyMap[key].revenue += inv.amount || 0;
+        monthlyMap[key].orders += 1;
+        if (!seenCustomersByMonth[key].has(customerName)) {
+          seenCustomersByMonth[key].add(customerName);
+          monthlyMap[key].customers += 1;
+        }
+        const partsQty = (inv.invoice_items || []).reduce((s: number, it: any) => s + (it.quantity || 0), 0);
+        monthlyMap[key].parts += partsQty;
+      }
+
+      if (!customerMap[customerName]) {
+        customerMap[customerName] = { name: customerName, revenueTotal: 0, revenueByCurrency: {}, orders: 0, parts: 0, country: inv.customers?.country };
+      }
+      const invCurrency = inv.currency || 'EUR';
+      customerMap[customerName].revenueTotal += inv.amount || 0;
+      customerMap[customerName].revenueByCurrency[invCurrency] = (customerMap[customerName].revenueByCurrency[invCurrency] || 0) + (inv.amount || 0);
+      totalsByCurrency[invCurrency] = (totalsByCurrency[invCurrency] || 0) + (inv.amount || 0);
+      ordersByCurrency[invCurrency] = (ordersByCurrency[invCurrency] || 0) + 1;
+      customerMap[customerName].orders += 1;
+      customerMap[customerName].parts += (inv.invoice_items || []).reduce((s: number, it: any) => s + (it.quantity || 0), 0);
+
+      (inv.invoice_items || []).forEach((it: any) => {
+        const name = it.description || 'Unknown';
+        const inventory = inventoryItems.find((x: any) => x.name === name);
+        const category = inventory?.category || 'Unknown';
+        if (!partMap[name]) {
+          partMap[name] = { name, revenueTotal: 0, revenueByCurrency: {}, quantity: 0, category };
+        }
+        const itemTotal = it.total || (it.unit_price || 0) * (it.quantity || 0);
+        partMap[name].revenueTotal += itemTotal;
+        const cur = inv.currency || 'EUR';
+        partMap[name].revenueByCurrency[cur] = (partMap[name].revenueByCurrency[cur] || 0) + itemTotal;
+        partMap[name].quantity += it.quantity || 0;
+        if (!partMap[name].category && category) partMap[name].category = category;
+      });
+    });
+
+    let monthlyData = Object.values(monthlyMap);
+    if (selectedMonth !== 'all') monthlyData = monthlyData.filter(m => m.month === selectedMonth);
+
+    let customerData = Object.values(customerMap).sort((a,b) => b.revenueTotal - a.revenueTotal).slice(0, 20);
+    if (selectedCustomer !== 'all') customerData = customerData.filter(c => c.name === selectedCustomer);
+
+    let partData = Object.values(partMap).sort((a,b) => b.revenueTotal - a.revenueTotal).slice(0, 50);
+    if (selectedCategory !== 'all') partData = partData.filter(p => p.category === selectedCategory);
+
+    const categoryMap: Record<string, number> = {};
+    partData.forEach(p => { categoryMap[p.category || 'Unknown'] = (categoryMap[p.category || 'Unknown'] || 0) + p.revenueTotal; });
+    const colors = ["hsl(var(--chart-1))","hsl(var(--chart-2))","hsl(var(--chart-3))","hsl(var(--chart-4))","hsl(var(--chart-5))"];
+    const categoryPieData = Object.entries(categoryMap).map(([name, value], idx) => ({ name, value, fill: colors[idx % colors.length] }));
+
+    return { monthlyData, customerData, partData, categoryPieData, totalsByCurrency, ordersByCurrency };
+  }, [invoices, inventoryItems, selectedYear, selectedMonth, selectedCustomer, selectedCategory, dateRange.from, dateRange.to]);
+
+  const totalOrders = monthlyData.reduce((sum, item) => sum + item.orders, 0);
+  const totalCustomers = monthlyData.reduce((sum, item) => sum + item.customers, 0);
+  const avgsByCurrency = Object.fromEntries(Object.entries(totalsByCurrency).map(([cur, amount]) => [cur, (ordersByCurrency[cur] || 0) ? (amount as number) / (ordersByCurrency[cur] as number) : 0]));
+
+  const revenueGrowth = monthlyData.length > 1 
+    ? ((monthlyData[monthlyData.length - 1].revenue - monthlyData[0].revenue) / Math.max(monthlyData[0].revenue, 1) * 100)
     : 0;
+
+  // Customer pagination
+  const totalCustomerPages = Math.ceil(customerData.length / itemsPerPage);
+  const customerStartIndex = (customerPage - 1) * itemsPerPage;
+  const customerEndIndex = customerStartIndex + itemsPerPage;
+  const paginatedCustomers = customerData.slice(customerStartIndex, customerEndIndex);
+
+  // Part pagination
+  const totalPartPages = Math.ceil(partData.length / itemsPerPage);
+  const partStartIndex = (partPage - 1) * itemsPerPage;
+  const partEndIndex = partStartIndex + itemsPerPage;
+  const paginatedParts = partData.slice(partStartIndex, partEndIndex);
 
   return (
     <div className="p-6 space-y-6">
@@ -130,10 +202,11 @@ export default function Sales() {
         
         <div className="flex flex-wrap items-center gap-2">
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-24">
+            <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
               <SelectItem value="2024">2024</SelectItem>
               <SelectItem value="2023">2023</SelectItem>
               <SelectItem value="2022">2022</SelectItem>
@@ -146,9 +219,9 @@ export default function Sales() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Months</SelectItem>
-              {salesData.map((item) => (
-                <SelectItem key={item.month} value={item.month}>
-                  {item.month}
+              {monthLabels.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -160,9 +233,9 @@ export default function Sales() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Customers</SelectItem>
-              {customerSalesData.map((customer) => (
-                <SelectItem key={customer.name} value={customer.name}>
-                  {customer.name}
+              {Array.from(new Set(invoices.map(inv => inv.customers?.name).filter(Boolean))).map((name) => (
+                <SelectItem key={name as string} value={name as string}>
+                  {name as string}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -174,17 +247,22 @@ export default function Sales() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="Brackets">Brackets</SelectItem>
-              <SelectItem value="Housings">Housings</SelectItem>
-              <SelectItem value="Shafts">Shafts</SelectItem>
-              <SelectItem value="Plates">Plates</SelectItem>
-              <SelectItem value="Mounts">Mounts</SelectItem>
+              {Array.from(new Set(inventoryItems.map((i: any) => i.category))).map(cat => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export
+          <Button variant="outline" size="icon" className="rounded-full h-9 w-9" title="Reset Filters" onClick={() => {
+            setSelectedYear('all');
+            setSelectedMonth('all');
+            setSelectedCustomer('all');
+            setSelectedCategory('all');
+            setDateRange({});
+          }}>
+            <RefreshCcw className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -197,7 +275,11 @@ export default function Sales() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold space-y-1">
+              {Object.entries(totalsByCurrency).map(([cur, amount]) => (
+                <div key={cur}>{formatCurrency(amount as number, cur as string)}</div>
+              ))}
+            </div>
             <div className="flex items-center text-xs text-muted-foreground">
               {revenueGrowth >= 0 ? (
                 <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
@@ -220,7 +302,7 @@ export default function Sales() {
           <CardContent>
             <div className="text-2xl font-bold">{totalOrders.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Avg: {(totalOrders / Math.max(filteredData.length, 1)).toFixed(0)} per month
+              Avg: {(totalOrders / Math.max(monthlyData.length, 1)).toFixed(0)} per month
             </p>
           </CardContent>
         </Card>
@@ -244,10 +326,12 @@ export default function Sales() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${avgOrderValue.toFixed(0)}</div>
-            <p className="text-xs text-muted-foreground">
-              Revenue per order
-            </p>
+            <div className="text-2xl font-bold space-y-1">
+              {Object.entries(avgsByCurrency).map(([cur, avg]) => (
+                <div key={cur}>{formatCurrency(Math.round(avg as number), cur as string)}</div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Revenue per order</p>
           </CardContent>
         </Card>
       </div>
@@ -270,7 +354,7 @@ export default function Sales() {
               </CardHeader>
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px]">
-                  <AreaChart data={filteredData}>
+                  <AreaChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
@@ -296,14 +380,14 @@ export default function Sales() {
                 <ChartContainer config={chartConfig} className="h-[300px]">
                   <PieChart>
                     <Pie
-                      data={pieChartData}
+                      data={categoryPieData}
                       cx="50%"
                       cy="50%"
                       outerRadius={80}
                       dataKey="value"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
-                      {pieChartData.map((entry, index) => (
+                      {categoryPieData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
@@ -321,7 +405,7 @@ export default function Sales() {
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[400px]">
-                <BarChart data={filteredData}>
+                <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
@@ -344,7 +428,7 @@ export default function Sales() {
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[400px]">
-                <BarChart data={customerSalesData} layout="horizontal">
+                <BarChart data={customerData} layout="horizontal">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
                   <YAxis dataKey="name" type="category" width={150} />
@@ -362,12 +446,12 @@ export default function Sales() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {customerSalesData.map((customer, index) => (
+                {paginatedCustomers.map((customer, index) => (
                   <div key={customer.name} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{customer.name}</h3>
-                        <Badge variant="outline">{customer.country}</Badge>
+                        <Badge variant="outline">{customer.country || '—'}</Badge>
                       </div>
                       <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
                         <span>{customer.orders} orders</span>
@@ -375,14 +459,63 @@ export default function Sales() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold">${customer.revenue.toLocaleString()}</div>
+                      <div className="text-lg font-bold">
+                        {Object.entries(customer.revenueByCurrency).map(([cur, amount]) => (
+                          <span key={cur} className="block">{formatCurrency(amount, cur as string)}</span>
+                        ))}
+                      </div>
                       <div className="text-sm text-muted-foreground">
-                        ${Math.round(customer.revenue / customer.orders)} avg
+                        Avg per order:
+                        {customer.orders ? (
+                          <>
+                            {Object.entries(customer.revenueByCurrency).map(([cur, amount]) => (
+                              <span key={cur} className="block">{formatCurrency(Math.round((amount as number) / customer.orders), cur as string)}</span>
+                            ))}
+                          </>
+                        ) : (
+                          <span className="block">{formatCurrency(0, 'EUR')}</span>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+              
+              {/* Pagination Controls for Customers */}
+              {totalCustomerPages > 1 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {customerStartIndex + 1} to {Math.min(customerEndIndex, customerData.length)} of {customerData.length} customers
+                  </p>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setCustomerPage(p => Math.max(1, p - 1))}
+                          className={customerPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalCustomerPages }, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => setCustomerPage(page)}
+                            isActive={customerPage === page}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setCustomerPage(p => Math.min(totalCustomerPages, p + 1))}
+                          className={customerPage === totalCustomerPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -395,7 +528,7 @@ export default function Sales() {
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[400px]">
-                <BarChart data={partSalesData}>
+                <BarChart data={partData.map(p => ({ ...p, revenue: p.revenueTotal }))}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
                   <YAxis />
@@ -413,26 +546,75 @@ export default function Sales() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {partSalesData.map((part, index) => (
+                {paginatedParts.map((part, index) => (
                   <div key={part.name} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{part.name}</h3>
-                        <Badge variant="secondary">{part.category}</Badge>
+                        <Badge variant="secondary">{part.category || 'Unknown'}</Badge>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">
                         {part.quantity} units sold
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold">${part.revenue.toLocaleString()}</div>
+                      <div className="text-lg font-bold">
+                        {Object.entries(part.revenueByCurrency).map(([cur, amount]) => (
+                          <span key={cur} className="block">{formatCurrency(amount as number, cur as string)}</span>
+                        ))}
+                      </div>
                       <div className="text-sm text-muted-foreground">
-                        ${Math.round(part.revenue / part.quantity)} per unit
+                        Per unit:
+                        {part.quantity ? (
+                          <>
+                            {Object.entries(part.revenueByCurrency).map(([cur, amount]) => (
+                              <span key={cur} className="block">{formatCurrency(Math.round((amount as number) / part.quantity), cur as string)}</span>
+                            ))}
+                          </>
+                        ) : (
+                          <span className="block">{formatCurrency(0, 'EUR')}</span>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+              
+              {/* Pagination Controls for Parts */}
+              {totalPartPages > 1 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {partStartIndex + 1} to {Math.min(partEndIndex, partData.length)} of {partData.length} parts
+                  </p>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setPartPage(p => Math.max(1, p - 1))}
+                          className={partPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalPartPages }, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => setPartPage(page)}
+                            isActive={partPage === page}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setPartPage(p => Math.min(totalPartPages, p + 1))}
+                          className={partPage === totalPartPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -445,7 +627,7 @@ export default function Sales() {
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[400px]">
-                <LineChart data={filteredData}>
+                <LineChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis yAxisId="left" />
@@ -480,8 +662,8 @@ export default function Sales() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {filteredData.slice(1).map((item, index) => {
-                    const prevRevenue = filteredData[index].revenue;
+                  {monthlyData.slice(1).map((item, index) => {
+                    const prevRevenue = monthlyData[index].revenue;
                     const growth = ((item.revenue - prevRevenue) / prevRevenue * 100);
                     return (
                       <div key={item.month} className="flex items-center justify-between">
@@ -513,26 +695,26 @@ export default function Sales() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Best Month (Revenue)</span>
                     <Badge variant="outline">
-                      {filteredData.reduce((max, item) => 
-                        item.revenue > max.revenue ? item : max, filteredData[0]
+                      {monthlyData.reduce((max, item) => 
+                        item.revenue > max.revenue ? item : max, monthlyData[0] || { month: '-', revenue: 0 }
                       ).month}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Best Month (Orders)</span>
                     <Badge variant="outline">
-                      {filteredData.reduce((max, item) => 
-                        item.orders > max.orders ? item : max, filteredData[0]
+                      {monthlyData.reduce((max, item) => 
+                        item.orders > max.orders ? item : max, monthlyData[0] || { month: '-', orders: 0 }
                       ).month}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Top Customer</span>
-                    <Badge variant="outline">{customerSalesData[0].name}</Badge>
+                    <Badge variant="outline">{customerData[0]?.name || '—'}</Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Top Part</span>
-                    <Badge variant="outline">{partSalesData[0].name}</Badge>
+                    <Badge variant="outline">{partData[0]?.name || '—'}</Badge>
                   </div>
                 </div>
               </CardContent>

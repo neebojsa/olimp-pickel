@@ -2,7 +2,7 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, Package, Wrench, ShoppingCart, TrendingUp, FileText, Printer } from "lucide-react";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dateUtils";
 
 interface HistoryEntry {
   date: string;

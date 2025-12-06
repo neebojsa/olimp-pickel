@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DollarSign, Plus, Search, TrendingUp, TrendingDown, Calculator, FileText, Trash2, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateForInput } from "@/lib/dateUtils";
 
 // Mock accounting data
 const mockTransactions = [
@@ -122,7 +123,7 @@ export default function Accounting() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: formatDateForInput(new Date()),
     type: '',
     description: '',
     category: '',
@@ -179,7 +180,7 @@ export default function Accounting() {
       await fetchTransactions();
       setIsAddTransactionOpen(false);
       setNewTransaction({
-        date: new Date().toISOString().split('T')[0],
+        date: formatDateForInput(new Date()),
         type: '',
         description: '',
         category: '',

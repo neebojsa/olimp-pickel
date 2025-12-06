@@ -46,7 +46,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         token: sessionToken
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check for connection errors
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+          console.error('Connection error - Supabase may be unreachable:', error);
+          // Don't remove token on connection error, might be temporary
+          setIsLoading(false);
+          return;
+        }
+        throw error;
+      }
 
       const result = data as any;
       if (result.success) {
@@ -55,9 +64,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         localStorage.removeItem('staff_token');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Session verification error:', error);
-      localStorage.removeItem('staff_token');
+      // Only remove token if it's an auth error, not a connection error
+      if (error?.message && !error.message.includes('Failed to fetch') && !error.message.includes('NetworkError')) {
+        localStorage.removeItem('staff_token');
+      }
     } finally {
       setIsLoading(false);
     }

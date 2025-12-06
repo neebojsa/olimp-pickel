@@ -16,9 +16,11 @@ import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, CreditCard } from 
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateForInput } from "@/lib/dateUtils";
 import { useToast } from "@/hooks/use-toast";
 import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 import { getCurrencyForCountry } from "@/lib/currencyUtils";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -54,6 +56,8 @@ export default function Suppliers() {
     country: '',
     currency: 'EUR'
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchSuppliers();
@@ -67,7 +71,7 @@ export default function Suppliers() {
         status: "Active", // Placeholder
         totalOrders: 0, // Would calculate from inventory purchases
         totalValue: 0, // Would calculate from inventory purchases
-        lastOrderDate: new Date().toISOString().split('T')[0],
+        lastOrderDate: formatDateForInput(new Date()),
         category: "General" // Placeholder
       }));
       setSuppliers(formattedSuppliers);
@@ -236,6 +240,12 @@ export default function Suppliers() {
     setNewSupplier({ ...newSupplier, country, currency });
   };
 
+  // Pagination
+  const totalPages = Math.ceil(suppliers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedSuppliers = suppliers.slice(startIndex, endIndex);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -382,7 +392,7 @@ export default function Suppliers() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {suppliers.map((supplier) => (
+                {paginatedSuppliers.map((supplier) => (
                   <TableRow key={supplier.id}>
                     <TableCell>
                       <button 
@@ -441,6 +451,42 @@ export default function Suppliers() {
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, suppliers.length)} of {suppliers.length} suppliers
+              </p>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 

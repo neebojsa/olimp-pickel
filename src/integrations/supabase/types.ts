@@ -368,6 +368,7 @@ export type Database = {
           notes: string | null
           order_number: string | null
           packing: number | null
+          paid_date: string | null
           shipping_address: string | null
           shipping_date: string | null
           status: string
@@ -392,6 +393,7 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           packing?: number | null
+          paid_date?: string | null
           shipping_address?: string | null
           shipping_date?: string | null
           status?: string
@@ -416,6 +418,7 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           packing?: number | null
+          paid_date?: string | null
           shipping_address?: string | null
           shipping_date?: string | null
           status?: string
