@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { FileDown, Settings, Printer } from "lucide-react";
+import { FileDown, Settings } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -131,11 +131,11 @@ export default function InvoiceView() {
     primaryColor: '#000000',
     domesticFooter: ['', '', ''],
     foreignFooter: ['', '', ''],
+    foreignNote: '',
     signatory: ''
   });
   const [loading, setLoading] = useState(true);
   const [generatingPDF, setGeneratingPDF] = useState(false);
-  const [printingInvoice, setPrintingInvoice] = useState(false);
   const [pdfSettings, setPdfSettings] = useState({
     scale: 4, // Higher scale = better quality (2-5 recommended)
     quality: 0.98, // Image quality (0-1)
@@ -213,6 +213,7 @@ export default function InvoiceView() {
             settingsData.foreign_footer_column2 || '',
             settingsData.foreign_footer_column3 || ''
           ],
+          foreignNote: settingsData.foreign_note || '',
           signatory: settingsData.signatory || ''
         });
       }
@@ -346,176 +347,6 @@ export default function InvoiceView() {
     }
   };
 
-  const printInvoice = async () => {
-    if (!invoiceContainerRef.current || !invoice) {
-      return;
-    }
-
-    setPrintingInvoice(true);
-    try {
-      const container = invoiceContainerRef.current;
-      const pages = container.querySelectorAll('.print-invoice-page');
-      
-      // Create a new window for printing
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        alert('Please allow popups to print the invoice');
-        return;
-      }
-
-      // Write HTML structure to print window
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Invoice ${invoice.invoice_number}</title>
-            <style>
-              @page {
-                margin: 0;
-                size: A4;
-              }
-              body {
-                margin: 0;
-                padding: 0;
-                background: white;
-              }
-              .invoice-page {
-                width: 210mm;
-                min-height: 297mm;
-                page-break-after: always;
-                margin: 0;
-                padding: 0;
-              }
-              .invoice-page:last-child {
-                page-break-after: auto;
-              }
-              img {
-                width: 100%;
-                height: auto;
-                display: block;
-              }
-            </style>
-          </head>
-          <body>
-      `);
-
-      // Convert each page to canvas and add to print window
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i] as HTMLElement;
-        
-        // Create a temporary container for this page
-        const tempContainer = document.createElement('div');
-        tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '-9999px';
-        tempContainer.style.width = '210mm';
-        tempContainer.style.backgroundColor = 'white';
-        tempContainer.style.fontSize = '16px';
-        tempContainer.appendChild(page.cloneNode(true));
-        document.body.appendChild(tempContainer);
-
-        // Convert to canvas
-        const mmToPixels = (mm: number) => (mm * 96) / 25.4;
-        const baseWidthPx = mmToPixels(210);
-        const baseHeightPx = mmToPixels(297);
-
-        const canvas = await html2canvas(tempContainer, {
-          scale: 2, // Good quality for printing
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          width: baseWidthPx,
-          height: baseHeightPx,
-          windowWidth: baseWidthPx,
-          windowHeight: baseHeightPx,
-          allowTaint: false,
-        });
-
-        // Get image data
-        const imgData = canvas.toDataURL('image/png');
-        
-        // Add image to print window
-        printWindow.document.write(`
-          <div class="invoice-page">
-            <img src="${imgData}" alt="Invoice Page ${i + 1}" />
-          </div>
-        `);
-
-        // Clean up
-        document.body.removeChild(tempContainer);
-      }
-
-      // Close the document and trigger print
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-      
-      // Wait for images to load, then print
-      const waitForImages = () => {
-        const images = printWindow.document.querySelectorAll('img');
-        let loadedCount = 0;
-        const totalImages = images.length;
-        
-        if (totalImages === 0) {
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.onafterprint = () => {
-              printWindow.close();
-            };
-          }, 250);
-          return;
-        }
-        
-        images.forEach((img) => {
-          if (img.complete) {
-            loadedCount++;
-          } else {
-            img.onload = () => {
-              loadedCount++;
-              if (loadedCount === totalImages) {
-                setTimeout(() => {
-                  printWindow.print();
-                  printWindow.onafterprint = () => {
-                    printWindow.close();
-                  };
-                }, 250);
-              }
-            };
-            img.onerror = () => {
-              loadedCount++;
-              if (loadedCount === totalImages) {
-                setTimeout(() => {
-                  printWindow.print();
-                  printWindow.onafterprint = () => {
-                    printWindow.close();
-                  };
-                }, 250);
-              }
-            };
-          }
-        });
-        
-        if (loadedCount === totalImages) {
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.onafterprint = () => {
-              printWindow.close();
-            };
-          }, 250);
-        }
-      };
-      
-      if (printWindow.document.readyState === 'complete') {
-        waitForImages();
-      } else {
-        printWindow.onload = waitForImages;
-      }
-    } catch (error) {
-      console.error('Error printing invoice:', error);
-      alert('Failed to print invoice. Please try again.');
-    } finally {
-      setPrintingInvoice(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -586,22 +417,22 @@ export default function InvoiceView() {
 
           .invoice-preview-scale .text-xs,
           .invoice-preview-scale .print-text-xs {
-            font-size: 0.6rem !important;
+            font-size: 0.642rem !important;
           }
 
           .invoice-preview-scale .text-sm,
           .invoice-preview-scale .print-text-sm {
-            font-size: 0.7rem !important;
+            font-size: 0.749rem !important;
           }
 
           .invoice-preview-scale .text-base,
           .invoice-preview-scale .print-text-base {
-            font-size: 0.8rem !important;
+            font-size: 0.856rem !important;
           }
 
           .invoice-preview-scale .text-lg,
           .invoice-preview-scale .print-text-lg {
-            font-size: 0.9rem !important;
+            font-size: 0.963rem !important;
           }
 
           .invoice-preview-scale .invoice-logo {
@@ -760,22 +591,22 @@ export default function InvoiceView() {
 
           .invoice-preview-scale .text-xs,
           .invoice-preview-scale .print-text-xs {
-            font-size: 0.6rem !important;
+            font-size: 0.642rem !important;
           }
 
           .invoice-preview-scale .text-sm,
           .invoice-preview-scale .print-text-sm {
-            font-size: 0.7rem !important;
+            font-size: 0.749rem !important;
           }
 
           .invoice-preview-scale .text-base,
           .invoice-preview-scale .print-text-base {
-            font-size: 0.8rem !important;
+            font-size: 0.856rem !important;
           }
 
           .invoice-preview-scale .text-lg,
           .invoice-preview-scale .print-text-lg {
-            font-size: 0.9rem !important;
+            font-size: 0.963rem !important;
           }
 
           .invoice-preview-scale .invoice-logo {
@@ -1060,7 +891,10 @@ export default function InvoiceView() {
                   </thead>
                   <tbody>
                     {pageItems.map((item: any, itemIndex: number) => {
-                      const inventoryItem = inventoryItems.find(inv => inv.name === item.description);
+                      // Use inventory_id if available, otherwise fallback to name lookup for backward compatibility
+                      const inventoryItem = item.inventory_id 
+                        ? inventoryItems.find(inv => inv.id === item.inventory_id)
+                        : inventoryItems.find(inv => inv.name === item.description);
                       const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
                       return (
                         <tr key={itemIndex}>
@@ -1094,8 +928,8 @@ export default function InvoiceView() {
                       {invoice.customers?.country !== 'Bosnia and Herzegovina' && 
                        invoice.currency === 'EUR' && 
                        (invoice.amount || 0) < 6000 && (
-                        <div className="mt-4 print:mt-6 text-xs print-text-xs space-y-2">
-                          <p className="leading-relaxed">
+                        <div className="mt-4 print:mt-6 text-sm print-text-sm space-y-2">
+                          <p className="leading-relaxed text-justify print:text-justify">
                             Izjava: Izvoznik proizvoda obuhvaćenih ovom ispravom izjavljuje da su, osim ako je to drugačije izričito navedeno, ovi proizvodi bosanskohercegovačkog preferencijalnog porijekla.
                           </p>
                           <p className="leading-relaxed">
@@ -1143,11 +977,11 @@ export default function InvoiceView() {
                             paddingRight: '0',
                             marginTop: '10.5mm',
                             textAlign: 'left',
-                            color: '#6b7280'
+                            color: '#303030'
                           }}
                         >
                           <p className="mb-1 leading-tight">Oslobođeno od plaćanja PDV-a po članu 27. tačka 1. zakona o PDV-u, Službeni glasnik br. 91/05 i 35/05.</p>
-                          <p className="leading-tight">Exempt from VAT payment pursuant to Article 27, paragraph 1 of the VAT Law, Official Gazette No. 91/05 and 35/05.</p>
+                          <p className="leading-tight">Exempt from VAT payment pursuant to Article 27, Item 1 of the VAT Law, Official Gazette No. 91/05 and 35/05.</p>
                         </div>
                       )}
                       {/* Signatory */}
@@ -1183,11 +1017,27 @@ export default function InvoiceView() {
               {/* Content wrapper that grows to push footer down */}
               <div className="flex-1" style={{minHeight: 0}}></div>
 
+              {/* Foreign Customer Note - Above footer line */}
+              {invoice.customers?.country !== 'Bosnia and Herzegovina' && invoiceSettings.foreignNote && invoiceSettings.foreignNote.trim() && (
+                <div className="invoice-footer-wrapper mt-auto" style={{ marginBottom: 0 }}>
+                  <p 
+                    className="print-text-xs text-xs leading-relaxed" 
+                    style={{ 
+                      color: '#303030',
+                      textAlign: 'justify',
+                      marginBottom: 0
+                    }}
+                  >
+                    {invoiceSettings.foreignNote.replace(/\{invoice_number\}/g, invoice.invoice_number || '')}
+                  </p>
+                </div>
+              )}
+
               {/* Footer with separator line - Always at bottom */}
               {(invoiceSettings.foreignFooter.some(col => col.trim()) || invoiceSettings.domesticFooter.some(col => col.trim())) && (
                 <div className="invoice-footer-wrapper mt-auto">
                   <Separator className="print:border-black print:border-t print:mt-4 print:mb-2 border-t border-gray-600 mt-4 mb-2" />
-                  <div className="text-xs print-text-xs text-gray-600 print:text-gray-600 flex justify-between gap-6 invoice-footer-columns">
+                  <div className="text-xs print-text-xs flex justify-between gap-6 invoice-footer-columns" style={{ color: '#303030' }}>
                     {invoice.customers?.country === 'Bosnia and Herzegovina' ? (
                       <>
                         <div className="whitespace-pre-line text-left flex-1 min-w-0">{invoiceSettings.domesticFooter[0]}</div>
@@ -1208,15 +1058,11 @@ export default function InvoiceView() {
           );
         })}
         
-        {/* Download PDF, Print Invoice and Settings Buttons - Always visible after scrolling */}
+        {/* Download PDF and Settings Buttons - Always visible after scrolling */}
         <div className="flex gap-2 pt-4 pb-4 print:hidden justify-center w-full">
           <Button onClick={generatePDF} disabled={generatingPDF}>
             <FileDown className="w-4 h-4 mr-2" />
             {generatingPDF ? 'Generating PDF...' : 'Download PDF'}
-          </Button>
-          <Button onClick={printInvoice} disabled={printingInvoice} variant="outline">
-            <Printer className="w-4 h-4 mr-2" />
-            {printingInvoice ? 'Preparing...' : 'Print Invoice'}
           </Button>
           <Button onClick={() => setShowPdfSettings(true)} variant="outline" size="icon" title="PDF Settings">
             <Settings className="w-4 h-4" />

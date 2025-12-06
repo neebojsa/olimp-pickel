@@ -273,6 +273,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          inventory_id: string | null
           invoice_id: string | null
           quantity: number
           total: number
@@ -282,6 +283,7 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          inventory_id?: string | null
           invoice_id?: string | null
           quantity?: number
           total?: number
@@ -291,6 +293,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          inventory_id?: string | null
           invoice_id?: string | null
           quantity?: number
           total?: number
