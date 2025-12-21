@@ -15,13 +15,18 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, FileText, Wrench, Clock, Plus, Edit, Printer, Calendar, Settings, Users, Trash2 } from "lucide-react";
+import { Package, FileText, Wrench, Clock, Plus, Edit, Printer, Calendar as CalendarIcon, Settings, Users, Trash2, Filter, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/dateUtils";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { formatDateForInput } from "@/lib/dateUtils";
+import { cn } from "@/lib/utils";
 
 // Predefined tools and machines for suggestions
 const toolsList = [
@@ -354,6 +359,14 @@ export default function WorkOrders() {
   const [materialItems, setMaterialItems] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  // Column header filters
+  const [workOrderNumberFilter, setWorkOrderNumberFilter] = useState({ search: "", from: "", to: "" });
+  const [isWorkOrderNumberFilterOpen, setIsWorkOrderNumberFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  // Date picker popover for form
+  const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
+  const [workOrderDueDate, setWorkOrderDueDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     fetchWorkOrders();
@@ -554,11 +567,29 @@ export default function WorkOrders() {
     }
   };
 
+  // Filter work orders
+  const filteredWorkOrders = workOrders.filter(workOrder => {
+    const matchesWorkOrderNumber = !workOrderNumberFilter.search || 
+      workOrder.workOrderNumber?.toLowerCase().includes(workOrderNumberFilter.search.toLowerCase());
+    const workOrderNumberMatch = workOrderNumberFilter.from && workOrderNumberFilter.to 
+      ? (() => {
+          const num = parseInt(workOrder.workOrderNumber?.replace(/\D/g, '') || '0');
+          const from = parseInt(workOrderNumberFilter.from.replace(/\D/g, '') || '0');
+          const to = parseInt(workOrderNumberFilter.to.replace(/\D/g, '') || '999999');
+          return num >= from && num <= to;
+        })()
+      : true;
+    
+    const matchesStatus = statusFilter === "all" || workOrder.status === statusFilter;
+    
+    return matchesWorkOrderNumber && workOrderNumberMatch && matchesStatus;
+  });
+
   // Pagination
-  const totalPages = Math.ceil(workOrders.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredWorkOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedWorkOrders = workOrders.slice(startIndex, endIndex);
+  const paginatedWorkOrders = filteredWorkOrders.slice(startIndex, endIndex);
 
   return (
     <div className="p-6 space-y-6">
@@ -575,14 +606,103 @@ export default function WorkOrders() {
           <CardTitle>Active Work Orders</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Work Order Number</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Work Order Number
+                    <Popover open={isWorkOrderNumberFilterOpen} onOpenChange={setIsWorkOrderNumberFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${workOrderNumberFilter.search || workOrderNumberFilter.from || workOrderNumberFilter.to ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label>Filter by Work Order Number</Label>
+                            {(workOrderNumberFilter.search || workOrderNumberFilter.from || workOrderNumberFilter.to) && (
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                setWorkOrderNumberFilter({ search: "", from: "", to: "" });
+                              }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <div>
+                            <Label>Search</Label>
+                            <Input
+                              placeholder="Search work order number..."
+                              value={workOrderNumberFilter.search}
+                              onChange={(e) => setWorkOrderNumberFilter({ ...workOrderNumberFilter, search: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label>From</Label>
+                              <Input
+                                placeholder="e.g., WO-001"
+                                value={workOrderNumberFilter.from}
+                                onChange={(e) => setWorkOrderNumberFilter({ ...workOrderNumberFilter, from: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label>To</Label>
+                              <Input
+                                placeholder="e.g., WO-100"
+                                value={workOrderNumberFilter.to}
+                                onChange={(e) => setWorkOrderNumberFilter({ ...workOrderNumberFilter, to: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
                   <TableHead>Part Name</TableHead>
                   <TableHead>Part Number</TableHead>
-                  <TableHead>Status</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Status
+                    <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48" align="start">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label>Filter by Status</Label>
+                            {statusFilter !== "all" && (
+                              <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <Select value={statusFilter} onValueChange={(value) => {
+                            setStatusFilter(value);
+                            setIsStatusFilterOpen(false);
+                          }}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="Not Started">Not Started</SelectItem>
+                              <SelectItem value="In Progress">In Progress</SelectItem>
+                              <SelectItem value="On Hold">On Hold</SelectItem>
+                              <SelectItem value="Completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Completion</TableHead>
                   <TableHead>Production Time</TableHead>
@@ -679,13 +799,12 @@ export default function WorkOrders() {
                 ))}
               </TableBody>
             </Table>
-          </div>
           
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, workOrders.length)} of {workOrders.length} work orders
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredWorkOrders.length)} of {filteredWorkOrders.length} work orders
               </p>
               <Pagination>
                 <PaginationContent>
@@ -1292,7 +1411,33 @@ export default function WorkOrders() {
               </div>
               <div>
                 <Label htmlFor="dueDate">Due Date</Label>
-                <Input id="dueDate" type="date" />
+                <Popover open={isDueDatePickerOpen} onOpenChange={setIsDueDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !workOrderDueDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {workOrderDueDate ? format(workOrderDueDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={workOrderDueDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setWorkOrderDueDate(date);
+                          setIsDueDatePickerOpen(false);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 

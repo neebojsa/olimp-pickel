@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, FileText, Edit, Trash2, Search, Download, Eye } from "lucide-react";
+import { Plus, FileText, Edit, Trash2, Search, Download, Eye, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const getTypeColor = (type: string) => {
   switch (type) {
@@ -41,6 +42,9 @@ export default function OtherDocs() {
     type: "",
     content: ""
   });
+  // Column header filters
+  const [documentTypeFilter, setDocumentTypeFilter] = useState("all");
+  const [isDocumentTypeFilterOpen, setIsDocumentTypeFilterOpen] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -158,10 +162,15 @@ export default function OtherDocs() {
     setIsViewDialogOpen(true);
   };
 
-  const filteredDocuments = documents.filter(doc =>
-    doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.type.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = documentTypeFilter === "all" || doc.type === documentTypeFilter;
+    return matchesSearch && matchesType;
+  });
+  
+  // Get unique document types
+  const documentTypes = [...new Set(documents.map(doc => doc.type).filter(Boolean))].sort();
 
   return (
     <div className="p-6">
@@ -233,19 +242,78 @@ export default function OtherDocs() {
         </div>
       </div>
 
-      {/* Documents Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Documents List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Documents</CardTitle>
+        </CardHeader>
+        <CardContent>
         {filteredDocuments.length > 0 ? (
-          filteredDocuments.map((doc) => (
-            <Card key={doc.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="space-y-2">
-                <div className="flex items-start justify-between">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Document Name</TableHead>
+                  <TableHead>
                   <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-muted-foreground" />
+                      Type
+                      <Popover open={isDocumentTypeFilterOpen} onOpenChange={setIsDocumentTypeFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${documentTypeFilter !== "all" ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48" align="start">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label>Filter by Document Type</Label>
+                              {documentTypeFilter !== "all" && (
+                                <Button variant="ghost" size="sm" onClick={() => setDocumentTypeFilter("all")}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <Select value={documentTypeFilter} onValueChange={(value) => {
+                              setDocumentTypeFilter(value);
+                              setIsDocumentTypeFilterOpen(false);
+                            }}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Types</SelectItem>
+                                {documentTypes.map(type => (
+                                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>Content Preview</TableHead>
+                  <TableHead>Created Date</TableHead>
+                  <TableHead className="w-32">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredDocuments.map((doc) => (
+                  <TableRow key={doc.id}>
+                    <TableCell className="font-medium">{doc.name}</TableCell>
+                    <TableCell>
                     <Badge variant="outline" className={getTypeColor(doc.type)}>
                       {doc.type}
                     </Badge>
-                  </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {doc.content ? (
+                        <span className="line-clamp-2">{doc.content}</span>
+                      ) : (
+                        <span className="text-muted-foreground">No content</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{new Date(doc.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
                   <div className="flex gap-1">
                     <Button
                       variant="ghost"
@@ -289,23 +357,13 @@ export default function OtherDocs() {
                       </AlertDialogContent>
                     </AlertDialog>
                   </div>
-                </div>
-                <CardTitle className="text-lg">{doc.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {doc.content && (
-                  <p className="text-sm text-muted-foreground line-clamp-3">
-                    {doc.content}
-                  </p>
-                )}
-                <div className="text-xs text-muted-foreground">
-                  Created: {new Date(doc.created_at).toLocaleDateString()}
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
         ) : (
-          <div className="col-span-full text-center py-8">
+            <div className="text-center py-8">
             <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-muted-foreground mb-2">No documents found</h3>
             <p className="text-muted-foreground">
@@ -313,7 +371,8 @@ export default function OtherDocs() {
             </p>
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Add Document Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

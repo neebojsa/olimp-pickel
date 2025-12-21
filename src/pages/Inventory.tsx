@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,10 @@ import { importInventoryFromSpreadsheet } from "@/utils/importInventory";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { ToolManagementDialog } from "@/components/ToolManagementDialog";
 import { ToolCategorySelector } from "@/components/ToolCategorySelector";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 export default function Inventory() {
   const {
     toast
@@ -36,6 +40,9 @@ export default function Inventory() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  // Date picker popover for work order form
+  const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
+  const [workOrderDueDate, setWorkOrderDueDate] = useState<Date | undefined>(undefined);
   const [currentCategory, setCurrentCategory] = useState("Parts");
   const [formData, setFormData] = useState({
     part_number: "",
@@ -913,9 +920,7 @@ export default function Inventory() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Inventory Management</h1>
-          <p className="text-muted-foreground">
-            Track materials, tools, and stock levels
-          </p>
+          
         </div>
         <div className="flex gap-2">
           {currentCategory === "Parts" && (
@@ -1882,7 +1887,33 @@ export default function Inventory() {
               </div>
               <div>
                 <Label htmlFor="wo_dueDate">Due Date</Label>
-                <Input id="wo_dueDate" type="date" />
+                <Popover open={isDueDatePickerOpen} onOpenChange={setIsDueDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !workOrderDueDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {workOrderDueDate ? format(workOrderDueDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={workOrderDueDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setWorkOrderDueDate(date);
+                          setIsDueDatePickerOpen(false);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 

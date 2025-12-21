@@ -10,10 +10,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Plus, Search, TrendingUp, TrendingDown, Calculator, FileText, Trash2, Calendar } from "lucide-react";
+import { DollarSign, Plus, Search, TrendingUp, TrendingDown, Calculator, FileText, Trash2, Calendar as CalendarIcon, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateForInput } from "@/lib/dateUtils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 // Mock accounting data
 const mockTransactions = [
@@ -122,6 +126,19 @@ export default function Accounting() {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  // Column header filters
+  const [dateFilter, setDateFilter] = useState<{ from?: Date; to?: Date }>({});
+  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [isTypeFilterOpen, setIsTypeFilterOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [isCategoryFilterOpen, setIsCategoryFilterOpen] = useState(false);
+  const [amountFilter, setAmountFilter] = useState({ from: "", to: "" });
+  const [isAmountFilterOpen, setIsAmountFilterOpen] = useState(false);
+  const [referenceFilter, setReferenceFilter] = useState({ search: "", from: "", to: "" });
+  const [isReferenceFilterOpen, setIsReferenceFilterOpen] = useState(false);
+  // Date picker popover for form
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
     date: formatDateForInput(new Date()),
     type: '',
@@ -136,7 +153,13 @@ export default function Accounting() {
   }, []);
 
   const fetchTransactions = async () => {
-    const { data } = await supabase.from('accounting_entries').select('*');
+    // Only fetch invoices and credit notes from accounting_entries
+    // Quotes and other document types are filtered out
+    const { data } = await supabase
+      .from('accounting_entries')
+      .select('*')
+      .in('category', ['invoice', 'credit_note']);
+    
     if (data) {
       const formattedTransactions = data.map(entry => ({
         ...entry,
@@ -214,7 +237,38 @@ export default function Accounting() {
                          transaction.reference.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = selectedType === "all" || transaction.type === selectedType;
     const matchesCategory = selectedCategory === "all" || transaction.category === selectedCategory;
-    return matchesSearch && matchesType && matchesCategory;
+    
+    // Column header filters
+    const transactionDate = new Date(transaction.date);
+    const dateFromTime = dateFilter.from ? dateFilter.from.getTime() : undefined;
+    const dateToTime = dateFilter.to ? (() => {
+      const toDate = new Date(dateFilter.to);
+      toDate.setHours(23, 59, 59, 999);
+      return toDate.getTime();
+    })() : undefined;
+    const matchesDate = (!dateFromTime || transactionDate.getTime() >= dateFromTime) &&
+      (!dateToTime || transactionDate.getTime() <= dateToTime);
+    
+    const matchesTypeFilter = typeFilter === "all" || transaction.type === typeFilter;
+    const matchesCategoryFilter = categoryFilter === "all" || transaction.category === categoryFilter;
+    
+    const amount = transaction.amount || 0;
+    const amountFrom = amountFilter.from ? parseFloat(amountFilter.from) : undefined;
+    const amountTo = amountFilter.to ? parseFloat(amountFilter.to) : undefined;
+    const matchesAmount = (!amountFrom || amount >= amountFrom) && (!amountTo || amount <= amountTo);
+    
+    const matchesReference = !referenceFilter.search || transaction.reference?.toLowerCase().includes(referenceFilter.search.toLowerCase());
+    const referenceMatch = referenceFilter.from && referenceFilter.to 
+      ? (() => {
+          const refNum = parseInt(transaction.reference?.replace(/\D/g, '') || '0');
+          const from = parseInt(referenceFilter.from.replace(/\D/g, '') || '0');
+          const to = parseInt(referenceFilter.to.replace(/\D/g, '') || '999999');
+          return refNum >= from && refNum <= to;
+        })()
+      : true;
+    
+    return matchesSearch && matchesType && matchesCategory &&
+      matchesDate && matchesTypeFilter && matchesCategoryFilter && matchesAmount && matchesReference && referenceMatch;
   });
 
   const totalIncome = transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
@@ -248,11 +302,33 @@ export default function Accounting() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Date</Label>
-                  <Input 
-                    type="date" 
-                    value={newTransaction.date}
-                    onChange={(e) => setNewTransaction({...newTransaction, date: e.target.value})}
-                  />
+                  <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !newTransaction.date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newTransaction.date ? format(new Date(newTransaction.date), "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={newTransaction.date ? new Date(newTransaction.date) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            setNewTransaction({...newTransaction, date: formatDateForInput(date)});
+                            setIsDatePickerOpen(false);
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <Label>Type</Label>
@@ -426,17 +502,215 @@ export default function Accounting() {
               <CardTitle>Transaction History</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Date
+                        <Popover open={isDateFilterOpen} onOpenChange={setIsDateFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${dateFilter.from || dateFilter.to ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="range"
+                              selected={{ from: dateFilter.from, to: dateFilter.to }}
+                              onSelect={(range) => {
+                                setDateFilter({
+                                  from: range?.from,
+                                  to: range?.to
+                                });
+                                if (range?.from && range?.to) {
+                                  setIsDateFilterOpen(false);
+                                }
+                              }}
+                              numberOfMonths={2}
+                              className="rounded-md border"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
                       <TableHead>Description</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Category</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Type
+                        <Popover open={isTypeFilterOpen} onOpenChange={setIsTypeFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${typeFilter !== "all" ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48" align="start">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Type</Label>
+                                {typeFilter !== "all" && (
+                                  <Button variant="ghost" size="sm" onClick={() => setTypeFilter("all")}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <Select value={typeFilter} onValueChange={(value) => {
+                                setTypeFilter(value);
+                                setIsTypeFilterOpen(false);
+                              }}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Types</SelectItem>
+                                  <SelectItem value="Income">Income</SelectItem>
+                                  <SelectItem value="Expense">Expense</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Category
+                        <Popover open={isCategoryFilterOpen} onOpenChange={setIsCategoryFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${categoryFilter !== "all" ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48" align="start">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Category</Label>
+                                {categoryFilter !== "all" && (
+                                  <Button variant="ghost" size="sm" onClick={() => setCategoryFilter("all")}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <Select value={categoryFilter} onValueChange={(value) => {
+                                setCategoryFilter(value);
+                                setIsCategoryFilterOpen(false);
+                              }}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Categories</SelectItem>
+                                  {categories.map(category => (
+                                    <SelectItem key={category} value={category}>
+                                      {category}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
                       <TableHead>Account</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Reference</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Amount
+                        <Popover open={isAmountFilterOpen} onOpenChange={setIsAmountFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${amountFilter.from || amountFilter.to ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80" align="start">
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Amount</Label>
+                                {(amountFilter.from || amountFilter.to) && (
+                                  <Button variant="ghost" size="sm" onClick={() => {
+                                    setAmountFilter({ from: "", to: "" });
+                                  }}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <Label>From</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="Min amount"
+                                    value={amountFilter.from}
+                                    onChange={(e) => setAmountFilter({ ...amountFilter, from: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>To</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="Max amount"
+                                    value={amountFilter.to}
+                                    onChange={(e) => setAmountFilter({ ...amountFilter, to: e.target.value })}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Reference
+                        <Popover open={isReferenceFilterOpen} onOpenChange={setIsReferenceFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${referenceFilter.search || referenceFilter.from || referenceFilter.to ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80" align="start">
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Reference</Label>
+                                {(referenceFilter.search || referenceFilter.from || referenceFilter.to) && (
+                                  <Button variant="ghost" size="sm" onClick={() => {
+                                    setReferenceFilter({ search: "", from: "", to: "" });
+                                  }}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div>
+                                <Label>Search</Label>
+                                <Input
+                                  placeholder="Search reference..."
+                                  value={referenceFilter.search}
+                                  onChange={(e) => setReferenceFilter({ ...referenceFilter, search: e.target.value })}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <Label>From</Label>
+                                  <Input
+                                    placeholder="e.g., TXN-001"
+                                    value={referenceFilter.from}
+                                    onChange={(e) => setReferenceFilter({ ...referenceFilter, from: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>To</Label>
+                                  <Input
+                                    placeholder="e.g., TXN-100"
+                                    value={referenceFilter.to}
+                                    onChange={(e) => setReferenceFilter({ ...referenceFilter, to: e.target.value })}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
                       <TableHead className="w-20">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -486,7 +760,6 @@ export default function Accounting() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -13,11 +13,13 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { FileText, Plus, Search, DollarSign, Calendar, Send, Trash2, Download, Eye, Edit, Settings, FileDown, Check, ChevronsUpDown, Printer } from "lucide-react";
+import { FileText, Plus, Search, DollarSign, Calendar as CalendarIcon, Send, Trash2, Edit, Settings, Check, ChevronsUpDown, Printer, Filter, X } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currencyUtils";
-import { formatDate } from "@/lib/dateUtils";
+import { formatDate, formatDateForInput } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import html2canvas from "html2canvas";
@@ -113,20 +115,23 @@ const InvoiceStatusBadge = ({ invoice, onStatusChange }: { invoice: any; onStatu
           )}
           {effectiveStatus === "paid" && (
             <>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => handleStatusChange("pending")}
-              >
-                Pending
-              </Button>
-              {invoice.due_date && new Date(invoice.due_date) < new Date() && (
+              {/* Only show Overdue if due_date is in the past */}
+              {invoice.due_date && new Date(invoice.due_date) < new Date() ? (
                 <Button
                   variant="ghost"
                   className="w-full justify-start"
                   onClick={() => handleStatusChange("overdue")}
                 >
                   Overdue
+                </Button>
+              ) : (
+                /* Only show Pending if due_date is in the future or doesn't exist */
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => handleStatusChange("pending")}
+                >
+                  Pending
                 </Button>
               )}
             </>
@@ -147,14 +152,35 @@ export default function Invoicing() {
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedCustomerFilter, setSelectedCustomerFilter] = useState("all");
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
+  // Column header filters
+  const [invoiceNumberFilter, setInvoiceNumberFilter] = useState({ search: "", from: "", to: "" });
+  const [isInvoiceNumberFilterOpen, setIsInvoiceNumberFilterOpen] = useState(false);
+  const [issueDateFilter, setIssueDateFilter] = useState<{ from?: Date; to?: Date }>({});
+  const [isIssueDateFilterOpen, setIsIssueDateFilterOpen] = useState(false);
+  const [dueDateFilter, setDueDateFilter] = useState<{ from?: Date; to?: Date }>({});
+  const [isDueDateFilterOpen, setIsDueDateFilterOpen] = useState(false);
+  const [customerFilter, setCustomerFilter] = useState({ search: "", selectedId: "all" });
+  const [isCustomerFilterOpen, setIsCustomerFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  const [amountFilter, setAmountFilter] = useState({ from: "", to: "" });
+  const [isAmountFilterOpen, setIsAmountFilterOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [isAddInvoiceOpen, setIsAddInvoiceOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [deletingInvoice, setDeletingInvoice] = useState<any>(null);
+  // Date picker popovers for form
+  const [isIssueDatePickerOpen, setIsIssueDatePickerOpen] = useState(false);
+  const [isShippingDatePickerOpen, setIsShippingDatePickerOpen] = useState(false);
   const [newInvoice, setNewInvoice] = useState({
     customerId: '',
     orderNumber: '',
+    issueDate: '',
     shippingDate: '',
     shippingAddress: '',
     incoterms: '',
@@ -216,7 +242,7 @@ export default function Invoicing() {
         error
     } = await supabase.from('invoices').select(`
         *,
-        customers!inner(id, name, country, address, city, phone),
+        customers!inner(id, name, country, address, city, phone, dap_address, fco_address),
         invoice_items!fk_invoice_items_invoice(*)
       `).order('created_at', {
       ascending: false
@@ -452,9 +478,12 @@ export default function Invoicing() {
     const invoiceNumber = await generateInvoiceNumber();
     const totals = calculateTotals();
     const customer = getSelectedCustomer();
-    const issueDate = new Date().toISOString().split('T')[0]; // Today's date in YYYY-MM-DD format
+    const todayDate = new Date().toISOString().split('T')[0]; // Today's date in YYYY-MM-DD format
+    const issueDate = newInvoice.issueDate || todayDate; // Use today's date if empty
+    const shippingDate = newInvoice.shippingDate || todayDate; // Use today's date if empty
     // Calculate due_date if not already set, using customer's payment_terms
-    const dueDate = newInvoice.dueDate || (customer ? calculateDueDate((customer as any).payment_terms, new Date()) : null);
+    const issueDateObj = newInvoice.issueDate ? new Date(newInvoice.issueDate) : new Date();
+    const dueDate = newInvoice.dueDate || (customer ? calculateDueDate((customer as any).payment_terms, issueDateObj) : null);
     
     // For EXW, use company address format
     let finalShippingAddress = newInvoice.shippingAddress || customer?.address;
@@ -476,7 +505,7 @@ export default function Invoicing() {
       invoice_number: invoiceNumber,
       customer_id: newInvoice.customerId,
       order_number: newInvoice.orderNumber,
-      shipping_date: newInvoice.shippingDate,
+      shipping_date: shippingDate,
       shipping_address: finalShippingAddress,
       incoterms: newInvoice.incoterms,
       declaration_number: newInvoice.declarationNumber,
@@ -491,7 +520,7 @@ export default function Invoicing() {
       notes: newInvoice.notes,
       issue_date: issueDate,
       due_date: dueDate || null,
-      status: 'draft'
+      status: 'pending'
     }]).select().single();
     if (invoiceError) {
       toast({
@@ -570,6 +599,9 @@ export default function Invoicing() {
     }
     const totals = calculateTotals();
     const customer = getSelectedCustomer();
+    const todayDate = new Date().toISOString().split('T')[0]; // Today's date in YYYY-MM-DD format
+    const issueDate = newInvoice.issueDate || todayDate; // Use today's date if empty
+    const shippingDate = newInvoice.shippingDate || todayDate; // Use today's date if empty
 
     // For EXW, use company address format
     let finalShippingAddress = newInvoice.shippingAddress || customer?.address;
@@ -590,7 +622,7 @@ export default function Invoicing() {
     } = await supabase.from('invoices').update({
       customer_id: newInvoice.customerId,
       order_number: newInvoice.orderNumber,
-      shipping_date: newInvoice.shippingDate,
+      shipping_date: shippingDate,
       shipping_address: finalShippingAddress,
       incoterms: newInvoice.incoterms,
       declaration_number: newInvoice.declarationNumber,
@@ -603,6 +635,7 @@ export default function Invoicing() {
       currency: totals.currency,
       vat_rate: totals.vatRate,
       notes: newInvoice.notes,
+      issue_date: issueDate,
       due_date: newInvoice.dueDate || null
     }).eq('id', selectedInvoice.id);
     if (invoiceError) {
@@ -681,6 +714,7 @@ export default function Invoicing() {
     setNewInvoice({
       customerId: '',
       orderNumber: '',
+      issueDate: '',
       shippingDate: '',
       shippingAddress: '',
       incoterms: '',
@@ -697,15 +731,22 @@ export default function Invoicing() {
     }]);
     setIsEditMode(false);
   };
-  const handleDeleteInvoice = async (invoiceId: string) => {
-    const {
-      error
-    } = await supabase.from('invoices').delete().eq('id', invoiceId);
+  const handleDeleteInvoice = async () => {
+    if (!deletingInvoice) return;
+
+    const { error } = await supabase.from('invoices').delete().eq('id', deletingInvoice.id);
     if (!error) {
-      setInvoices(prev => prev.filter(invoice => invoice.id !== invoiceId));
+      setInvoices(prev => prev.filter(invoice => invoice.id !== deletingInvoice.id));
+      setDeletingInvoice(null);
       toast({
         title: "Invoice Deleted",
         description: "The invoice has been successfully deleted."
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete invoice",
+        variant: "destructive"
       });
     }
   };
@@ -718,6 +759,7 @@ export default function Invoicing() {
     setNewInvoice({
       customerId: invoice.customer_id,
       orderNumber: invoice.order_number || '',
+      issueDate: invoice.issue_date || '',
       shippingDate: invoice.shipping_date || '',
       shippingAddress: invoice.shipping_address || '',
       incoterms: invoice.incoterms || '',
@@ -728,7 +770,10 @@ export default function Invoicing() {
       dueDate: invoice.due_date || ''
     });
     setInvoiceItems(invoice.invoice_items?.map(item => ({
-      inventoryId: inventoryItems.find(inv => inv.name === item.description)?.id || '',
+      // Use inventory_id if available, otherwise fallback to name lookup for backward compatibility
+      inventoryId: item.inventory_id 
+        ? item.inventory_id 
+        : inventoryItems.find(inv => inv.name === item.description)?.id || '',
       quantity: item.quantity,
       unitPrice: item.unit_price
     })) || [{
@@ -790,7 +835,7 @@ export default function Invoicing() {
     // Available for items on full pages: (272mm - 80mm - 30mm) / 4.4mm ≈ 37 lines
     // Available for items on last page (with summary ~60mm): (272mm - 80mm - 30mm - 60mm) / 4.4mm ≈ 23 lines
     const linesPerFullPage = 35; // Conservative estimate
-    const linesPerLastPage = 20; // Conservative estimate for last page with summary
+    const linesPerLastPage = 11; // Conservative estimate for last page with summary
     
     // Calculate lines for each item
     const itemsWithLines = items.map(item => ({
@@ -843,10 +888,66 @@ export default function Invoicing() {
   };
 
   const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) || invoice.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = !searchTerm || invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) || invoice.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const effectiveStatus = getEffectiveStatus(invoice);
     const matchesStatus = selectedStatus === "all" || effectiveStatus === selectedStatus;
-    return matchesSearch && matchesStatus;
+    const matchesCustomer = selectedCustomerFilter === "all" || invoice.customer_id === selectedCustomerFilter;
+    const invoiceDateStr = invoice.issue_date || invoice.created_at;
+    const invoiceTime = invoiceDateStr ? new Date(invoiceDateStr).getTime() : undefined;
+    const fromTime = dateRange.from ? dateRange.from.getTime() : undefined;
+    const toTime = dateRange.to ? (() => {
+      const toDate = new Date(dateRange.to);
+      toDate.setHours(23, 59, 59, 999);
+      return toDate.getTime();
+    })() : undefined;
+    const matchesDateRange =
+      (!fromTime || (invoiceTime !== undefined && invoiceTime >= fromTime)) &&
+      (!toTime || (invoiceTime !== undefined && invoiceTime <= toTime));
+    
+    // Column header filters
+    const matchesInvoiceNumber = !invoiceNumberFilter.search || invoice.invoice_number?.toLowerCase().includes(invoiceNumberFilter.search.toLowerCase());
+    const invoiceNumberMatch = invoiceNumberFilter.from && invoiceNumberFilter.to 
+      ? (() => {
+          const num = parseInt(invoice.invoice_number?.replace(/\D/g, '') || '0');
+          const from = parseInt(invoiceNumberFilter.from.replace(/\D/g, '') || '0');
+          const to = parseInt(invoiceNumberFilter.to.replace(/\D/g, '') || '999999');
+          return num >= from && num <= to;
+        })()
+      : true;
+    
+    const issueDateStr = invoice.issue_date;
+    const issueDateTime = issueDateStr ? new Date(issueDateStr).getTime() : undefined;
+    const issueFromTime = issueDateFilter.from ? issueDateFilter.from.getTime() : undefined;
+    const issueToTime = issueDateFilter.to ? (() => {
+      const toDate = new Date(issueDateFilter.to);
+      toDate.setHours(23, 59, 59, 999);
+      return toDate.getTime();
+    })() : undefined;
+    const matchesIssueDate = (!issueFromTime || (issueDateTime !== undefined && issueDateTime >= issueFromTime)) &&
+      (!issueToTime || (issueDateTime !== undefined && issueDateTime <= issueToTime));
+    
+    const dueDateStr = invoice.due_date;
+    const dueDateTime = dueDateStr ? new Date(dueDateStr).getTime() : undefined;
+    const dueFromTime = dueDateFilter.from ? dueDateFilter.from.getTime() : undefined;
+    const dueToTime = dueDateFilter.to ? (() => {
+      const toDate = new Date(dueDateFilter.to);
+      toDate.setHours(23, 59, 59, 999);
+      return toDate.getTime();
+    })() : undefined;
+    const matchesDueDate = (!dueFromTime || (dueDateTime !== undefined && dueDateTime >= dueFromTime)) &&
+      (!dueToTime || (dueDateTime !== undefined && dueDateTime <= dueToTime));
+    
+    const matchesCustomerFilter = customerFilter.selectedId === "all" || invoice.customer_id === customerFilter.selectedId;
+    const matchesStatusFilter = statusFilter === "all" || effectiveStatus === statusFilter;
+    
+    const amount = invoice.amount || 0;
+    const amountFrom = amountFilter.from ? parseFloat(amountFilter.from) : undefined;
+    const amountTo = amountFilter.to ? parseFloat(amountFilter.to) : undefined;
+    const matchesAmount = (!amountFrom || amount >= amountFrom) && (!amountTo || amount <= amountTo);
+    
+    return matchesSearch && matchesStatus && matchesCustomer && matchesDateRange &&
+      matchesInvoiceNumber && invoiceNumberMatch && matchesIssueDate && matchesDueDate &&
+      matchesCustomerFilter && matchesStatusFilter && matchesAmount;
   });
   const totalRevenue = invoices.reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
   const paidInvoices = invoices.filter(inv => getEffectiveStatus(inv) === "paid");
@@ -857,7 +958,7 @@ export default function Invoicing() {
 
   const [printingInvoice, setPrintingInvoice] = useState(false);
 
-  const printInvoice = async () => {
+  const printInvoiceWithMediaPrint = () => {
     if (!invoiceContainerRef.current || !selectedInvoice) {
       toast({
         title: "Error",
@@ -882,171 +983,442 @@ export default function Invoicing() {
         return;
       }
 
-      // Create a hidden iframe for printing
-      const printIframe = document.createElement('iframe');
-      printIframe.style.position = 'absolute';
-      printIframe.style.width = '0';
-      printIframe.style.height = '0';
-      printIframe.style.border = 'none';
-      printIframe.style.left = '-9999px';
-      document.body.appendChild(printIframe);
-
-      // Calculate dimensions for A4
-      const mmToPixels = (mm: number) => (mm * 96) / 25.4;
-      const baseWidthPx = mmToPixels(210);
-      const baseHeightPx = mmToPixels(297);
-
-      // Process each page
-      const imageDataArray: string[] = [];
-      
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i] as HTMLElement;
-        
-        // Create a temporary container for this page
-        const tempContainer = document.createElement('div');
-        tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '-9999px';
-        tempContainer.style.width = '210mm';
-        tempContainer.style.backgroundColor = 'white';
-        tempContainer.style.fontSize = '16px';
-        tempContainer.appendChild(page.cloneNode(true));
-        document.body.appendChild(tempContainer);
-
-        // Convert to canvas
-        const canvas = await html2canvas(tempContainer, {
-          scale: 2, // Good quality for printing
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          width: baseWidthPx,
-          height: baseHeightPx,
-          windowWidth: baseWidthPx,
-          windowHeight: baseHeightPx,
-          allowTaint: false,
-          removeContainer: false,
-          onclone: (clonedDoc) => {
-            const clonedContainer = clonedDoc.querySelector('.print-invoice-page');
-            if (clonedContainer) {
-              (clonedContainer as HTMLElement).style.transform = 'scale(1)';
-            }
-            
-            const allImages = clonedDoc.querySelectorAll('img');
-            allImages.forEach((img: any) => {
-              if (img.style) {
-                img.style.display = 'inline-block';
-                img.style.verticalAlign = 'middle';
-              }
-            });
-            
-            const allCells = clonedDoc.querySelectorAll('.invoice-items-table th, .invoice-items-table td');
-            allCells.forEach((cell: any) => {
-              if (cell.style) {
-                cell.style.verticalAlign = 'middle';
-                cell.setAttribute('valign', 'middle');
-              }
-            });
-          }
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast({
+          title: "Error",
+          description: "Please allow popups to print the invoice.",
+          variant: "destructive"
         });
-
-        // Get image data
-        const imgData = canvas.toDataURL('image/png');
-        imageDataArray.push(imgData);
-
-        // Clean up
-        document.body.removeChild(tempContainer);
+        setPrintingInvoice(false);
+        return;
       }
 
-      // Wait for iframe to be ready
-      printIframe.onload = () => {
-        const iframeDoc = printIframe.contentDocument || printIframe.contentWindow?.document;
-        if (!iframeDoc) {
-          toast({
-            title: "Error",
-            description: "Failed to prepare print content.",
-            variant: "destructive"
-          });
-          setPrintingInvoice(false);
-          document.body.removeChild(printIframe);
-          return;
-        }
+      // Clone all pages with deep cloning to preserve styles
+      const pagesHTML: string[] = [];
+      pages.forEach((page) => {
+        const clonedPage = page.cloneNode(true) as HTMLElement;
+        // Remove any print:hidden elements
+        const hiddenElements = clonedPage.querySelectorAll('.print\\:hidden, [class*="print:hidden"]');
+        hiddenElements.forEach(el => el.remove());
+        pagesHTML.push(clonedPage.outerHTML);
+      });
 
-        // Build HTML with all pages
-        let imagesHTML = '';
-        imageDataArray.forEach((imgData, index) => {
-          if (index > 0) {
-            imagesHTML += '<div style="page-break-before: always;"></div>';
-          }
-          imagesHTML += `<img src="${imgData}" style="width: 210mm; height: auto; display: block; ${index < imageDataArray.length - 1 ? 'page-break-after: always;' : ''}" />`;
-        });
+      // Get all inline styles from the document
+      const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
+      
+      // Get all linked stylesheets
+      const stylesheetLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .map(link => `<link rel="stylesheet" href="${(link as HTMLLinkElement).href}">`)
+        .join('\n');
+      
+      // Get CSS variables from root
+      const rootStyles = window.getComputedStyle(document.documentElement);
+      const cssVariables = Array.from(rootStyles).filter(prop => prop.startsWith('--'))
+        .map(prop => `  ${prop}: ${rootStyles.getPropertyValue(prop)};`)
+        .join('\n');
+      
+      // Write the HTML with all styles
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Invoice ${selectedInvoice.invoice_number}</title>
+            <meta charset="utf-8">
+            ${stylesheetLinks}
+            <style>
+              :root {
+${cssVariables}
+              }
+              
+              ${inlineStyles}
+              
+              /* Ensure @media print styles are applied */
+              @media print {
+                @page {
+                  margin: 0 !important;
+                  size: A4;
+                }
+                
+                html, body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  width: 210mm !important;
+                  height: 297mm !important;
+                  background: white !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+                
+                .print-invoice-page {
+                  width: 210mm !important;
+                  height: 297mm !important;
+                  margin: 0 !important;
+                  padding: 15mm 15mm 10mm 15mm !important;
+                  page-break-after: always !important;
+                  page-break-inside: avoid !important;
+                  background: white !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+                
+                .print-invoice-page:last-child {
+                  page-break-after: auto !important;
+                }
+                
+                .print-invoice-page * {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+                
+                .invoice-header {
+                  display: flex !important;
+                  justify-content: space-between !important;
+                  margin-bottom: 0mm !important;
+                }
+                
+                /* Reduce gap between company header and invoice header */
+                .company-header {
+                  margin-bottom: 0.3rem !important;
+                }
+                
+                /* Ensure consistent line-height for customer details, invoice details, and summary sections */
+                /* Customer details section (Bill To) */
+                .invoice-header > div:first-child,
+                .invoice-header > div:first-child p,
+                .invoice-header > div:first-child h3,
+                .invoice-header > div:first-child p.text-sm,
+                .invoice-header > div:first-child p.print-text-sm,
+                .invoice-header > div:first-child p.print-text-base,
+                .invoice-header > div:first-child p.font-bold,
+                .invoice-header > div:first-child p.whitespace-pre-line {
+                  line-height: 1.4 !important;
+                }
+                
+                /* Add spacing between customer detail lines to match invoice details */
+                .invoice-header > div:first-child p:not(:last-child) {
+                  margin-bottom: 0.5rem !important;
+                }
+                
+                /* Invoice details section (Invoice Number, Issue Date, etc.) */
+                .invoice-header > div:last-child,
+                .invoice-header .text-right,
+                .invoice-header .text-right p,
+                .invoice-header .text-right div,
+                .invoice-header .text-right div p,
+                .invoice-header .text-right .space-y-1 p,
+                .invoice-header .text-right .space-y-2 p {
+                  line-height: 1.4 !important;
+                }
+                
+                /* Summary section */
+                .grid.grid-cols-2,
+                .grid.grid-cols-2 h3,
+                .grid.grid-cols-2 p,
+                .grid.grid-cols-2 .space-y-1,
+                .grid.grid-cols-2 .space-y-1 p,
+                .grid.grid-cols-2 .space-y-2,
+                .grid.grid-cols-2 .space-y-2 p,
+                .grid.grid-cols-2 > div,
+                .grid.grid-cols-2 > div p,
+                .grid.grid-cols-2 > div > div,
+                .grid.grid-cols-2 > div > div p {
+                  line-height: 1.4 !important;
+                }
+                
+                .invoice-items-table thead {
+                  background-color: transparent !important;
+                  background: transparent !important;
+                  margin-top: 0mm !important;
+                 
+                }
+                
+                .invoice-items-table thead th {
+                  background-color: transparent !important;
+                  background: transparent !important;
+                  border-top: none !important;
+                  border-bottom: none !important;
+                  border-left: none !important;
+                  border-right: none !important;
+                  border: none !important;
+                }
+                
+                .invoice-items-table td {
+                  vertical-align: top !important;
+                  border-top: 1px solid rgb(212, 212, 212) !important;
+                  border-bottom: none !important;
+                  border-left: none !important;
+                  border-right: none !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+                
+                /* Add border-bottom only to the last row */
+                .invoice-items-table tbody tr:last-child td {
+                  border-bottom: 1px solid rgb(212, 212, 212) !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+                
+                /* Column widths for proper wrapping - match screen widths */
+                .invoice-items-table th:nth-child(1),
+                .invoice-items-table td:nth-child(1) {
+                  width: 35% !important;
+                  max-width: 35% !important;
+                }
+                
+                .invoice-items-table th:nth-child(2),
+                .invoice-items-table td:nth-child(2) {
+                  width: 17% !important;
+                  max-width: 17% !important;
+                }
+                
+                .invoice-items-table th:nth-child(3),
+                .invoice-items-table td:nth-child(3) {
+                  width: 8% !important;
+                  max-width: 8% !important;
+                }
+                
+                .invoice-items-table th:nth-child(4),
+                .invoice-items-table td:nth-child(4) {
+                  width: 8% !important;
+                  max-width: 8% !important;
+                }
+                
+                .invoice-items-table th:nth-child(5),
+                .invoice-items-table td:nth-child(5) {
+                  width: 10% !important;
+                  max-width: 10% !important;
+                }
+                
+                .invoice-items-table th:nth-child(6),
+                .invoice-items-table td:nth-child(6) {
+                  width: 10% !important;
+                  max-width: 10% !important;
+                }
+                
+                .invoice-items-table th:nth-child(7),
+                .invoice-items-table td:nth-child(7) {
+                  width: 12% !important;
+                  max-width: 12% !important;
+                  text-align: right !important;
+                }
+                
+                /* Summary section grid layout */
+                .grid.grid-cols-2 {
+                  display: grid !important;
+                  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                  gap: 1.5rem !important;
+                  position: relative !important;
+                }
+                
+                /* Total amount background styling */
+                .total-amount-bg {
+                  position: absolute !important;
+                  width: 286px !important;
+                  padding-left: 50px !important;
+                  padding-right: 48px !important;
+                  right: 7px !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+                   .invoice-title-bg {
+                     position: absolute !important;
+                     width: 286px !important;
+                     padding-left: 23px !important;
+                     right: 7px !important;
+                     justify-content: left !important;
+                     -webkit-print-color-adjust: exact !important;
+                     print-color-adjust: exact !important;
+                     color-adjust: exact !important;
+                   }
 
-        iframeDoc.open();
-        iframeDoc.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Invoice ${selectedInvoice.invoice_number}</title>
-              <style>
-                @media print {
-                  @page {
-                    size: A4;
-                    margin: 0;
-                  }
-                  body {
-                    margin: 0;
-                    padding: 0;
-                  }
-                  img {
-                    width: 210mm;
-                    height: auto;
-                    display: block;
-                  }
+                   .total-amount-bg {
+                     position: absolute !important;
+                     width: 286px !important;
+                     padding-left: 23px !important;
+                     right: 7px !important;
+                     -webkit-print-color-adjust: exact !important;
+                     print-color-adjust: exact !important;
+                     color-adjust: exact !important;
+                   }
+                
+                .print-invoice-bg {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
                 }
-                body {
-                  margin: 0;
-                  padding: 0;
+                
+                /* Spacing for Subtotal, VAT labels and values */
+                .grid.grid-cols-2 > div:last-child .flex.justify-between {
+                  display: flex !important;
+                  justify-content: space-between !important;
+                  width: 100% !important;
+                  gap: 1rem !important;
                 }
-                img {
-                  width: 210mm;
-                  height: auto;
-                  display: block;
+                
+                /* Total row spacing - reduce gap to match Subtotal/VAT visual spacing */
+                #invoice-total-amount.flex.justify-between {
+                  display: flex !important;
+                  justify-content: space-between !important;
+                  
+                  gap: 0.5rem !important;
                 }
-              </style>
-            </head>
-            <body>
-              ${imagesHTML}
-            </body>
-          </html>
-        `);
-        iframeDoc.close();
-
-        // Wait for images to load, then print
-        const iframeWindow = printIframe.contentWindow;
-        if (iframeWindow) {
-          iframeWindow.onload = () => {
+                
+                /* Total amount div with gray background - specific ID for PDF print */
+                #invoice-total-amount {
+                  position: absolute !important;
+                  width: 286px !important;
+                  padding-left: 50px !important;
+                  padding-right: 48px !important;
+                  padding-top: 2px !important;
+                  height: 30px !important;
+                  right: -50px !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+                
+                /* VAT Exemption Statement - specific ID for PDF print */
+                #invoice-vat-exemption-statement {
+                  position: absolute !important;
+                  right: -50px !important;
+                  width: 286px !important;
+                  padding-left: 0px !important;
+                  padding-right: 0px !important;
+                  margin-top: 46px !important;
+                  text-align: left !important;
+                  color: #303030 !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+                
+                /* Signatory - specific ID for PDF print */
+                #invoice-signatory {
+                  position: absolute !important;
+                  right: -50px !important;
+                  width: 286px !important;
+                  padding-left: 50px !important;
+                  padding-right: 48px !important;
+                  text-align: center !important;
+                  font-size: 0.7rem !important;
+                  /* margin-top is set dynamically based on customer country */
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+              }
+              
+              /* Screen styles for preview */
+              body {
+                margin: 0;
+                padding: 20px;
+                background: #f5f5f5;
+              }
+              
+              .print-invoice-page {
+                width: 210mm;
+                height: 297mm;
+                background: white;
+                margin: 0 auto 20px;
+                padding: 15mm 15mm 10mm 15mm;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                box-sizing: border-box;
+              }
+            </style>
+          </head>
+          <body>
+            ${pagesHTML.join('')}
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      
+      // Wait for content and stylesheets to load, then print
+      const printWhenReady = () => {
+        // Wait for stylesheets to load
+        const stylesheets = printWindow.document.querySelectorAll('link[rel="stylesheet"]');
+        let loadedStylesheets = 0;
+        
+        if (stylesheets.length === 0) {
+          // No external stylesheets, proceed immediately
+          setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            setPrintingInvoice(false);
+            // Close the window after printing (user can cancel)
             setTimeout(() => {
-              iframeWindow.focus();
-              iframeWindow.print();
-              setPrintingInvoice(false);
-              // Clean up iframe after a delay
-              setTimeout(() => {
-                if (printIframe.parentNode) {
-                  document.body.removeChild(printIframe);
+              printWindow.close();
+            }, 1000);
+          }, 500);
+        } else {
+          // Wait for all stylesheets to load
+          stylesheets.forEach((link) => {
+            const linkEl = link as HTMLLinkElement;
+            if (linkEl.sheet || linkEl.href === '') {
+              loadedStylesheets++;
+            } else {
+              linkEl.onload = () => {
+                loadedStylesheets++;
+                if (loadedStylesheets === stylesheets.length) {
+                  setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                    setPrintingInvoice(false);
+                    setTimeout(() => {
+                      printWindow.close();
+                    }, 1000);
+                  }, 500);
                 }
+              };
+              linkEl.onerror = () => {
+                loadedStylesheets++;
+                if (loadedStylesheets === stylesheets.length) {
+                  setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                    setPrintingInvoice(false);
+                    setTimeout(() => {
+                      printWindow.close();
+                    }, 1000);
+                  }, 500);
+                }
+              };
+            }
+          });
+          
+          // If all stylesheets are already loaded
+          if (loadedStylesheets === stylesheets.length) {
+            setTimeout(() => {
+              printWindow.focus();
+              printWindow.print();
+              setPrintingInvoice(false);
+              setTimeout(() => {
+                printWindow.close();
               }, 1000);
             }, 500);
-          };
-          // Trigger load event if already loaded
-          if (iframeDoc.readyState === 'complete') {
-            iframeWindow.onload?.({} as Event);
           }
         }
       };
-
-      // Set iframe src to trigger onload
-      printIframe.src = 'about:blank';
-
+      
+      // Wait for window to be ready
+      if (printWindow.document.readyState === 'complete') {
+        printWhenReady();
+      } else {
+        printWindow.onload = printWhenReady;
+      }
+      
     } catch (error) {
-      console.error('Error printing invoice:', error);
+      console.error('Error printing invoice with media print:', error);
       toast({
         title: "Error",
         description: "Failed to print invoice. Please try again.",
@@ -1225,9 +1597,7 @@ export default function Invoicing() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Invoicing</h1>
-          <p className="text-muted-foreground">
-            Manage invoices and track payments
-          </p>
+          
         </div>
         <Button size="icon" onClick={() => setIsSettingsOpen(true)}>
           <Settings className="w-4 h-4" />
@@ -1256,9 +1626,9 @@ export default function Invoicing() {
                   });
                   const customer = customers.find(c => c.id === value);
                   if (customer) {
-                    // Use issue_date from selectedInvoice if editing, otherwise use today
-                    const issueDate = isEditMode && selectedInvoice?.issue_date 
-                      ? new Date(selectedInvoice.issue_date) 
+                    // Use issue_date from newInvoice if set, otherwise use today
+                    const issueDate = newInvoice.issueDate 
+                      ? new Date(newInvoice.issueDate) 
                       : new Date();
                     const paymentTerms = (customer as any).payment_terms;
                     // Only recalculate due date if payment_terms exists
@@ -1306,11 +1676,81 @@ export default function Invoicing() {
                 </div>
 
                 <div>
+                  <Label>Issue Date</Label>
+                  <Popover open={isIssueDatePickerOpen} onOpenChange={setIsIssueDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !newInvoice.issueDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newInvoice.issueDate ? format(new Date(newInvoice.issueDate), "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newInvoice.issueDate ? new Date(newInvoice.issueDate) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const newIssueDate = formatDateForInput(date);
+                            const customer = getSelectedCustomer();
+                            let dueDate = newInvoice.dueDate;
+                            
+                            // Recalculate due date if customer has payment terms
+                            if (customer && (customer as any).payment_terms !== null && (customer as any).payment_terms !== undefined) {
+                              dueDate = calculateDueDate((customer as any).payment_terms, date);
+                            }
+                            
+                            setNewInvoice({
+                              ...newInvoice,
+                              issueDate: newIssueDate,
+                              dueDate: dueDate
+                            });
+                            setIsIssueDatePickerOpen(false);
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div>
                   <Label>Shipping Date</Label>
-                  <Input type="date" value={newInvoice.shippingDate} onChange={e => setNewInvoice({
-                  ...newInvoice,
-                  shippingDate: e.target.value
-                })} />
+                  <Popover open={isShippingDatePickerOpen} onOpenChange={setIsShippingDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !newInvoice.shippingDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newInvoice.shippingDate ? format(new Date(newInvoice.shippingDate), "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newInvoice.shippingDate ? new Date(newInvoice.shippingDate) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            setNewInvoice({
+                              ...newInvoice,
+                              shippingDate: formatDateForInput(date)
+                            });
+                            setIsShippingDatePickerOpen(false);
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div>
@@ -1733,7 +2173,7 @@ export default function Invoicing() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{pendingInvoices.length}</div>
@@ -1758,18 +2198,58 @@ export default function Invoicing() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1">
+      <div className="flex items-center space-x-2">
+        <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input placeholder="Search invoices..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
         </div>
+        <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by customer" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Customers</SelectItem>
+            {customers.map(customer => (
+              <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Popover open={isDateRangeOpen} onOpenChange={setIsDateRangeOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange.from && dateRange.to 
+                ? `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd, yyyy")}`
+                : dateRange.from 
+                ? `From ${format(dateRange.from, "MMM dd, yyyy")}`
+                : "Date Range"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={{ from: dateRange.from, to: dateRange.to }}
+              onSelect={(range) => {
+                setDateRange({
+                  from: range?.from,
+                  to: range?.to
+                });
+                // Close popover when both dates are selected
+                if (range?.from && range?.to) {
+                  setIsDateRangeOpen(false);
+                }
+              }}
+              numberOfMonths={2}
+              className="rounded-md border"
+            />
+          </PopoverContent>
+        </Popover>
         <Select value={selectedStatus} onValueChange={setSelectedStatus}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
             <SelectItem value="overdue">Overdue</SelectItem>
@@ -1786,27 +2266,270 @@ export default function Invoicing() {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {filteredInvoices.map(invoice => <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors min-h-[80px]">
-                <div className="flex items-center space-x-4 flex-1">
-                  <div className="min-w-[120px]">
-                    <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline font-medium text-left">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Invoice Number
+                    <Popover open={isInvoiceNumberFilterOpen} onOpenChange={setIsInvoiceNumberFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${invoiceNumberFilter.search || invoiceNumberFilter.from || invoiceNumberFilter.to ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label>Filter by Invoice Number</Label>
+                            {(invoiceNumberFilter.search || invoiceNumberFilter.from || invoiceNumberFilter.to) && (
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                setInvoiceNumberFilter({ search: "", from: "", to: "" });
+                              }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <div>
+                            <Label>Search</Label>
+                            <Input
+                              placeholder="Search invoice number..."
+                              value={invoiceNumberFilter.search}
+                              onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, search: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label>From</Label>
+                              <Input
+                                placeholder="e.g., 001"
+                                value={invoiceNumberFilter.from}
+                                onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, from: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label>To</Label>
+                              <Input
+                                placeholder="e.g., 100"
+                                value={invoiceNumberFilter.to}
+                                onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, to: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Issue Date
+                    <Popover open={isIssueDateFilterOpen} onOpenChange={setIsIssueDateFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${issueDateFilter.from || issueDateFilter.to ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="range"
+                          selected={{ from: issueDateFilter.from, to: issueDateFilter.to }}
+                          onSelect={(range) => {
+                            setIssueDateFilter({
+                              from: range?.from,
+                              to: range?.to
+                            });
+                            if (range?.from && range?.to) {
+                              setIsIssueDateFilterOpen(false);
+                            }
+                          }}
+                          numberOfMonths={2}
+                          className="rounded-md border"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Due Date
+                    <Popover open={isDueDateFilterOpen} onOpenChange={setIsDueDateFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${dueDateFilter.from || dueDateFilter.to ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="range"
+                          selected={{ from: dueDateFilter.from, to: dueDateFilter.to }}
+                          onSelect={(range) => {
+                            setDueDateFilter({
+                              from: range?.from,
+                              to: range?.to
+                            });
+                            if (range?.from && range?.to) {
+                              setIsDueDateFilterOpen(false);
+                            }
+                          }}
+                          numberOfMonths={2}
+                          className="rounded-md border"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Customer
+                    <Popover open={isCustomerFilterOpen} onOpenChange={setIsCustomerFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${customerFilter.selectedId !== "all" ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label>Filter by Customer</Label>
+                            {customerFilter.selectedId !== "all" && (
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                setCustomerFilter({ search: "", selectedId: "all" });
+                              }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <div>
+                            <Label>Search</Label>
+                            <Input
+                              placeholder="Search customers..."
+                              value={customerFilter.search}
+                              onChange={(e) => setCustomerFilter({ ...customerFilter, search: e.target.value })}
+                            />
+                          </div>
+                          <div className="max-h-60 overflow-y-auto">
+                            <Select value={customerFilter.selectedId} onValueChange={(value) => {
+                              setCustomerFilter({ ...customerFilter, selectedId: value });
+                              setIsCustomerFilterOpen(false);
+                            }}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select customer" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Customers</SelectItem>
+                                {customers
+                                  .filter(c => !customerFilter.search || c.name.toLowerCase().includes(customerFilter.search.toLowerCase()))
+                                  .map(customer => (
+                                    <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Status
+                    <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48" align="start">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label>Filter by Status</Label>
+                            {statusFilter !== "all" && (
+                              <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <Select value={statusFilter} onValueChange={(value) => {
+                            setStatusFilter(value);
+                            setIsStatusFilterOpen(false);
+                          }}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="paid">Paid</SelectItem>
+                              <SelectItem value="overdue">Overdue</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Total
+                    <Popover open={isAmountFilterOpen} onOpenChange={setIsAmountFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${amountFilter.from || amountFilter.to ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label>Filter by Amount</Label>
+                            {(amountFilter.from || amountFilter.to) && (
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                setAmountFilter({ from: "", to: "" });
+                              }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label>From</Label>
+                              <Input
+                                type="number"
+                                placeholder="Min amount"
+                                value={amountFilter.from}
+                                onChange={(e) => setAmountFilter({ ...amountFilter, from: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label>To</Label>
+                              <Input
+                                type="number"
+                                placeholder="Max amount"
+                                value={amountFilter.to}
+                                onChange={(e) => setAmountFilter({ ...amountFilter, to: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead className="w-32">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredInvoices.map(invoice => (
+                <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
+                  <TableCell className="font-medium">
+                    <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline text-left">
                       {invoice.invoice_number}
                     </button>
-                  </div>
-                  <div className="min-w-[100px]">
-                    <p className="text-sm text-muted-foreground">Issue Date</p>
-                    <p className="font-medium">{formatDate(invoice.issue_date)}</p>
-                  </div>
-                  <div className="min-w-[100px]">
-                    <p className="text-sm text-muted-foreground">Due Date</p>
-                    <p className="font-medium">{invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</p>
-                  </div>
-                  <div className="min-w-[150px]">
-                    <p className="text-sm text-muted-foreground">Customer</p>
-                    <p className="font-medium">{invoice.customers?.name}</p>
-                  </div>
-                  <div className="min-w-[100px]">
+                  </TableCell>
+                  <TableCell>{formatDate(invoice.issue_date)}</TableCell>
+                  <TableCell>{invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</TableCell>
+                  <TableCell>{invoice.customers?.name}</TableCell>
+                  <TableCell>
                     <InvoiceStatusBadge invoice={invoice} onStatusChange={async (newStatus) => {
                       const { error } = await supabase
                         .from('invoices')
@@ -1827,47 +2550,32 @@ export default function Invoicing() {
                         });
                       }
                     }} />
-                  </div>
-                   <div className="min-w-[120px] text-right">
-                     <p className="text-sm text-muted-foreground">Total</p>
-                     <p className="font-bold text-lg">{formatCurrency(invoice.amount || 0, invoice.currency)}</p>
-                   </div>
-                </div>
-                
-                <div className="flex gap-1 ml-4">
-                  <Button variant="ghost" size="icon" onClick={() => handleViewInvoice(invoice)} title="View Invoice">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleEditInvoice(invoice)} title="Edit Invoice">
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" title="Download">
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" title="Delete">
-                        <Trash2 className="h-4 w-4" />
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {formatCurrency(invoice.amount || 0, invoice.currency)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditInvoice(invoice)}
+                      >
+                        Edit
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete invoice "{invoice.invoice_number}"? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteInvoice(invoice.id)}>
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>)}
-          </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeletingInvoice(invoice)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
@@ -2201,7 +2909,7 @@ export default function Invoicing() {
                    .invoice-items-table {
                      width: 100% !important;
                      border-collapse: collapse !important;
-                     margin: 20px 0 !important;
+                     margin: 0 0 !important;
                      table-layout: fixed !important;
                      -webkit-print-color-adjust: exact !important;
                      print-color-adjust: exact !important;
@@ -2231,6 +2939,21 @@ export default function Invoicing() {
                       border-bottom: 1px solid #000 !important;
                     }
                     
+                    .invoice-items-table thead {
+                      background-color: transparent !important;
+                      background: transparent !important;
+                    }
+                    
+                    .invoice-items-table thead th {
+                      background-color: transparent !important;
+                      background: transparent !important;
+                      border-top: none !important;
+                      border-bottom: none !important;
+                      border-left: none !important;
+                      border-right: none !important;
+                      border: none !important;
+                    }
+                    
                     .invoice-items-table td {
                       vertical-align: top !important;
                       border-top: 1px solid #6b7280 !important;
@@ -2248,17 +2971,17 @@ export default function Invoicing() {
                       color-adjust: exact !important;
                     }
                     
-                    /* Column widths for proper wrapping */
+                    /* Column widths for proper wrapping - match screen widths */
                     .invoice-items-table th:nth-child(1),
                     .invoice-items-table td:nth-child(1) {
-                      width: 25% !important;
-                      max-width: 25% !important;
+                      width: 35% !important;
+                      max-width: 35% !important;
                     }
                     
                     .invoice-items-table th:nth-child(2),
                     .invoice-items-table td:nth-child(2) {
-                      width: 15% !important;
-                      max-width: 15% !important;
+                      width: 17% !important;
+                      max-width: 17% !important;
                     }
                     
                     .invoice-items-table th:nth-child(3),
@@ -2275,22 +2998,31 @@ export default function Invoicing() {
                     
                     .invoice-items-table th:nth-child(5),
                     .invoice-items-table td:nth-child(5) {
-                      width: 12% !important;
-                      max-width: 12% !important;
+                      width: 10% !important;
+                      max-width: 10% !important;
                     }
                     
                     .invoice-items-table th:nth-child(6),
                     .invoice-items-table td:nth-child(6) {
-                      width: 12% !important;
-                      max-width: 12% !important;
+                      width: 10% !important;
+                      max-width: 10% !important;
                     }
                     
                     .invoice-items-table th:nth-child(7),
                     .invoice-items-table td:nth-child(7) {
-                      width: 20% !important;
-                      max-width: 20% !important;
+                      width: 12% !important;
+                      max-width: 12% !important;
                       text-align: right !important;
                     }
+                      .total-amount-bg {
+                     position: absolute !important;
+                     width: 286px !important;
+                     padding-left: 23px !important;
+                     right: 77px !important;
+                     -webkit-print-color-adjust: exact !important;
+                     print-color-adjust: exact !important;
+                     color-adjust: exact !important;
+                   }
                    
                     /* Preserve all colors, backgrounds, and fonts exactly as shown */
                     .print-invoice-page,
@@ -2395,29 +3127,13 @@ export default function Invoicing() {
                         <div>
                           <h3 className="mb-2 print-text-sm text-sm font-normal">Bill To:</h3>
                           <p className="font-bold print-text-base print:font-bold">{selectedInvoice.customers?.name}</p>
-                          {(() => {
-                            // For EXW, show company address format instead of stored shipping_address
-                            let displayAddress = selectedInvoice.shipping_address;
-                            if (selectedInvoice.incoterms === 'EXW' && companyInfo) {
-                              const parts: string[] = [];
-                              if (companyInfo.postal_code) parts.push(companyInfo.postal_code);
-                              if (companyInfo.city) parts.push(companyInfo.city);
-                              if (companyInfo.country) {
-                                const countryCode = getCountryCode(companyInfo.country);
-                                if (countryCode) parts.push(countryCode);
-                              }
-                              displayAddress = parts.join(', ') || displayAddress;
-                            }
-                            
-                            return displayAddress ? (
-                              <p className="text-sm whitespace-pre-line print-text-sm">{displayAddress}</p>
-                            ) : null;
-                          })()}
-                          {/* Only show customer city and country if not EXW */}
-                          {selectedInvoice.incoterms !== 'EXW' && selectedInvoice.customers?.city && (
+                          {selectedInvoice.customers?.address && (
+                            <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.customers.address}</p>
+                          )}
+                          {selectedInvoice.customers?.city && (
                             <p className="text-sm print-text-sm">{selectedInvoice.customers.city}</p>
                           )}
-                          {selectedInvoice.incoterms !== 'EXW' && selectedInvoice.customers?.country && (
+                          {selectedInvoice.customers?.country && (
                             <p className="text-sm print-text-sm">{selectedInvoice.customers.country}</p>
                           )}
                           {selectedInvoice.customers?.phone && (
@@ -2436,7 +3152,7 @@ export default function Invoicing() {
                                 <span className="font-medium">Incoterms:</span>{' '}
                                 {selectedInvoice.incoterms}
                                 {(() => {
-                                  // For EXW, use company address; for DAP/FCO, use customer address
+                                  // For EXW, use company address
                                   if (selectedInvoice.incoterms === 'EXW' && companyInfo) {
                                     const parts: string[] = [];
                                     if (companyInfo.postal_code) parts.push(companyInfo.postal_code);
@@ -2446,21 +3162,16 @@ export default function Invoicing() {
                                       if (countryCode) parts.push(countryCode);
                                     }
                                     return parts.length > 0 ? `, ${parts.join(' ')}` : '';
-                                  } else {
-                                    // For DAP/FCO, use customer address
-                                    const parts: string[] = [];
-                                    if ((selectedInvoice.customers as any)?.postal_code) {
-                                      parts.push((selectedInvoice.customers as any).postal_code);
-                                    }
-                                    if (selectedInvoice.customers?.city) {
-                                      parts.push(selectedInvoice.customers.city);
-                                    }
-                                    if (selectedInvoice.customers?.country) {
-                                      const countryCode = getCountryCode(selectedInvoice.customers.country);
-                                      if (countryCode) parts.push(countryCode);
-                                    }
-                                    return parts.length > 0 ? `, ${parts.join(' ')}` : '';
+                                  } else if (selectedInvoice.incoterms === 'DAP') {
+                                    // For DAP, use customer's DAP address
+                                    const dapAddress = (selectedInvoice.customers as any)?.dap_address;
+                                    return dapAddress ? `, ${dapAddress}` : '';
+                                  } else if (selectedInvoice.incoterms === 'FCO') {
+                                    // For FCO, use customer's FCO address
+                                    const fcoAddress = (selectedInvoice.customers as any)?.fco_address;
+                                    return fcoAddress ? `, ${fcoAddress}` : '';
                                   }
+                                  return '';
                                 })()}
                               </p>
                             )}
@@ -2478,7 +3189,7 @@ export default function Invoicing() {
                               <th className="text-left text-sm">Part number</th>
                               <th className="text-left text-sm">Unit</th>
                               <th className="text-left text-sm">Qty</th>
-                              <th className="text-left text-sm">Subtotal weight</th>
+                              <th className="text-left text-sm">Weight</th>
                               <th className="text-left text-sm">Price</th>
                               <th className="text-right text-sm">Amount</th>
                             </tr>
@@ -2514,7 +3225,7 @@ export default function Invoicing() {
                       {/* Invoice Summary - Only on last page */}
                       {isLastPage && (
                         <>
-                          <div className="grid grid-cols-2 gap-6 no-page-break print:mt-8">
+                          <div className="grid grid-cols-2 gap-6 no-page-break print:mt-2">
                          
                             <div style={{ width: '420px' }}>
                               <h3 className="font-semibold mb-2 print-text-base">Summary</h3>
@@ -2550,6 +3261,7 @@ export default function Invoicing() {
                                   <span>{formatCurrency((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
                                 </div>
                                 <div 
+                                  id="invoice-total-amount"
                                   style={{
                                     backgroundColor: invoiceSettings.primaryColor,
                                     position: 'absolute',
@@ -2568,6 +3280,7 @@ export default function Invoicing() {
                               {/* VAT Exemption Notice for Foreign Customers - Positioned below Total */}
                               {selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' && (
                                 <div 
+                                  id="invoice-vat-exemption-statement"
                                   className="print-text-xs text-xs" 
                                   style={{ 
                                     position: 'absolute',
@@ -2587,6 +3300,7 @@ export default function Invoicing() {
                               {/* Signatory - Positioned below VAT Exemption Notice */}
                               {invoiceSettings.signatory && (
                                 <div 
+                                  id="invoice-signatory"
                                   className="text-center" 
                                   style={{ 
                                     position: 'absolute',
@@ -2661,16 +3375,9 @@ export default function Invoicing() {
               
               {/* Buttons outside the white paper page - Always visible after scrolling */}
               <div className="flex gap-2 pt-4 pb-4 print:hidden justify-center w-full">
-                <Button onClick={printInvoice} disabled={printingInvoice || generatingPDF}>
+                <Button onClick={printInvoiceWithMediaPrint} disabled={printingInvoice || generatingPDF} variant="secondary">
                   <Printer className="w-4 h-4 mr-2" />
                   {printingInvoice ? 'Preparing Print...' : 'Print Invoice'}
-                </Button>
-                <Button onClick={generatePDF} disabled={generatingPDF || printingInvoice}>
-                  <FileDown className="w-4 h-4 mr-2" />
-                  {generatingPDF ? 'Generating PDF...' : 'Download PDF'}
-                </Button>
-                <Button onClick={() => setShowPdfSettings(true)} variant="outline" size="icon" title="PDF Settings">
-                  <Settings className="w-4 h-4" />
                 </Button>
                 <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
                   Close
@@ -2780,6 +3487,26 @@ export default function Invoicing() {
               </div>
             </DialogContent>
           </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingInvoice} onOpenChange={(open) => !open && setDeletingInvoice(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Invoice</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete invoice "{deletingInvoice?.invoice_number}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setDeletingInvoice(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteInvoice}>
+              Delete
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>;

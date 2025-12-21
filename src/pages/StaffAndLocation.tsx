@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, MapPin, Users, Edit, Trash2 } from "lucide-react";
+import { Plus, MapPin, Users, Edit, Trash2, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,6 +48,11 @@ const Settings = () => {
   const [editingLocation, setEditingLocation] = useState<StockLocation | null>(null);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const { toast } = useToast();
+  // Column header filters
+  const [locationStatusFilter, setLocationStatusFilter] = useState("all");
+  const [isLocationStatusFilterOpen, setIsLocationStatusFilterOpen] = useState(false);
+  const [staffStatusFilter, setStaffStatusFilter] = useState("all");
+  const [isStaffStatusFilterOpen, setIsStaffStatusFilterOpen] = useState(false);
 
   const [locationForm, setLocationForm] = useState({
     name: "",
@@ -439,64 +448,128 @@ const Settings = () => {
             </Dialog>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {stockLocations.map((location) => (
-              <Card key={location.id} className={!location.is_active ? "opacity-50" : ""}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      {location.name}
-                    </CardTitle>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openLocationDialog(location)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+          <Card>
+            <CardHeader>
+              <CardTitle>Stock Locations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Status
+                        <Popover open={isLocationStatusFilterOpen} onOpenChange={setIsLocationStatusFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${locationStatusFilter !== "all" ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48" align="start">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Status</Label>
+                                {locationStatusFilter !== "all" && (
+                                  <Button variant="ghost" size="sm" onClick={() => setLocationStatusFilter("all")}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <Select value={locationStatusFilter} onValueChange={(value) => {
+                                setLocationStatusFilter(value);
+                                setIsLocationStatusFilterOpen(false);
+                              }}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Status</SelectItem>
+                                  <SelectItem value="active">Active</SelectItem>
+                                  <SelectItem value="inactive">Inactive</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
+                    <TableHead className="w-32">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stockLocations
+                    .filter(location => {
+                      if (locationStatusFilter === "all") return true;
+                      if (locationStatusFilter === "active") return location.is_active;
+                      if (locationStatusFilter === "inactive") return !location.is_active;
+                      return true;
+                    })
+                    .map((location) => (
+                    <TableRow key={location.id} className={!location.is_active ? "opacity-50" : ""}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          {location.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {location.description || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {location.address || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {location.is_active ? (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-500/10 text-gray-700 border-gray-200">
+                            Inactive
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
+                            onClick={() => openLocationDialog(location)}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Edit className="h-4 w-4" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Location</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{location.name}"? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteLocation(location.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                  {!location.is_active && (
-                    <span className="text-xs text-muted-foreground">Inactive</span>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  {location.description && (
-                    <p className="text-sm text-muted-foreground mb-2">{location.description}</p>
-                  )}
-                  {location.address && (
-                    <p className="text-xs text-muted-foreground">{location.address}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Location</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{location.name}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteLocation(location.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="staff" className="space-y-4">
@@ -644,70 +717,128 @@ const Settings = () => {
             </Dialog>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {staff.map((member) => (
-              <Card key={member.id} className={!member.is_active ? "opacity-50" : ""}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      {member.name}
-                    </CardTitle>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openStaffDialog(member)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+          <Card>
+            <CardHeader>
+              <CardTitle>Staff Members</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Position</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Status
+                        <Popover open={isStaffStatusFilterOpen} onOpenChange={setIsStaffStatusFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${staffStatusFilter !== "all" ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48" align="start">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Status</Label>
+                                {staffStatusFilter !== "all" && (
+                                  <Button variant="ghost" size="sm" onClick={() => setStaffStatusFilter("all")}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <Select value={staffStatusFilter} onValueChange={(value) => {
+                                setStaffStatusFilter(value);
+                                setIsStaffStatusFilterOpen(false);
+                              }}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Status</SelectItem>
+                                  <SelectItem value="active">Active</SelectItem>
+                                  <SelectItem value="inactive">Inactive</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
+                    <TableHead className="w-32">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {staff
+                    .filter(member => {
+                      if (staffStatusFilter === "all") return true;
+                      if (staffStatusFilter === "active") return member.is_active;
+                      if (staffStatusFilter === "inactive") return !member.is_active;
+                      return true;
+                    })
+                    .map((member) => (
+                    <TableRow key={member.id} className={!member.is_active ? "opacity-50" : ""}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          {member.name}
+                        </div>
+                      </TableCell>
+                      <TableCell>{member.position || '-'}</TableCell>
+                      <TableCell>{member.department || '-'}</TableCell>
+                      <TableCell className="text-sm">{member.email || '-'}</TableCell>
+                      <TableCell className="text-sm">{member.phone || '-'}</TableCell>
+                      <TableCell>
+                        {member.is_active ? (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-500/10 text-gray-700 border-gray-200">
+                            Inactive
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
+                            onClick={() => openStaffDialog(member)}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Edit className="h-4 w-4" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{member.name}"? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteStaff(member.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                  {!member.is_active && (
-                    <span className="text-xs text-muted-foreground">Inactive</span>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  {member.position && (
-                    <p className="text-sm font-medium">{member.position}</p>
-                  )}
-                  {member.department && (
-                    <p className="text-sm text-muted-foreground">{member.department}</p>
-                  )}
-                  {member.email && (
-                    <p className="text-xs text-muted-foreground mt-2">{member.email}</p>
-                  )}
-                  {member.phone && (
-                    <p className="text-xs text-muted-foreground">{member.phone}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{member.name}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteStaff(member.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

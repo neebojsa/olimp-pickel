@@ -12,7 +12,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, CreditCard } from "lucide-react";
+import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, CreditCard, Filter, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,8 @@ import { useToast } from "@/hooks/use-toast";
 import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 import { getCurrencyForCountry } from "@/lib/currencyUtils";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -58,6 +60,11 @@ export default function Suppliers() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  // Column header filters
+  const [countryFilter, setCountryFilter] = useState({ search: "", selected: "all" });
+  const [isCountryFilterOpen, setIsCountryFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
 
   useEffect(() => {
     fetchSuppliers();
@@ -240,11 +247,21 @@ export default function Suppliers() {
     setNewSupplier({ ...newSupplier, country, currency });
   };
 
+  // Filter suppliers
+  const filteredSuppliers = suppliers.filter(supplier => {
+    const matchesCountry = countryFilter.selected === "all" || supplier.country === countryFilter.selected;
+    const matchesStatus = statusFilter === "all" || supplier.status === statusFilter;
+    return matchesCountry && matchesStatus;
+  });
+
   // Pagination
-  const totalPages = Math.ceil(suppliers.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedSuppliers = suppliers.slice(startIndex, endIndex);
+  const paginatedSuppliers = filteredSuppliers.slice(startIndex, endIndex);
+  
+  // Get unique countries for filter
+  const uniqueCountries = [...new Set(suppliers.map(s => s.country).filter(Boolean))].sort();
 
   return (
     <div className="p-6 space-y-6">
@@ -375,88 +392,174 @@ export default function Suppliers() {
           <CardTitle>Supplier Directory</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Company Name</TableHead>
-                  <TableHead>Contact Person</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Country</TableHead>
-                  <TableHead>Payment Terms</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Total Orders</TableHead>
-                  <TableHead>Total Value</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedSuppliers.map((supplier) => (
-                  <TableRow key={supplier.id}>
-                    <TableCell>
-                      <button 
-                        onClick={() => handleSupplierClick(supplier)}
-                        className="text-primary hover:underline font-medium text-left"
-                      >
-                        {supplier.name}
-                      </button>
-                    </TableCell>
-                    <TableCell>{supplier.contact_person}</TableCell>
-                    <TableCell className="text-sm">
-                      <a href={`mailto:${supplier.email}`} className="hover:underline">
-                        {supplier.email}
-                      </a>
-                    </TableCell>
-                    <TableCell className="text-sm">{supplier.phone}</TableCell>
-                    <TableCell className="text-sm">{supplier.country || '-'}</TableCell>
-                    <TableCell>{supplier.payment_terms}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={getStatusColor(supplier.status)}
-                      >
-                        {supplier.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{supplier.totalOrders}</TableCell>
-                    <TableCell className="font-medium">
-                      ${supplier.totalValue.toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4" />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Company Name</TableHead>
+                <TableHead>Contact Person</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Country
+                      <Popover open={isCountryFilterOpen} onOpenChange={setIsCountryFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${countryFilter.selected !== "all" ? 'text-primary' : ''}`} />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Supplier</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{supplier.name}"? This action cannot be undone and will remove all associated data.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteSupplier(supplier.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" align="start">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Label>Filter by Country</Label>
+                              {countryFilter.selected !== "all" && (
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setCountryFilter({ search: "", selected: "all" });
+                                }}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <div>
+                              <Label>Search</Label>
+                              <Input
+                                placeholder="Search countries..."
+                                value={countryFilter.search}
+                                onChange={(e) => setCountryFilter({ ...countryFilter, search: e.target.value })}
+                              />
+                            </div>
+                            <div className="max-h-60 overflow-y-auto">
+                              <Select value={countryFilter.selected} onValueChange={(value) => {
+                                setCountryFilter({ ...countryFilter, selected: value });
+                                setIsCountryFilterOpen(false);
+                              }}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select country" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Countries</SelectItem>
+                                  {uniqueCountries
+                                    .filter(c => !countryFilter.search || c.toLowerCase().includes(countryFilter.search.toLowerCase()))
+                                    .map(country => (
+                                      <SelectItem key={country} value={country}>{country}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                </TableHead>
+                <TableHead>Payment Terms</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Status
+                      <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48" align="start">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label>Filter by Status</Label>
+                              {statusFilter !== "all" && (
+                                <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <Select value={statusFilter} onValueChange={(value) => {
+                              setStatusFilter(value);
+                              setIsStatusFilterOpen(false);
+                            }}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="On Hold">On Hold</SelectItem>
+                                <SelectItem value="Inactive">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                </TableHead>
+                <TableHead>Total Orders</TableHead>
+                <TableHead>Total Value</TableHead>
+                <TableHead className="w-20">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedSuppliers.map((supplier) => (
+                <TableRow key={supplier.id}>
+                  <TableCell>
+                    <button 
+                      onClick={() => handleSupplierClick(supplier)}
+                      className="text-primary hover:underline font-medium text-left"
+                    >
+                      {supplier.name}
+                    </button>
+                  </TableCell>
+                  <TableCell>{supplier.contact_person}</TableCell>
+                  <TableCell className="text-sm">
+                    <a href={`mailto:${supplier.email}`} className="hover:underline">
+                      {supplier.email}
+                    </a>
+                  </TableCell>
+                  <TableCell className="text-sm">{supplier.phone}</TableCell>
+                  <TableCell className="text-sm">{supplier.country || '-'}</TableCell>
+                  <TableCell>{supplier.payment_terms}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={getStatusColor(supplier.status)}
+                    >
+                      {supplier.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{supplier.totalOrders}</TableCell>
+                  <TableCell className="font-medium">
+                    ${supplier.totalValue.toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Supplier</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{supplier.name}"? This action cannot be undone and will remove all associated data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteSupplier(supplier.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
           
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, suppliers.length)} of {suppliers.length} suppliers
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredSuppliers.length)} of {filteredSuppliers.length} suppliers
               </p>
               <Pagination>
                 <PaginationContent>

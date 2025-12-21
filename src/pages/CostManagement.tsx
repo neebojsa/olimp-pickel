@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { 
   Building2,
   Plus,
@@ -19,19 +21,136 @@ import {
   AlertCircle,
   Check,
   Settings,
-  X
+  X,
+  Filter,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { formatDate, formatDateForInput } from "@/lib/dateUtils";
-import { ocrService, OCRResult, OCRService } from "@/lib/ocrService";
+import { OCRResult } from "@/lib/ocrService";
+import { geminiOCRService } from "@/lib/geminiOCRService";
 import { extractValueAfterPattern, calculateSimilarity } from "@/lib/fuzzyMatch";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { CountryAutocomplete } from "@/components/CountryAutocomplete";
+import { getCurrencyForCountry } from "@/lib/currencyUtils";
+
+// Helper function to get status color classes
+const getStatusColor = (status: string): string => {
+  switch (status) {
+    case "paid":
+      return "bg-green-500/10 text-green-700 border-green-200";
+    case "pending":
+      return "bg-amber-500/10 text-amber-700 border-amber-200";
+    case "overdue":
+      return "bg-red-500/10 text-red-700 border-red-200";
+    default:
+      return "bg-gray-500/10 text-gray-700 border-gray-200";
+  }
+};
+
+// Calculate effective status based on due_date and current status
+const getEffectiveStatus = (entry: CostEntry): 'pending' | 'paid' | 'overdue' => {
+  // If status is "paid", always return "paid"
+  if (entry.status === "paid") {
+    return "paid";
+  }
+  
+  // For other statuses, check if overdue based on due_date
+  if (entry.due_date) {
+    const dueDate = new Date(entry.due_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    if (dueDate < today) {
+      return "overdue";
+    }
+  }
+  
+  // Default to pending if not overdue and not paid
+  return "pending";
+};
+
+// Cost Status Badge Component
+const CostStatusBadge = ({ entry, onStatusChange }: { entry: CostEntry; onStatusChange: (status: 'pending' | 'paid' | 'overdue') => Promise<void> }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const effectiveStatus = getEffectiveStatus(entry);
+  
+  const handleStatusChange = async (newStatus: 'pending' | 'paid' | 'overdue') => {
+    await onStatusChange(newStatus);
+    setIsOpen(false);
+  };
+  
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "paid":
+        return "Paid";
+      case "pending":
+        return "Pending";
+      case "overdue":
+        return "Overdue";
+      default:
+        return status;
+    }
+  };
+  
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <button>
+          <Badge variant="outline" className={cn(getStatusColor(effectiveStatus), "cursor-pointer hover:opacity-80")}>
+            {getStatusLabel(effectiveStatus)}
+          </Badge>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-40 p-2" align="start">
+        <div className="space-y-1">
+          {effectiveStatus !== "paid" && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => handleStatusChange("paid")}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              Paid
+            </Button>
+          )}
+          {effectiveStatus === "paid" && (
+            <>
+              {/* Only show Overdue if due_date is in the past */}
+              {entry.due_date && new Date(entry.due_date) < new Date() ? (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => handleStatusChange("overdue")}
+                >
+                  Overdue
+                </Button>
+              ) : (
+                /* Only show Pending if due_date is in the future or doesn't exist */
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => handleStatusChange("pending")}
+                >
+                  Pending
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 interface CostEntry {
   id: string;
   supplier_name: string;
-  document_type: 'invoice' | 'quote' | 'receipt' | 'other';
+  document_type: 'invoice' | 'quote' | 'credit_note' | 'other';
   subtotal_tax_excluded: number;
   total_amount: number;
   currency: string;
@@ -64,15 +183,21 @@ export default function CostManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
+  const [isAIAddSupplierDialogOpen, setIsAIAddSupplierDialogOpen] = useState(false);
   const [detectedSupplier, setDetectedSupplier] = useState<any>(null);
   const [supplierFormData, setSupplierFormData] = useState({
     name: '',
-    address: '',
-    phone: '',
-    email: '',
-    tax_number: '',
     contact_person: '',
-    payment_terms: 30
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    website: '',
+    tax_id: '',
+    payment_terms: 'Net 30',
+    notes: '',
+    country: '',
+    currency: 'EUR'
   });
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingEntry, setEditingEntry] = useState<CostEntry | null>(null);
@@ -80,12 +205,14 @@ export default function CostManagement() {
   const [isOCRDialogOpen, setIsOCRDialogOpen] = useState(false);
   const [isOCRProcessing, setIsOCRProcessing] = useState(false);
   const [ocrResult, setOCRResult] = useState<OCRResult | null>(null);
+  // Always use Gemini AI for OCR
   const [ocrFileName, setOCRFileName] = useState<string>("");
   const [ocrFile, setOCRFile] = useState<File | null>(null); // Store the OCR scanned file
   const [ocrSuggestions, setOCRSuggestions] = useState<Partial<CostEntry>>({});
   const [approvedFields, setApprovedFields] = useState<Set<string>>(new Set());
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [documentUrl, setDocumentUrl] = useState<string>("");
+  const [supplierOCRData, setSupplierOCRData] = useState<any>(null);
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
   const [isOCRSettingsOpen, setIsOCRSettingsOpen] = useState(false);
   const [ocrFieldMappings, setOCRFieldMappings] = useState<Record<string, string[]>>({
@@ -107,6 +234,22 @@ export default function CostManagement() {
     due_date: '',
     document_number: ''
   });
+  // Column header filters
+  const [supplierFilter, setSupplierFilter] = useState({ search: "", selected: "all" });
+  const [isSupplierFilterOpen, setIsSupplierFilterOpen] = useState(false);
+  const [documentTypeFilter, setDocumentTypeFilter] = useState("all");
+  const [isDocumentTypeFilterOpen, setIsDocumentTypeFilterOpen] = useState(false);
+  const [amountFilter, setAmountFilter] = useState({ from: "", to: "" });
+  const [isAmountFilterOpen, setIsAmountFilterOpen] = useState(false);
+  const [issueDateFilter, setIssueDateFilter] = useState<{ from?: Date; to?: Date }>({});
+  const [isIssueDateFilterOpen, setIsIssueDateFilterOpen] = useState(false);
+  const [dueDateFilter, setDueDateFilter] = useState<{ from?: Date; to?: Date }>({});
+  const [isDueDateFilterOpen, setIsDueDateFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  // Date picker popovers for form
+  const [isIssueDatePickerOpen, setIsIssueDatePickerOpen] = useState(false);
+  const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
 
   const [formData, setFormData] = useState<Partial<CostEntry>>({
     supplier_name: '',
@@ -150,12 +293,28 @@ export default function CostManagement() {
 
     initializeData();
 
+    // Clean up document URL when component unmounts
+    return () => {
+      if (documentUrl) {
+        URL.revokeObjectURL(documentUrl);
+      }
+    };
+  }, []);
+
+  // Clean up document URL when it changes
+  useEffect(() => {
+    return () => {
+      if (documentUrl) {
+        URL.revokeObjectURL(documentUrl);
+      }
+    };
+  }, [documentUrl]);
+
     // Don't set default issue date - let OCR extract it or user enter it manually
     // setFormData(prev => ({
     //   ...prev,
     //   issue_date: formatDateForInput(new Date())
     // }));
-  }, []);
 
   const loadOCRMappings = () => {
     try {
@@ -206,22 +365,42 @@ export default function CostManagement() {
       }
 
       // Transform accounting entries to cost entries format
-      const transformedData = data?.map(entry => ({
-        id: entry.id,
-        supplier_name: entry.description || 'Unknown Supplier',
-        document_type: (entry.category || 'invoice') as any,
-        subtotal_tax_excluded: entry.amount * 0.8, // Assume 20% VAT
-        total_amount: entry.amount,
-        currency: 'BAM',
-        issue_date: entry.date,
-        due_date: (entry as any).due_date || '',
-        description: entry.description,
-        document_number: entry.reference || '',
-        status: ((entry as any).status || 'pending') as 'pending' | 'paid' | 'overdue',
-        created_at: entry.created_at,
-        updated_at: entry.updated_at,
-        document_url: (entry as any).document_url || ''
-      })) || [];
+      const transformedData = data?.map(entry => {
+        const costEntry: CostEntry = {
+          id: entry.id,
+          supplier_name: entry.description || 'Unknown Supplier',
+          document_type: (entry.category || 'invoice') as any,
+          subtotal_tax_excluded: entry.amount * 0.8, // Assume 20% VAT
+          total_amount: entry.amount,
+          currency: 'BAM',
+          issue_date: entry.date,
+          due_date: (entry as any).due_date || '',
+          description: entry.description,
+          document_number: entry.reference || '',
+          status: ((entry as any).status || 'pending') as 'pending' | 'paid' | 'overdue',
+          created_at: entry.created_at,
+          updated_at: entry.updated_at,
+          document_url: (entry as any).document_url || ''
+        };
+        // Auto-calculate effective status based on due_date
+        const effectiveStatus = getEffectiveStatus(costEntry);
+        // Only update status if it's not manually set to "paid" and differs from effective
+        // Also update in database if status needs to change
+        if (costEntry.status !== 'paid' && effectiveStatus !== costEntry.status) {
+          costEntry.status = effectiveStatus;
+          // Update status in database asynchronously (don't await to avoid blocking)
+          supabase
+            .from('accounting_entries')
+            .update({ status: effectiveStatus })
+            .eq('id', entry.id)
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error auto-updating status:', error);
+              }
+            });
+        }
+        return costEntry;
+      }) || [];
 
       setCostEntries(transformedData);
     } catch (error) {
@@ -345,16 +524,40 @@ export default function CostManagement() {
         }
       }
 
+      // Auto-calculate status based on due_date if not manually set to "paid"
+      let finalStatus = formData.status || 'pending';
+      if (finalStatus !== 'paid' && formData.due_date) {
+        const tempEntry: CostEntry = {
+          id: '',
+          supplier_name: formData.supplier_name || '',
+          document_type: formData.document_type || 'invoice',
+          subtotal_tax_excluded: formData.subtotal_tax_excluded || 0,
+          total_amount: formData.total_amount || 0,
+          currency: formData.currency || 'BAM',
+          issue_date: formData.issue_date || '',
+          due_date: formData.due_date || '',
+          description: formData.description || '',
+          document_number: formData.document_number || '',
+          status: finalStatus,
+          created_at: '',
+          updated_at: ''
+        };
+        finalStatus = getEffectiveStatus(tempEntry);
+      }
+
       const entryData = {
         ...formData,
         subtotal_tax_excluded: formData.subtotal_tax_excluded || 0,
         total_amount: formData.total_amount || 0,
         currency: formData.currency || 'BAM',
-        status: formData.status || 'pending'
+        status: finalStatus
       };
 
+      // Only sync invoices and credit notes to accounting_entries
+      const isInvoiceOrCreditNote = entryData.document_type === 'invoice' || entryData.document_type === 'credit_note';
+
       if (isEditMode && editingEntry) {
-        // Transform to accounting entry format for update
+        // Always update in accounting_entries (quotes/other stay there but Accounting filters them out)
         const accountingData = {
           amount: entryData.total_amount || 0,
           description: `${entryData.supplier_name} - ${entryData.document_number}`,
@@ -387,7 +590,8 @@ export default function CostManagement() {
         
         console.log('Successfully updated cost entry:', data);
       } else {
-        // Transform to accounting entry format for insert
+        // Only insert invoices and credit notes into accounting_entries
+        if (isInvoiceOrCreditNote) {
         const accountingData = {
           amount: entryData.total_amount || 0,
           description: `${entryData.supplier_name} - ${entryData.document_number}`,
@@ -418,6 +622,40 @@ export default function CostManagement() {
         }
         
         console.log('Successfully created cost entry:', data);
+        } else {
+          // For quotes and other, save to accounting_entries but they won't show in Accounting page
+          // (Accounting page filters to only show invoices and credit_notes)
+          const accountingData = {
+            amount: entryData.total_amount || 0,
+            description: `${entryData.supplier_name} - ${entryData.document_number}`,
+            reference: entryData.document_number || '',
+            date: entryData.issue_date || '',
+            category: entryData.document_type || 'quote',
+            type: 'expense',
+            document_url: uploadedDocumentUrl || null,
+            status: entryData.status || 'pending',
+            due_date: entryData.due_date || null
+          };
+
+          console.log('Inserting quote/other entry (not synced to Accounting):', accountingData);
+          const { error, data } = await supabase
+            .from('accounting_entries')
+            .insert([accountingData])
+            .select();
+
+          if (error) {
+            console.error('Error creating cost entry:', error);
+            console.error('Error details:', JSON.stringify(error, null, 2));
+            toast({
+              title: "Error Creating Cost Entry",
+              description: error.message || "Failed to create cost entry. Please check the console for details.",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          console.log('Successfully created cost entry (quote/other):', data);
+        }
       }
 
       await fetchCostEntries();
@@ -508,43 +746,20 @@ export default function CostManagement() {
 
       try {
         console.log('Starting OCR processing for file:', file.name, file.type, file.size);
+          console.log('Using Gemini AI for OCR...');
         
-        // Create OCR service with Serbian/Bosnian/Croatian languages
-        // Note: Tesseract uses 'hrv' for Croatian, 'srp' for Serbian
-        // Try multiple languages, fallback to English if language packs not available
-        let result: OCRResult;
-        let multiLangOCRService: OCRService;
-        
-        try {
-          // Try with Serbian/Croatian/English
-          multiLangOCRService = new OCRService({
-            language: 'hrv+srp+eng', // Croatian + Serbian + English
-            debug: true
+        // Always use Gemini AI
+        if (!geminiOCRService.isAvailable()) {
+            toast({
+              title: "Gemini AI Not Available",
+            description: "Please configure your Gemini API key to use AI scanning.",
+            variant: "destructive"
           });
-          
-          if (file.type === 'application/pdf') {
-            console.log('Processing as PDF with hrv+srp+eng...');
-            result = await multiLangOCRService.processPDF(file);
-        } else {
-            console.log('Processing as image with hrv+srp+eng...');
-            result = await multiLangOCRService.processImage(file);
-          }
-        } catch (langError: any) {
-          console.warn('Multi-language OCR failed, trying English only:', langError);
-          // Fallback to English if language packs not available
-          multiLangOCRService = new OCRService({
-            language: 'eng',
-            debug: true
-          });
-          
-          if (file.type === 'application/pdf') {
-            console.log('Processing as PDF with eng...');
-            result = await multiLangOCRService.processPDF(file);
-          } else {
-            console.log('Processing as image with eng...');
-            result = await multiLangOCRService.processImage(file);
-          }
+          setIsOCRProcessing(false);
+          return;
         }
+        
+        const result = await geminiOCRService.processFile(file);
 
         console.log('OCR result received:', result);
         
@@ -557,17 +772,62 @@ export default function CostManagement() {
           // Extract suggestions from OCR result using field mappings
           const suggestions = extractDataFromOCR(result.text, ocrFieldMappings, result.extractedData);
           
-          // Try to match supplier from OCR text
-          const matchedSupplier = findSupplierFromOCRText(result.text, suppliers, companyInfo);
-          if (matchedSupplier) {
-            suggestions.supplier_name = matchedSupplier.name; // Use name, not ID, because Select uses name as value
-            console.log('Matched supplier from OCR:', matchedSupplier.name, 'with ID:', matchedSupplier.id);
+          // Prioritize Gemini-extracted supplier name over text matching
+          // Only use text matching if Gemini didn't extract a supplier name
+          let matchedSupplier: any | null = null;
+          
+          if (suggestions.supplier_name && suggestions.supplier_name.trim()) {
+            console.log('Using Gemini-extracted supplier name:', suggestions.supplier_name);
+            // Verify the extracted supplier exists in database
+            const extractedSupplier = suppliers.find(s => 
+              s.name.toLowerCase() === suggestions.supplier_name!.toLowerCase()
+            );
+            if (extractedSupplier) {
+              matchedSupplier = extractedSupplier;
+              console.log('Verified Gemini-extracted supplier exists in database:', extractedSupplier.name);
+            } else {
+              console.warn('Gemini-extracted supplier not found in database, trying text matching:', suggestions.supplier_name);
+              // Fallback to text matching if extracted name doesn't exist in database
+              matchedSupplier = findSupplierFromOCRText(result.text, suppliers, companyInfo);
+              if (matchedSupplier) {
+                suggestions.supplier_name = matchedSupplier.name;
+                console.log('Using text-matched supplier:', matchedSupplier.name);
+              }
+            }
           } else {
-            console.log('No supplier matched from OCR text');
+            // Only use text matching if Gemini didn't extract a supplier name
+            console.log('No supplier extracted by Gemini, trying text matching...');
+            matchedSupplier = findSupplierFromOCRText(result.text, suppliers, companyInfo);
+            if (matchedSupplier) {
+              suggestions.supplier_name = matchedSupplier.name; // Use name, not ID, because Select uses name as value
+              console.log('Matched supplier from OCR text:', matchedSupplier.name, 'with ID:', matchedSupplier.id);
+            } else {
+              console.log('No supplier matched from OCR text');
+            }
+          }
+          
+          // Calculate due_date from payment_terms if supplier is matched and due_date not extracted by OCR
+          if (matchedSupplier && suggestions.issue_date && !suggestions.due_date) {
+            const calculatedDueDate = calculateDueDate(matchedSupplier.payment_terms, suggestions.issue_date);
+            if (calculatedDueDate) {
+              suggestions.due_date = calculatedDueDate;
+              console.log(`Calculated due_date from payment_terms (${matchedSupplier.payment_terms}):`, calculatedDueDate);
+            }
           }
           
           console.log('OCR suggestions extracted:', suggestions);
           console.log('OCR text sample:', result.text.substring(0, 500));
+           
+           // Extract supplier information from OCR result
+           // Check if supplierInfo was stored in the result object by Gemini service
+           const supplierInfo = (result as any).supplierInfo || null;
+           if (supplierInfo) {
+             setSupplierOCRData(supplierInfo);
+           } else if (result.text) {
+             // Fallback: extract supplier info from OCR text using pattern matching
+             const extractedSupplierInfo = extractSupplierInfoFromText(result.text);
+             setSupplierOCRData(extractedSupplierInfo);
+           }
           
           setOCRSuggestions(suggestions);
           setOCRResult(result);
@@ -581,11 +841,25 @@ export default function CostManagement() {
               updated.issue_date = suggestions.issue_date;
             }
             if (suggestions.due_date) {
-              console.log('Setting due_date from OCR:', suggestions.due_date);
+              console.log('Setting due_date:', suggestions.due_date);
               updated.due_date = suggestions.due_date;
             }
             if (suggestions.supplier_name && !prev.supplier_name) {
               updated.supplier_name = suggestions.supplier_name;
+              
+              // If supplier is set and issue_date exists but due_date doesn't, calculate from payment_terms
+              if (updated.issue_date && !updated.due_date) {
+                const supplier = suppliers.find(s => 
+                  s.name.toLowerCase() === suggestions.supplier_name!.toLowerCase()
+                );
+                if (supplier && supplier.payment_terms) {
+                  const calculatedDueDate = calculateDueDate(supplier.payment_terms, updated.issue_date);
+                  if (calculatedDueDate) {
+                    updated.due_date = calculatedDueDate;
+                    console.log(`Calculated due_date from supplier payment_terms (${supplier.payment_terms}):`, calculatedDueDate);
+                  }
+                }
+              }
             }
             if (suggestions.document_type && !prev.document_type) {
               updated.document_type = suggestions.document_type;
@@ -608,9 +882,12 @@ export default function CostManagement() {
             return updated;
           });
           
-          // Set the OCR file as the document file
+          // Set the OCR file as the document file and create preview URL
           if (file) {
             setDocumentFile(file);
+            // Create object URL for preview
+            const url = URL.createObjectURL(file);
+            setDocumentUrl(url);
           }
           
           // Open the cost entry dialog with suggestions
@@ -651,6 +928,141 @@ export default function CostManagement() {
       // Don't clear if user is just clicking to approve
       // The input will handle this naturally
     }
+  };
+
+  // Helper function to extract supplier information from OCR text
+  const extractSupplierInfoFromText = (text: string): any => {
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    let supplierName = '';
+    let address = '';
+    let city = '';
+    let country = '';
+    let phone = '';
+    let email = '';
+    let website = '';
+    let tax_id = '';
+    
+    // Look for supplier name in first few lines (similar to OCR service logic)
+    const supplierLines = lines.slice(0, 8);
+    for (const line of supplierLines) {
+      if (line.length > 3 && 
+          !line.match(/^\d/) && 
+          !line.match(/[€$£]/) && 
+          !line.match(/^\d+[.,]\d{2}/) &&
+          !line.match(/^(datum|total|ukupno|iznos|faktura|račun|invoice)/i) &&
+          !line.match(/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/) &&
+          line.length < 100) {
+        supplierName = line.trim();
+        break;
+      }
+    }
+    
+    // Look for address patterns
+    const addressPatterns = [
+      /(?:adresa|address|ulica|street)[:\s]*(.+)/i,
+      /^[A-Za-z\s]+,\s*\d+[A-Za-z]?\s*,\s*\d{5}\s*[A-Za-z\s]+$/,
+      /^\d+\s+[A-Za-z\s]+,\s*\d{5}\s*[A-Za-z\s]+$/
+    ];
+    
+    for (const line of lines) {
+      for (const pattern of addressPatterns) {
+        const match = line.match(pattern);
+        if (match) {
+          address = match[1] || line;
+          break;
+        }
+      }
+      if (address) break;
+    }
+    
+    // Look for phone numbers
+    const phonePatterns = [
+      /(?:tel|phone|telefon|mob|mobile)[:\s]*(\+?\d{1,4}[\s\-]?\d{2,4}[\s\-]?\d{2,4}[\s\-]?\d{2,4})/i,
+      /(\+?\d{1,4}[\s\-]?\d{2,4}[\s\-]?\d{2,4}[\s\-]?\d{2,4})/
+    ];
+    
+    for (const line of lines) {
+      for (const pattern of phonePatterns) {
+        const match = line.match(pattern);
+        if (match) {
+          phone = match[1];
+          break;
+        }
+      }
+      if (phone) break;
+    }
+    
+    // Look for email addresses
+    const emailPattern = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+    for (const line of lines) {
+      const match = line.match(emailPattern);
+      if (match) {
+        email = match[1];
+        break;
+      }
+    }
+    
+    // Look for website URLs
+    const websitePatterns = [
+      /(?:www\.|https?:\/\/)([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
+      /(?:website|web|site)[:\s]*(?:www\.|https?:\/\/)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i
+    ];
+    
+    for (const line of lines) {
+      for (const pattern of websitePatterns) {
+        const match = line.match(pattern);
+        if (match) {
+          website = match[1] || match[0];
+          if (!website.startsWith('http')) {
+            website = 'https://' + website;
+          }
+          break;
+        }
+      }
+      if (website) break;
+    }
+    
+    // Look for tax ID/VAT number
+    const taxPatterns = [
+      /(?:pib|tax|vat|pdv|id|jmbg|mb)[:\s]*([A-Z0-9\-]+)/i,
+      /(?:porezni|tax\s*id|vat\s*number)[:\s]*([A-Z0-9\-]+)/i
+    ];
+    
+    for (const line of lines) {
+      for (const pattern of taxPatterns) {
+        const match = line.match(pattern);
+        if (match) {
+          tax_id = match[1];
+          break;
+        }
+      }
+      if (tax_id) break;
+    }
+    
+    // Try to extract city and country from address
+    if (address) {
+      const addressParts = address.split(',').map(p => p.trim());
+      if (addressParts.length > 1) {
+        city = addressParts[addressParts.length - 2] || '';
+        // Last part might be country or postal code + city
+        const lastPart = addressParts[addressParts.length - 1];
+        if (lastPart && !lastPart.match(/^\d{5}/)) {
+          country = lastPart;
+        }
+      }
+    }
+    
+    return {
+      name: supplierName || ocrSuggestions.supplier_name || '',
+      address,
+      city,
+      country,
+      phone,
+      email,
+      website,
+      tax_id
+    };
   };
 
   const extractDataFromOCR = (
@@ -936,8 +1348,8 @@ export default function CostManagement() {
           return 'invoice';
         } else if (lowerValue.includes('ponuda') || lowerValue.includes('quote')) {
           return 'quote';
-        } else if (lowerValue.includes('potvrda') || lowerValue.includes('receipt')) {
-          return 'receipt';
+        } else if (lowerValue.includes('credit') || lowerValue.includes('credit note') || lowerValue.includes('creditnote')) {
+          return 'credit_note';
         }
         return null;
       });
@@ -947,6 +1359,46 @@ export default function CostManagement() {
     }
 
     return suggestions;
+  };
+
+  // Helper function to calculate due date from payment terms
+  const calculateDueDate = (paymentTerms: string | number | null | undefined, issueDate: string): string => {
+    if (!paymentTerms && paymentTerms !== 0) return '';
+    if (!issueDate) return '';
+    
+    let days = 0;
+    
+    // Handle integer values directly
+    if (typeof paymentTerms === 'number') {
+      days = paymentTerms;
+    } else if (typeof paymentTerms === 'string') {
+      // Parse payment terms - could be "Net 30", "30", "Net 15", etc.
+      const match = paymentTerms.match(/(\d+)/);
+      if (match) {
+        days = parseInt(match[1], 10);
+      } else {
+        return '';
+      }
+    } else {
+      return '';
+    }
+    
+    if (days > 0) {
+      try {
+        const issueDateObj = new Date(issueDate);
+        if (isNaN(issueDateObj.getTime())) {
+          return '';
+        }
+        const dueDate = new Date(issueDateObj);
+        dueDate.setDate(dueDate.getDate() + days);
+        return dueDate.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+      } catch (error) {
+        console.error('Error calculating due date:', error);
+        return '';
+      }
+    }
+    
+    return '';
   };
 
   // Function to find supplier from OCR text by matching against supplier data
@@ -1252,12 +1704,17 @@ export default function CostManagement() {
         .from('suppliers')
         .insert({
           name: supplierFormData.name,
-          address: supplierFormData.address,
-          phone: supplierFormData.phone,
-          email: supplierFormData.email,
-          tax_id: supplierFormData.tax_number,
           contact_person: supplierFormData.contact_person,
-          payment_terms: supplierFormData.payment_terms.toString()
+          email: supplierFormData.email,
+          phone: supplierFormData.phone,
+          address: supplierFormData.address,
+          city: supplierFormData.city,
+          website: supplierFormData.website,
+          tax_id: supplierFormData.tax_id,
+          payment_terms: supplierFormData.payment_terms,
+          notes: supplierFormData.notes,
+          country: supplierFormData.country,
+          currency: supplierFormData.currency
         })
         .select()
         .single();
@@ -1273,24 +1730,21 @@ export default function CostManagement() {
       // Refresh suppliers list
       await fetchSuppliers();
       
-      // Close dialog and reset form
-      setIsSupplierDialogOpen(false);
-      setDetectedSupplier(null);
-      setSupplierFormData({
-        name: '',
-        address: '',
-        phone: '',
-        email: '',
-        tax_number: '',
-        contact_person: '',
-        payment_terms: 30
+      toast({
+        title: "Success",
+        description: "Supplier added successfully"
       });
       
-      alert(`Supplier "${supplierFormData.name}" has been added to your database successfully!`);
+      return data;
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving supplier:', error);
-      alert(`Error saving supplier: ${error.message}`);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to save supplier",
+        variant: "destructive"
+      });
+      throw error;
     }
   };
 
@@ -1312,7 +1766,7 @@ export default function CostManagement() {
           <Button variant="outline" size="icon" onClick={() => setIsOCRSettingsOpen(true)}>
             <Settings className="w-4 h-4" />
           </Button>
-          <Button variant="outline" onClick={handleScanDocument} disabled={isOCRProcessing}>
+          <Button variant="outline" onClick={handleScanDocument} disabled={isOCRProcessing || !geminiOCRService.isAvailable()}>
             {isOCRProcessing ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1321,7 +1775,7 @@ export default function CostManagement() {
             ) : (
               <>
                 <ScanLine className="w-4 h-4 mr-2" />
-                Scan Doc
+                AI Scan Doc
               </>
             )}
           </Button>
@@ -1341,18 +1795,295 @@ export default function CostManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead>Document Type</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Issue Date</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Supplier
+                        <Popover open={isSupplierFilterOpen} onOpenChange={setIsSupplierFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${supplierFilter.selected !== "all" || supplierFilter.search ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80" align="start">
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Supplier</Label>
+                                {(supplierFilter.search || supplierFilter.selected !== "all") && (
+                                  <Button variant="ghost" size="sm" onClick={() => {
+                                    setSupplierFilter({ search: "", selected: "all" });
+                                  }}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div>
+                                <Label>Search</Label>
+                                <Input
+                                  placeholder="Search suppliers..."
+                                  value={supplierFilter.search}
+                                  onChange={(e) => setSupplierFilter({ ...supplierFilter, search: e.target.value })}
+                                />
+                              </div>
+                              <div className="max-h-60 overflow-y-auto">
+                                <Select value={supplierFilter.selected} onValueChange={(value) => {
+                                  setSupplierFilter({ ...supplierFilter, selected: value });
+                                  setIsSupplierFilterOpen(false);
+                                }}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select supplier" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All Suppliers</SelectItem>
+                                    {suppliers
+                                      .filter(s => !supplierFilter.search || s.name.toLowerCase().includes(supplierFilter.search.toLowerCase()))
+                                      .map(supplier => (
+                                        <SelectItem key={supplier.id} value={supplier.name}>{supplier.name}</SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Document Type
+                        <Popover open={isDocumentTypeFilterOpen} onOpenChange={setIsDocumentTypeFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${documentTypeFilter !== "all" ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48" align="start">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Document Type</Label>
+                                {documentTypeFilter !== "all" && (
+                                  <Button variant="ghost" size="sm" onClick={() => setDocumentTypeFilter("all")}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <Select value={documentTypeFilter} onValueChange={(value) => {
+                                setDocumentTypeFilter(value);
+                                setIsDocumentTypeFilterOpen(false);
+                              }}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Types</SelectItem>
+                                  <SelectItem value="invoice">Invoice</SelectItem>
+                                  <SelectItem value="quote">Quote</SelectItem>
+                                  <SelectItem value="credit_note">Credit note</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Amount
+                        <Popover open={isAmountFilterOpen} onOpenChange={setIsAmountFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${amountFilter.from || amountFilter.to ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80" align="start">
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Amount</Label>
+                                {(amountFilter.from || amountFilter.to) && (
+                                  <Button variant="ghost" size="sm" onClick={() => {
+                                    setAmountFilter({ from: "", to: "" });
+                                  }}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <Label>From</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="Min amount"
+                                    value={amountFilter.from}
+                                    onChange={(e) => setAmountFilter({ ...amountFilter, from: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>To</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="Max amount"
+                                    value={amountFilter.to}
+                                    onChange={(e) => setAmountFilter({ ...amountFilter, to: e.target.value })}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Issue Date
+                        <Popover open={isIssueDateFilterOpen} onOpenChange={setIsIssueDateFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${issueDateFilter.from || issueDateFilter.to ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="range"
+                              selected={{ from: issueDateFilter.from, to: issueDateFilter.to }}
+                              onSelect={(range) => {
+                                setIssueDateFilter({
+                                  from: range?.from,
+                                  to: range?.to
+                                });
+                                if (range?.from && range?.to) {
+                                  setIsIssueDateFilterOpen(false);
+                                }
+                              }}
+                              numberOfMonths={2}
+                              className="rounded-md border"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Due Date
+                        <Popover open={isDueDateFilterOpen} onOpenChange={setIsDueDateFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${dueDateFilter.from || dueDateFilter.to ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="range"
+                              selected={{ from: dueDateFilter.from, to: dueDateFilter.to }}
+                              onSelect={(range) => {
+                                setDueDateFilter({
+                                  from: range?.from,
+                                  to: range?.to
+                                });
+                                if (range?.from && range?.to) {
+                                  setIsDueDateFilterOpen(false);
+                                }
+                              }}
+                              numberOfMonths={2}
+                              className="rounded-md border"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        Status
+                        <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48" align="start">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label>Filter by Status</Label>
+                                {statusFilter !== "all" && (
+                                  <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                              <Select value={statusFilter} onValueChange={(value) => {
+                                setStatusFilter(value);
+                                setIsStatusFilterOpen(false);
+                              }}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Status</SelectItem>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="paid">Paid</SelectItem>
+                                  <SelectItem value="overdue">Overdue</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
                     <TableHead>Document</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {costEntries.map((entry) => (
+                  {costEntries
+                    .filter((entry) => {
+                      // Supplier filter
+                      const matchesSupplier = supplierFilter.selected === "all" || 
+                        entry.supplier_name === supplierFilter.selected;
+                      const matchesSupplierSearch = !supplierFilter.search || 
+                        entry.supplier_name?.toLowerCase().includes(supplierFilter.search.toLowerCase());
+                      
+                      // Document type filter
+                      const matchesDocumentType = documentTypeFilter === "all" || 
+                        entry.document_type === documentTypeFilter;
+                      
+                      // Amount filter
+                      const amount = entry.total_amount || 0;
+                      const amountFrom = amountFilter.from ? parseFloat(amountFilter.from) : undefined;
+                      const amountTo = amountFilter.to ? parseFloat(amountFilter.to) : undefined;
+                      const matchesAmount = (!amountFrom || amount >= amountFrom) && 
+                        (!amountTo || amount <= amountTo);
+                      
+                      // Issue date filter
+                      const issueDateStr = entry.issue_date;
+                      const issueDateTime = issueDateStr ? new Date(issueDateStr).getTime() : undefined;
+                      const issueFromTime = issueDateFilter.from ? issueDateFilter.from.getTime() : undefined;
+                      const issueToTime = issueDateFilter.to ? (() => {
+                        const toDate = new Date(issueDateFilter.to);
+                        toDate.setHours(23, 59, 59, 999);
+                        return toDate.getTime();
+                      })() : undefined;
+                      const matchesIssueDate = (!issueFromTime || (issueDateTime !== undefined && issueDateTime >= issueFromTime)) &&
+                        (!issueToTime || (issueDateTime !== undefined && issueDateTime <= issueToTime));
+                      
+                      // Due date filter - only filter if both dates are set, otherwise include entries without due dates
+                      const dueDateStr = entry.due_date;
+                      const dueDateTime = dueDateStr ? new Date(dueDateStr).getTime() : undefined;
+                      const dueFromTime = dueDateFilter.from ? dueDateFilter.from.getTime() : undefined;
+                      const dueToTime = dueDateFilter.to ? (() => {
+                        const toDate = new Date(dueDateFilter.to);
+                        toDate.setHours(23, 59, 59, 999);
+                        return toDate.getTime();
+                      })() : undefined;
+                      const matchesDueDate = (!dueFromTime && !dueToTime) || // No filter set
+                        (dueDateTime !== undefined && (!dueFromTime || dueDateTime >= dueFromTime) && (!dueToTime || dueDateTime <= dueToTime));
+                      
+                      // Status filter
+                      const effectiveStatus = getEffectiveStatus(entry);
+                      const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
+                      
+                      return matchesSupplier && matchesSupplierSearch && matchesDocumentType && 
+                        matchesAmount && matchesIssueDate && matchesDueDate && matchesStatus;
+                    })
+                    .map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell>{entry.supplier_name}</TableCell>
                       <TableCell>
@@ -1364,16 +2095,38 @@ export default function CostManagement() {
                         {entry.due_date ? formatDate(entry.due_date) : <span className="text-muted-foreground text-sm">-</span>}
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant="outline" 
-                          className={
-                            entry.status === 'paid' ? 'bg-green-500/10 text-green-700 border-green-200' :
-                            entry.status === 'overdue' ? 'bg-red-500/10 text-red-700 border-red-200' :
-                            'bg-amber-500/10 text-amber-700 border-amber-200'
-                          }
-                        >
-                          {entry.status}
-                        </Badge>
+                        <CostStatusBadge 
+                          entry={entry} 
+                          onStatusChange={async (newStatus) => {
+                            try {
+                              const { error } = await supabase
+                                .from('accounting_entries')
+                                .update({ status: newStatus })
+                                .eq('id', entry.id);
+                              
+                              if (error) {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to update cost entry status",
+                                  variant: "destructive"
+                                });
+                              } else {
+                                await fetchCostEntries();
+                                toast({
+                                  title: "Status Updated",
+                                  description: `Cost entry status changed to ${newStatus}`
+                                });
+                              }
+                            } catch (error) {
+                              console.error('Error updating status:', error);
+                              toast({
+                                title: "Error",
+                                description: "Failed to update cost entry status",
+                                variant: "destructive"
+                              });
+                            }
+                          }} 
+                        />
                       </TableCell>
                       <TableCell>
                         {entry.document_url ? (
@@ -1446,50 +2199,91 @@ export default function CostManagement() {
           setOCRSuggestions({});
           setApprovedFields(new Set());
           setDocumentFile(null);
+          // Clean up object URL
+          if (documentUrl) {
+            URL.revokeObjectURL(documentUrl);
+          }
           setDocumentUrl('');
           setOCRFile(null);
+          setSupplierFormData({
+            name: '',
+            contact_person: '',
+            email: '',
+            phone: '',
+            address: '',
+            city: '',
+            website: '',
+            tax_id: '',
+            payment_terms: 'Net 30',
+            notes: '',
+            country: '',
+            currency: 'EUR'
+          });
         }
       }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className={documentUrl || documentFile ? "max-w-6xl max-h-[95vh] flex flex-col" : "max-w-2xl max-h-[95vh] flex flex-col"}>
+          <DialogHeader className="flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
             <DialogTitle>{isEditMode ? 'Edit Cost Entry' : 'Cost Entry'}</DialogTitle>
             <DialogDescription>
-              {isEditMode 
-                ? 'Edit the cost entry details' 
-                  : 'Add new cost entry'
-              }
+                  {(ocrFileName || documentFile?.name || (editingEntry?.document_url && editingEntry.document_url.split('/').pop())) ? (ocrFileName || documentFile?.name || (editingEntry?.document_url && editingEntry.document_url.split('/').pop())) : (isEditMode ? 'Edit the cost entry details' : 'Add new cost entry')}
             </DialogDescription>
-          </DialogHeader>
-
-          {Object.keys(ocrSuggestions).length > 0 && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800 font-medium mb-2">
-                📄 Document scanned! Review and approve the recognized fields below.
-              </p>
             </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-              <Label htmlFor="supplier">Supplier *</Label>
-                {ocrSuggestions.supplier_name && !approvedFields.has('supplier_name') && (
+              {!isEditMode && (documentUrl || documentFile) && (
                   <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    onClick={() => handleApproveField('supplier_name')}
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Approve
+                  variant="default"
+                  onClick={() => {
+                    // Pre-populate supplier form with OCR data if available
+                    const supplierData = supplierOCRData || {};
+                    const currency = supplierData.country ? getCurrencyForCountry(supplierData.country) : 'EUR';
+                    
+                    setSupplierFormData({
+                      name: supplierData.name || ocrSuggestions.supplier_name || '',
+                      contact_person: '',
+                      email: supplierData.email || '',
+                      phone: supplierData.phone || '',
+                      address: supplierData.address || '',
+                      city: supplierData.city || '',
+                      website: supplierData.website || '',
+                      tax_id: supplierData.tax_id || '',
+                      payment_terms: 'Net 30',
+                      notes: '',
+                      country: supplierData.country || '',
+                      currency: currency || 'EUR'
+                    });
+                    setIsAIAddSupplierDialogOpen(true);
+                  }}
+                  className="bg-primary text-primary-foreground"
+                >
+                  <Building2 className="w-4 h-4 mr-2" />
+                  AI Add Supplier
                   </Button>
                 )}
               </div>
+          </DialogHeader>
+
+          <div className={(documentUrl || documentFile) ? "flex gap-6 overflow-hidden flex-1 min-h-0" : "flex-1 overflow-y-auto min-h-0"}>
+            <div className={(documentUrl || documentFile) ? "w-1/3 overflow-y-auto pr-4 flex-shrink-0" : "w-full"}>
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="supplier">Supplier *</Label>
               <Select 
                 value={formData.supplier_name || ''} 
                 onValueChange={(value) => {
-                  setFormData(prev => ({ ...prev, supplier_name: value }));
+                  const supplier = suppliers.find(s => s.name === value);
+                  setFormData(prev => {
+                    const updated = { ...prev, supplier_name: value };
+                    // Calculate due_date from payment_terms if issue_date exists and due_date not manually set
+                    if (supplier && prev.issue_date && !prev.due_date) {
+                      const calculatedDueDate = calculateDueDate(supplier.payment_terms, prev.issue_date);
+                      if (calculatedDueDate) {
+                        updated.due_date = calculatedDueDate;
+                        console.log(`Calculated due_date from supplier payment_terms (${supplier.payment_terms}):`, calculatedDueDate);
+                      }
+                    }
+                    return updated;
+                  });
                   setApprovedFields(prev => new Set(prev).add('supplier_name'));
                 }}
               >
@@ -1507,21 +2301,7 @@ export default function CostManagement() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
               <Label htmlFor="document_type">Document Type *</Label>
-                {ocrSuggestions.document_type && !approvedFields.has('document_type') && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    onClick={() => handleApproveField('document_type')}
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Approve
-                  </Button>
-                )}
-              </div>
               <Select 
                 value={formData.document_type || ocrSuggestions.document_type || 'invoice'} 
                 onValueChange={(value) => {
@@ -1535,28 +2315,14 @@ export default function CostManagement() {
                 <SelectContent>
                   <SelectItem value="invoice">Invoice</SelectItem>
                   <SelectItem value="quote">Quote</SelectItem>
-                  <SelectItem value="receipt">Receipt</SelectItem>
+                  <SelectItem value="credit_note">Credit note</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
               <Label htmlFor="subtotal">Subtotal (Tax Excluded)</Label>
-                {ocrSuggestions.subtotal_tax_excluded && ocrSuggestions.subtotal_tax_excluded > 0 && !approvedFields.has('subtotal_tax_excluded') && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    onClick={() => handleApproveField('subtotal_tax_excluded')}
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Approve
-                  </Button>
-                )}
-              </div>
               <div className="relative">
               <Input
                 id="subtotal"
@@ -1575,21 +2341,7 @@ export default function CostManagement() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
               <Label htmlFor="total">Total Amount *</Label>
-                {ocrSuggestions.total_amount && ocrSuggestions.total_amount > 0 && !approvedFields.has('total_amount') && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    onClick={() => handleApproveField('total_amount')}
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Approve
-                  </Button>
-                )}
-              </div>
               <Input
                 id="total"
                 type="number"
@@ -1606,21 +2358,7 @@ export default function CostManagement() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
               <Label htmlFor="currency">Currency</Label>
-                {ocrSuggestions.currency && !approvedFields.has('currency') && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    onClick={() => handleApproveField('currency')}
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Approve
-                  </Button>
-                )}
-              </div>
               <Select 
                 value={formData.currency || ocrSuggestions.currency || 'BAM'} 
                 onValueChange={(value) => {
@@ -1640,81 +2378,111 @@ export default function CostManagement() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
               <Label htmlFor="issue_date">Issue Date *</Label>
-                {ocrSuggestions.issue_date && !approvedFields.has('issue_date') && (
+              <Popover open={isIssueDatePickerOpen} onOpenChange={setIsIssueDatePickerOpen}>
+                <PopoverTrigger asChild>
                   <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    onClick={() => handleApproveField('issue_date')}
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.issue_date && "text-muted-foreground",
+                      ocrSuggestions.issue_date && !formData.issue_date && 'border-green-300'
+                    )}
                   >
-                    <Check className="w-3 h-3 mr-1" />
-                    Approve
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.issue_date ? format(new Date(formData.issue_date), "PPP") : ocrSuggestions.issue_date ? ocrSuggestions.issue_date : <span>Pick a date</span>}
                   </Button>
-                )}
-              </div>
-              <Input
-                id="issue_date"
-                type="date"
-                value={formData.issue_date || ''}
-                placeholder={ocrSuggestions.issue_date && !formData.issue_date ? ocrSuggestions.issue_date : ''}
-                className={ocrSuggestions.issue_date && !formData.issue_date ? 'placeholder:text-muted-foreground/50' : ''}
-                onChange={(e) => {
-                  setFormData(prev => ({ ...prev, issue_date: e.target.value }));
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.issue_date ? new Date(formData.issue_date) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const newIssueDate = formatDateForInput(date);
+                  setFormData(prev => {
+                    const updated = { ...prev, issue_date: newIssueDate };
+                    // Recalculate due_date from payment_terms if supplier is selected and due_date not manually set
+                    if (prev.supplier_name && newIssueDate && !prev.due_date) {
+                      const supplier = suppliers.find(s => s.name === prev.supplier_name);
+                      if (supplier && supplier.payment_terms) {
+                        const calculatedDueDate = calculateDueDate(supplier.payment_terms, newIssueDate);
+                        if (calculatedDueDate) {
+                          updated.due_date = calculatedDueDate;
+                          console.log(`Recalculated due_date from supplier payment_terms (${supplier.payment_terms}):`, calculatedDueDate);
+                        }
+                      }
+                    }
+                    return updated;
+                  });
                   setApprovedFields(prev => new Set(prev).add('issue_date'));
+                        setIsIssueDatePickerOpen(false);
+                      }
                 }}
-                onFocus={() => handleFieldFocus('issue_date')}
+                    initialFocus
               />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
               <Label htmlFor="due_date">Due Date</Label>
-                {ocrSuggestions.due_date && !approvedFields.has('due_date') && (
+              <Popover open={isDueDatePickerOpen} onOpenChange={setIsDueDatePickerOpen}>
+                <PopoverTrigger asChild>
                   <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    onClick={() => handleApproveField('due_date')}
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.due_date && "text-muted-foreground",
+                      ocrSuggestions.due_date && !formData.due_date && 'border-green-300'
+                    )}
                   >
-                    <Check className="w-3 h-3 mr-1" />
-                    Approve
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.due_date ? format(new Date(formData.due_date), "PPP") : ocrSuggestions.due_date ? ocrSuggestions.due_date : <span>Pick a date</span>}
                   </Button>
-                )}
-              </div>
-              <Input
-                id="due_date"
-                type="date"
-                value={formData.due_date || ''}
-                placeholder={ocrSuggestions.due_date && !formData.due_date ? ocrSuggestions.due_date : ''}
-                className={ocrSuggestions.due_date && !formData.due_date ? 'placeholder:text-muted-foreground/50' : ''}
-                onChange={(e) => {
-                  setFormData(prev => ({ ...prev, due_date: e.target.value }));
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.due_date ? new Date(formData.due_date) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const newDueDate = formatDateForInput(date);
+                  setFormData(prev => {
+                    const updated = { ...prev, due_date: newDueDate };
+                    // Auto-update status based on due_date if status is not "paid"
+                    if (prev.status !== 'paid' && newDueDate) {
+                      const tempEntry: CostEntry = {
+                        id: prev.id || '',
+                        supplier_name: prev.supplier_name || '',
+                        document_type: prev.document_type || 'invoice',
+                        subtotal_tax_excluded: prev.subtotal_tax_excluded || 0,
+                        total_amount: prev.total_amount || 0,
+                        currency: prev.currency || 'BAM',
+                        issue_date: prev.issue_date || '',
+                        due_date: newDueDate,
+                        description: prev.description || '',
+                        document_number: prev.document_number || '',
+                        status: prev.status || 'pending',
+                        created_at: prev.created_at || '',
+                        updated_at: prev.updated_at || ''
+                      };
+                      updated.status = getEffectiveStatus(tempEntry);
+                    }
+                    return updated;
+                  });
                   setApprovedFields(prev => new Set(prev).add('due_date'));
+                        setIsDueDatePickerOpen(false);
+                      }
                 }}
-                onFocus={() => handleFieldFocus('due_date')}
+                    initialFocus
               />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
               <Label htmlFor="document_number">Document Number</Label>
-                {ocrSuggestions.document_number && !approvedFields.has('document_number') && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    onClick={() => handleApproveField('document_number')}
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Approve
-                  </Button>
-                )}
-              </div>
               <Input
                 id="document_number"
                 value={formData.document_number || ''}
@@ -1756,7 +2524,9 @@ export default function CostManagement() {
                     const file = e.target.files?.[0];
                     if (file) {
                       setDocumentFile(file);
-                      setDocumentUrl(''); // Clear URL if new file is selected
+                      // Create object URL for preview
+                      const url = URL.createObjectURL(file);
+                      setDocumentUrl(url);
                     }
                   }}
                   className="cursor-pointer"
@@ -1807,24 +2577,56 @@ export default function CostManagement() {
                 </div>
               )}
             </div>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-            <Label htmlFor="description">Description</Label>
-              {ocrSuggestions.description && !approvedFields.has('description') && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                  onClick={() => handleApproveField('description')}
-                >
-                  <Check className="w-3 h-3 mr-1" />
-                  Approve
-                </Button>
+            {/* Document Preview - Right Side */}
+            {(documentUrl || documentFile) && (
+              <div className="w-2/3 border-l pl-6 overflow-y-auto flex flex-col flex-shrink-0">
+                <div className="flex justify-center items-start pt-4">
+                  {(() => {
+                    const file = ocrFile || documentFile;
+                    let url = documentUrl;
+                    
+                    // If we have a file but no URL, create one
+                    if (file && !url) {
+                      url = URL.createObjectURL(file);
+                    }
+                    
+                    if (!url) return null;
+                    
+                    // Determine file type
+                    let isPDF = false;
+                    if (file) {
+                      isPDF = file.type === 'application/pdf';
+                    } else if (editingEntry?.document_url) {
+                      const docUrl = editingEntry.document_url.toLowerCase();
+                      isPDF = docUrl.endsWith('.pdf') || docUrl.includes('pdf');
+                    } else if (url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('pdf')) {
+                      isPDF = true;
+                    }
+                    
+                    return isPDF ? (
+                      <iframe
+                        src={url}
+                        className="w-full min-h-[800px] border rounded-lg"
+                        title="Document Preview"
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt="Document Preview"
+                        className="max-w-full h-auto border rounded-lg shadow-sm"
+                      />
+                    );
+                  })()}
+                </div>
+              </div>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               value={formData.description || ''}
@@ -1839,12 +2641,219 @@ export default function CostManagement() {
             />
           </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end space-x-2 pt-4 border-t flex-shrink-0 mt-4">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
             <Button onClick={saveCostEntry}>
               {isEditMode ? 'Update' : 'Save'} Cost Entry
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Add Supplier Dialog */}
+      <Dialog open={isAIAddSupplierDialogOpen} onOpenChange={setIsAIAddSupplierDialogOpen}>
+        <DialogContent className={(documentUrl || documentFile) ? "max-w-6xl max-h-[95vh] flex flex-col" : "max-w-2xl max-h-[95vh] flex flex-col"}>
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              AI Add Supplier
+            </DialogTitle>
+            <DialogDescription>
+              {ocrFileName || documentFile?.name || 'Add new supplier from scanned document'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className={(documentUrl || documentFile) ? "flex gap-6 overflow-hidden flex-1 min-h-0" : "flex-1 overflow-y-auto min-h-0"}>
+            <div className={(documentUrl || documentFile) ? "w-1/3 overflow-y-auto pr-4 flex-shrink-0" : "w-full"}>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_name">Company Name *</Label>
+                  <Input
+                    id="ai_supplier_name"
+                    value={supplierFormData.name}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter company name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_contact">Contact Person</Label>
+                  <Input
+                    id="ai_supplier_contact"
+                    value={supplierFormData.contact_person}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, contact_person: e.target.value }))}
+                    placeholder="Enter contact person"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_email">Email</Label>
+                  <Input
+                    id="ai_supplier_email"
+                    type="email"
+                    value={supplierFormData.email}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter email"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_phone">Phone</Label>
+                  <Input
+                    id="ai_supplier_phone"
+                    value={supplierFormData.phone}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Enter phone number"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_tax">Tax ID</Label>
+                  <Input
+                    id="ai_supplier_tax"
+                    value={supplierFormData.tax_id}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, tax_id: e.target.value }))}
+                    placeholder="Enter tax ID"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_payment">Payment Terms</Label>
+                  <Input
+                    id="ai_supplier_payment"
+                    value={supplierFormData.payment_terms}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, payment_terms: e.target.value }))}
+                    placeholder="e.g., Net 30"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_country">Country</Label>
+                  <CountryAutocomplete
+                    value={supplierFormData.country}
+                    onChange={(country) => {
+                      const currency = getCurrencyForCountry(country);
+                      setSupplierFormData(prev => ({ ...prev, country, currency: currency || prev.currency }));
+                    }}
+                    placeholder="Select country"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_currency">Currency</Label>
+                  <Input
+                    id="ai_supplier_currency"
+                    value={supplierFormData.currency}
+                    disabled
+                    placeholder="Currency (auto-set from country)"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_address">Address</Label>
+                  <Input
+                    id="ai_supplier_address"
+                    value={supplierFormData.address}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="Enter full address"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_city">City</Label>
+                  <Input
+                    id="ai_supplier_city"
+                    value={supplierFormData.city}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, city: e.target.value }))}
+                    placeholder="Enter city"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_website">Website</Label>
+                  <Input
+                    id="ai_supplier_website"
+                    value={supplierFormData.website}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, website: e.target.value }))}
+                    placeholder="Enter website URL"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_supplier_notes">Notes</Label>
+                  <Input
+                    id="ai_supplier_notes"
+                    value={supplierFormData.notes}
+                    onChange={(e) => setSupplierFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Enter any notes"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Document Preview - Right Side */}
+            {(documentUrl || documentFile) && (
+              <div className="w-2/3 border-l pl-6 overflow-y-auto flex flex-col flex-shrink-0">
+                <div className="flex justify-center items-start pt-4">
+                  {(() => {
+                    const file = ocrFile || documentFile;
+                    let url = documentUrl;
+                    
+                    if (file && !url) {
+                      url = URL.createObjectURL(file);
+                    }
+                    
+                    if (!url) return null;
+                    
+                    let isPDF = false;
+                    if (file) {
+                      isPDF = file.type === 'application/pdf';
+                    } else if (url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('pdf')) {
+                      isPDF = true;
+                    }
+                    
+                    return isPDF ? (
+                      <iframe
+                        src={url}
+                        className="w-full min-h-[800px] border rounded-lg"
+                        title="Document Preview"
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt="Document Preview"
+                        className="max-w-full h-auto border rounded-lg shadow-sm"
+                      />
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4 border-t flex-shrink-0 mt-4">
+            <Button variant="outline" onClick={() => setIsAIAddSupplierDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={async () => {
+              try {
+                const savedSupplier = await saveNewSupplier();
+                setIsAIAddSupplierDialogOpen(false);
+                // Update the supplier dropdown in the cost entry form
+                if (savedSupplier) {
+                  // Wait a bit for suppliers list to refresh
+                  setTimeout(() => {
+                    const updatedSupplier = suppliers.find(s => s.name.toLowerCase() === supplierFormData.name.toLowerCase()) || savedSupplier;
+                    setFormData(prev => ({ ...prev, supplier_name: updatedSupplier.name || supplierFormData.name }));
+                  }, 100);
+                }
+              } catch (error) {
+                // Error already handled in saveNewSupplier
+              }
+            }} disabled={!supplierFormData.name.trim()}>
+              Save Supplier
             </Button>
           </div>
         </DialogContent>
@@ -1884,53 +2893,12 @@ export default function CostManagement() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="supplier_name">Supplier Name *</Label>
+              <Label htmlFor="supplier_name">Company Name *</Label>
               <Input
                 id="supplier_name"
                 value={supplierFormData.name}
                 onChange={(e) => setSupplierFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter supplier name"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="supplier_address">Address</Label>
-              <Input
-                id="supplier_address"
-                value={supplierFormData.address}
-                onChange={(e) => setSupplierFormData(prev => ({ ...prev, address: e.target.value }))}
-                placeholder="Enter address"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="supplier_phone">Phone</Label>
-              <Input
-                id="supplier_phone"
-                value={supplierFormData.phone}
-                onChange={(e) => setSupplierFormData(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="Enter phone number"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="supplier_email">Email</Label>
-              <Input
-                id="supplier_email"
-                type="email"
-                value={supplierFormData.email}
-                onChange={(e) => setSupplierFormData(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="Enter email address"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="supplier_tax">Tax Number</Label>
-              <Input
-                id="supplier_tax"
-                value={supplierFormData.tax_number}
-                onChange={(e) => setSupplierFormData(prev => ({ ...prev, tax_number: e.target.value }))}
-                placeholder="Enter tax number"
+                placeholder="Enter company name"
               />
             </div>
 
@@ -1945,13 +2913,105 @@ export default function CostManagement() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="supplier_payment">Payment Terms (days)</Label>
+              <Label htmlFor="supplier_email">Email</Label>
+              <Input
+                id="supplier_email"
+                type="email"
+                value={supplierFormData.email}
+                onChange={(e) => setSupplierFormData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Enter email"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier_phone">Phone</Label>
+              <Input
+                id="supplier_phone"
+                value={supplierFormData.phone}
+                onChange={(e) => setSupplierFormData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Enter phone number"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier_tax">Tax ID</Label>
+              <Input
+                id="supplier_tax"
+                value={supplierFormData.tax_id}
+                onChange={(e) => setSupplierFormData(prev => ({ ...prev, tax_id: e.target.value }))}
+                placeholder="Enter tax ID"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier_payment">Payment Terms</Label>
               <Input
                 id="supplier_payment"
-                type="number"
                 value={supplierFormData.payment_terms}
-                onChange={(e) => setSupplierFormData(prev => ({ ...prev, payment_terms: parseInt(e.target.value) || 30 }))}
-                placeholder="30"
+                onChange={(e) => setSupplierFormData(prev => ({ ...prev, payment_terms: e.target.value }))}
+                placeholder="e.g., Net 30"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier_country">Country</Label>
+              <CountryAutocomplete
+                value={supplierFormData.country}
+                onChange={(country) => {
+                  const currency = getCurrencyForCountry(country);
+                  setSupplierFormData(prev => ({ ...prev, country, currency: currency || prev.currency }));
+                }}
+                placeholder="Select country"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier_currency">Currency</Label>
+              <Input
+                id="supplier_currency"
+                value={supplierFormData.currency}
+                disabled
+                placeholder="Currency (auto-set from country)"
+              />
+            </div>
+
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="supplier_address">Address</Label>
+              <Input
+                id="supplier_address"
+                value={supplierFormData.address}
+                onChange={(e) => setSupplierFormData(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="Enter full address"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier_city">City</Label>
+              <Input
+                id="supplier_city"
+                value={supplierFormData.city}
+                onChange={(e) => setSupplierFormData(prev => ({ ...prev, city: e.target.value }))}
+                placeholder="Enter city"
+              />
+            </div>
+
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="supplier_website">Website</Label>
+              <Input
+                id="supplier_website"
+                value={supplierFormData.website}
+                onChange={(e) => setSupplierFormData(prev => ({ ...prev, website: e.target.value }))}
+                placeholder="Enter website URL"
+              />
+            </div>
+
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="supplier_notes">Notes</Label>
+              <Input
+                id="supplier_notes"
+                value={supplierFormData.notes}
+                onChange={(e) => setSupplierFormData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Enter any notes"
               />
             </div>
           </div>
@@ -1960,7 +3020,25 @@ export default function CostManagement() {
             <Button variant="outline" onClick={() => setIsSupplierDialogOpen(false)}>
               Skip
             </Button>
-            <Button onClick={saveNewSupplier} disabled={!supplierFormData.name.trim()}>
+            <Button onClick={async () => {
+              await saveNewSupplier();
+              setIsSupplierDialogOpen(false);
+              setDetectedSupplier(null);
+              setSupplierFormData({
+                name: '',
+                contact_person: '',
+                email: '',
+                phone: '',
+                address: '',
+                city: '',
+                website: '',
+                tax_id: '',
+                payment_terms: 'Net 30',
+                notes: '',
+                country: '',
+                currency: 'EUR'
+              });
+            }} disabled={!supplierFormData.name.trim()}>
               Add Supplier
             </Button>
           </div>
@@ -2161,7 +3239,7 @@ export default function CostManagement() {
             {isOCRProcessing ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-                <p className="text-lg font-medium">Processing document with Tesseract OCR...</p>
+                <p className="text-lg font-medium">Processing document with Gemini AI...</p>
                 <p className="text-sm text-muted-foreground mt-2">This may take a few moments</p>
               </div>
             ) : ocrResult ? (
@@ -2253,7 +3331,7 @@ export default function CostManagement() {
 
                 {/* Engine Info */}
                 <div className="text-xs text-muted-foreground text-center">
-                  Powered by Tesseract OCR Engine ({ocrResult.engine})
+                  Powered by Gemini AI
                 </div>
               </>
             ) : null}

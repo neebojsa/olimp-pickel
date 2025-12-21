@@ -12,7 +12,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, FileText } from "lucide-react";
+import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, FileText, Filter, X } from "lucide-react";
 import jsPDF from 'jspdf';
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -22,6 +22,8 @@ import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 import { countryToCurrency } from "@/lib/currencyUtils";
 import { formatDate, formatDateForInput } from "@/lib/dateUtils";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -64,6 +66,11 @@ export default function Customers() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  // Column header filters
+  const [countryFilter, setCountryFilter] = useState({ search: "", selected: "all" });
+  const [isCountryFilterOpen, setIsCountryFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
@@ -451,11 +458,21 @@ export default function Customers() {
     }
   };
 
+  // Filter customers
+  const filteredCustomers = customers.filter(customer => {
+    const matchesCountry = countryFilter.selected === "all" || customer.country === countryFilter.selected;
+    const matchesStatus = statusFilter === "all" || customer.status === statusFilter;
+    return matchesCountry && matchesStatus;
+  });
+
   // Pagination
-  const totalPages = Math.ceil(customers.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedCustomers = customers.slice(startIndex, endIndex);
+  const paginatedCustomers = filteredCustomers.slice(startIndex, endIndex);
+  
+  // Get unique countries for filter
+  const uniqueCountries = [...new Set(customers.map(c => c.country).filter(Boolean))].sort();
 
   return (
     <div className="p-6 space-y-6">
@@ -637,18 +654,105 @@ export default function Customers() {
           <CardTitle>Customer Directory</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Company Name</TableHead>
                   <TableHead>Contact Person</TableHead>
-                  <TableHead>Country</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Country
+                    <Popover open={isCountryFilterOpen} onOpenChange={setIsCountryFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${countryFilter.selected !== "all" ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label>Filter by Country</Label>
+                            {countryFilter.selected !== "all" && (
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                setCountryFilter({ search: "", selected: "all" });
+                              }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <div>
+                            <Label>Search</Label>
+                            <Input
+                              placeholder="Search countries..."
+                              value={countryFilter.search}
+                              onChange={(e) => setCountryFilter({ ...countryFilter, search: e.target.value })}
+                            />
+                          </div>
+                          <div className="max-h-60 overflow-y-auto">
+                            <Select value={countryFilter.selected} onValueChange={(value) => {
+                              setCountryFilter({ ...countryFilter, selected: value });
+                              setIsCountryFilterOpen(false);
+                            }}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select country" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Countries</SelectItem>
+                                {uniqueCountries
+                                  .filter(c => !countryFilter.search || c.toLowerCase().includes(countryFilter.search.toLowerCase()))
+                                  .map(country => (
+                                    <SelectItem key={country} value={country}>{country}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
                   <TableHead>Currency</TableHead>
                   <TableHead>Industry</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead>Status</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
+                    Status
+                    <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48" align="start">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label>Filter by Status</Label>
+                            {statusFilter !== "all" && (
+                              <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <Select value={statusFilter} onValueChange={(value) => {
+                            setStatusFilter(value);
+                            setIsStatusFilterOpen(false);
+                          }}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              <SelectItem value="Active">Active</SelectItem>
+                              <SelectItem value="On Hold">On Hold</SelectItem>
+                              <SelectItem value="Inactive">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
                   <TableHead>Total Orders</TableHead>
                   <TableHead>Total Value</TableHead>
                   <TableHead className="w-32">Actions</TableHead>
@@ -724,13 +828,12 @@ export default function Customers() {
                 ))}
               </TableBody>
             </Table>
-          </div>
           
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, customers.length)} of {customers.length} customers
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredCustomers.length)} of {filteredCustomers.length} customers
               </p>
               <Pagination>
                 <PaginationContent>
