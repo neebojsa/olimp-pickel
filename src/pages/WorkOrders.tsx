@@ -921,7 +921,7 @@ export default function WorkOrders() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {selectedProduct.drawingFiles?.map((file: string, index: number) => (
-                      <div key={index} className="flex items-center gap-2 p-2 border rounded">
+                      <div key={index} className="flex items-center gap-2 p-2 rounded shadow-sm">
                         <FileText className="w-4 h-4" />
                         <span className="text-sm">{file}</span>
                         <Button size="sm" variant="ghost" className="ml-auto">
@@ -999,7 +999,7 @@ export default function WorkOrders() {
                 <CardContent>
                   <div className="space-y-3">
                     {selectedProduct.history?.map((entry: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded">
+                      <div key={index} className="flex items-center justify-between p-3 rounded shadow-sm">
                         <div>
                           <p className="font-medium">{entry.action}</p>
                           <p className="text-sm text-muted-foreground">{entry.date}</p>

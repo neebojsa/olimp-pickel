@@ -8,6 +8,7 @@ export interface InvoiceTranslations {
   billTo: string;
   invoiceNumber: string;
   issueDate: string;
+  dueDate: string;
   paymentTerms: string;
   orderNumber: string;
   shippingDate: string;
@@ -37,21 +38,22 @@ export interface InvoiceTranslations {
   piece: string;
 }
 
-const serbianTranslations: InvoiceTranslations = {
+const bosnianTranslations: InvoiceTranslations = {
   invoice: 'FAKTURA',
   billTo: 'Račun za:',
   invoiceNumber: 'Broj fakture:',
   issueDate: 'Datum izdavanja:',
+  dueDate: 'Datum dospijeća:',
   paymentTerms: 'Uslovi plaćanja:',
   orderNumber: 'Broj narudžbe:',
   shippingDate: 'Datum isporuke:',
-  incoterms: 'Incoterms:',
+  incoterms: 'Mjesto isporuke:',
   declarationNumber: 'Broj deklaracije:',
   partName: 'Naziv dijela',
   partNumber: 'Broj dijela',
-  unit: 'Jedinica',
-  quantity: 'Količina',
-  subtotalWeight: 'Ukupna težina',
+  unit: 'Jed.',
+  quantity: 'Kol.',
+  subtotalWeight: 'Težina',
   price: 'Cijena',
   amount: 'Iznos',
   summary: 'Sažetak',
@@ -76,6 +78,7 @@ const englishTranslations: InvoiceTranslations = {
   billTo: 'Bill To:',
   invoiceNumber: 'Invoice Number:',
   issueDate: 'Issue Date:',
+  dueDate: 'Due Date:',
   paymentTerms: 'Payment Terms:',
   orderNumber: 'Order Number:',
   shippingDate: 'Shipping Date:',
@@ -112,12 +115,11 @@ const englishTranslations: InvoiceTranslations = {
  * @returns Translation object
  */
 export const getInvoiceTranslations = (
-  customerCountry: string | null | undefined,
-  companyCountry: string = 'Bosnia and Herzegovina'
+  customerCountry: string | null | undefined
 ): InvoiceTranslations => {
-  // If customer is from the same country as company, use local language
-  if (customerCountry === companyCountry) {
-    return serbianTranslations;
+  // If customer is from Bosnia and Herzegovina, use Bosnian language
+  if (customerCountry === 'Bosnia and Herzegovina') {
+    return bosnianTranslations;
   }
   
   // Otherwise use English

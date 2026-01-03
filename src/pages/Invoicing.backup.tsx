@@ -13,14 +13,13 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { FileText, Plus, Search, DollarSign, Calendar as CalendarIcon, Send, Trash2, Edit, Settings, Check, ChevronsUpDown, Printer, Filter, X } from "lucide-react";
+import { FileText, Plus, Search, DollarSign, Calendar as CalendarIcon, Send, Trash2, Download, Eye, Edit, Settings, Check, ChevronsUpDown, Printer } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currencyUtils";
-import { formatDate, formatDateForInput } from "@/lib/dateUtils";
-import { getInvoiceTranslations } from "@/lib/translationUtils";
+import { formatDate } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import html2canvas from "html2canvas";
@@ -156,28 +155,11 @@ export default function Invoicing() {
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
-  // Column header filters
-  const [invoiceNumberFilter, setInvoiceNumberFilter] = useState({ search: "", from: "", to: "" });
-  const [isInvoiceNumberFilterOpen, setIsInvoiceNumberFilterOpen] = useState(false);
-  const [issueDateFilter, setIssueDateFilter] = useState<{ from?: Date; to?: Date }>({});
-  const [isIssueDateFilterOpen, setIsIssueDateFilterOpen] = useState(false);
-  const [dueDateFilter, setDueDateFilter] = useState<{ from?: Date; to?: Date }>({});
-  const [isDueDateFilterOpen, setIsDueDateFilterOpen] = useState(false);
-  const [customerFilter, setCustomerFilter] = useState({ search: "", selectedId: "all" });
-  const [isCustomerFilterOpen, setIsCustomerFilterOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
-  const [amountFilter, setAmountFilter] = useState({ from: "", to: "" });
-  const [isAmountFilterOpen, setIsAmountFilterOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [isAddInvoiceOpen, setIsAddInvoiceOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [deletingInvoice, setDeletingInvoice] = useState<any>(null);
-  // Date picker popovers for form
-  const [isIssueDatePickerOpen, setIsIssueDatePickerOpen] = useState(false);
-  const [isShippingDatePickerOpen, setIsShippingDatePickerOpen] = useState(false);
   const [newInvoice, setNewInvoice] = useState({
     customerId: '',
     orderNumber: '',
@@ -732,22 +714,15 @@ export default function Invoicing() {
     }]);
     setIsEditMode(false);
   };
-  const handleDeleteInvoice = async () => {
-    if (!deletingInvoice) return;
-
-    const { error } = await supabase.from('invoices').delete().eq('id', deletingInvoice.id);
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    const {
+      error
+    } = await supabase.from('invoices').delete().eq('id', invoiceId);
     if (!error) {
-      setInvoices(prev => prev.filter(invoice => invoice.id !== deletingInvoice.id));
-      setDeletingInvoice(null);
+      setInvoices(prev => prev.filter(invoice => invoice.id !== invoiceId));
       toast({
         title: "Invoice Deleted",
         description: "The invoice has been successfully deleted."
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to delete invoice",
-        variant: "destructive"
       });
     }
   };
@@ -889,51 +864,22 @@ export default function Invoicing() {
   };
 
   const filteredInvoices = invoices.filter(invoice => {
+    const matchesSearch = !searchTerm || invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) || invoice.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const effectiveStatus = getEffectiveStatus(invoice);
-    
-    // Column header filters
-    const matchesInvoiceNumber = !invoiceNumberFilter.search || invoice.invoice_number?.toLowerCase().includes(invoiceNumberFilter.search.toLowerCase());
-    const invoiceNumberMatch = invoiceNumberFilter.from && invoiceNumberFilter.to 
-      ? (() => {
-          const num = parseInt(invoice.invoice_number?.replace(/\D/g, '') || '0');
-          const from = parseInt(invoiceNumberFilter.from.replace(/\D/g, '') || '0');
-          const to = parseInt(invoiceNumberFilter.to.replace(/\D/g, '') || '999999');
-          return num >= from && num <= to;
-        })()
-      : true;
-    
-    const issueDateStr = invoice.issue_date;
-    const issueDateTime = issueDateStr ? new Date(issueDateStr).getTime() : undefined;
-    const issueFromTime = issueDateFilter.from ? issueDateFilter.from.getTime() : undefined;
-    const issueToTime = issueDateFilter.to ? (() => {
-      const toDate = new Date(issueDateFilter.to);
+    const matchesStatus = selectedStatus === "all" || effectiveStatus === selectedStatus;
+    const matchesCustomer = selectedCustomerFilter === "all" || invoice.customer_id === selectedCustomerFilter;
+    const invoiceDateStr = invoice.issue_date || invoice.created_at;
+    const invoiceTime = invoiceDateStr ? new Date(invoiceDateStr).getTime() : undefined;
+    const fromTime = dateRange.from ? dateRange.from.getTime() : undefined;
+    const toTime = dateRange.to ? (() => {
+      const toDate = new Date(dateRange.to);
       toDate.setHours(23, 59, 59, 999);
       return toDate.getTime();
     })() : undefined;
-    const matchesIssueDate = (!issueFromTime || (issueDateTime !== undefined && issueDateTime >= issueFromTime)) &&
-      (!issueToTime || (issueDateTime !== undefined && issueDateTime <= issueToTime));
-    
-    const dueDateStr = invoice.due_date;
-    const dueDateTime = dueDateStr ? new Date(dueDateStr).getTime() : undefined;
-    const dueFromTime = dueDateFilter.from ? dueDateFilter.from.getTime() : undefined;
-    const dueToTime = dueDateFilter.to ? (() => {
-      const toDate = new Date(dueDateFilter.to);
-      toDate.setHours(23, 59, 59, 999);
-      return toDate.getTime();
-    })() : undefined;
-    const matchesDueDate = (!dueFromTime || (dueDateTime !== undefined && dueDateTime >= dueFromTime)) &&
-      (!dueToTime || (dueDateTime !== undefined && dueDateTime <= dueToTime));
-    
-    const matchesCustomerFilter = customerFilter.selectedId === "all" || invoice.customer_id === customerFilter.selectedId;
-    const matchesStatusFilter = statusFilter === "all" || effectiveStatus === statusFilter;
-    
-    const amount = invoice.amount || 0;
-    const amountFrom = amountFilter.from ? parseFloat(amountFilter.from) : undefined;
-    const amountTo = amountFilter.to ? parseFloat(amountFilter.to) : undefined;
-    const matchesAmount = (!amountFrom || amount >= amountFrom) && (!amountTo || amount <= amountTo);
-    
-    return matchesInvoiceNumber && invoiceNumberMatch && matchesIssueDate && matchesDueDate &&
-      matchesCustomerFilter && matchesStatusFilter && matchesAmount;
+    const matchesDateRange =
+      (!fromTime || (invoiceTime !== undefined && invoiceTime >= fromTime)) &&
+      (!toTime || (invoiceTime !== undefined && invoiceTime <= toTime));
+    return matchesSearch && matchesStatus && matchesCustomer && matchesDateRange;
   });
   const totalRevenue = invoices.reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
   const paidInvoices = invoices.filter(inv => getEffectiveStatus(inv) === "paid");
@@ -943,6 +889,205 @@ export default function Invoicing() {
   const selectedCustomer = getSelectedCustomer();
 
   const [printingInvoice, setPrintingInvoice] = useState(false);
+
+  const printInvoice = async () => {
+    if (!invoiceContainerRef.current || !selectedInvoice) {
+      toast({
+        title: "Error",
+        description: "Invoice not found. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setPrintingInvoice(true);
+    try {
+      const container = invoiceContainerRef.current;
+      const pages = container.querySelectorAll('.print-invoice-page');
+      
+      if (pages.length === 0) {
+        toast({
+          title: "Error",
+          description: "No invoice pages found to print.",
+          variant: "destructive"
+        });
+        setPrintingInvoice(false);
+        return;
+      }
+
+      // Create a hidden iframe for printing
+      const printIframe = document.createElement('iframe');
+      printIframe.style.position = 'absolute';
+      printIframe.style.width = '0';
+      printIframe.style.height = '0';
+      printIframe.style.border = 'none';
+      printIframe.style.left = '-9999px';
+      document.body.appendChild(printIframe);
+
+      // Calculate dimensions for A4
+      const mmToPixels = (mm: number) => (mm * 96) / 25.4;
+      const baseWidthPx = mmToPixels(210);
+      const baseHeightPx = mmToPixels(297);
+
+      // Process each page
+      const imageDataArray: string[] = [];
+      
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i] as HTMLElement;
+        
+        // Create a temporary container for this page
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.width = '210mm';
+        tempContainer.style.backgroundColor = 'white';
+        tempContainer.style.fontSize = '16px';
+        tempContainer.appendChild(page.cloneNode(true));
+        document.body.appendChild(tempContainer);
+
+        // Convert to canvas
+        const canvas = await html2canvas(tempContainer, {
+          scale: 2, // Good quality for printing
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          width: baseWidthPx,
+          height: baseHeightPx,
+          windowWidth: baseWidthPx,
+          windowHeight: baseHeightPx,
+          allowTaint: false,
+          removeContainer: false,
+          onclone: (clonedDoc) => {
+            const clonedContainer = clonedDoc.querySelector('.print-invoice-page');
+            if (clonedContainer) {
+              (clonedContainer as HTMLElement).style.transform = 'scale(1)';
+            }
+            
+            const allImages = clonedDoc.querySelectorAll('img');
+            allImages.forEach((img: any) => {
+              if (img.style) {
+                img.style.display = 'inline-block';
+                img.style.verticalAlign = 'middle';
+              }
+            });
+            
+            const allCells = clonedDoc.querySelectorAll('.invoice-items-table th, .invoice-items-table td');
+            allCells.forEach((cell: any) => {
+              if (cell.style) {
+                cell.style.verticalAlign = 'middle';
+                cell.setAttribute('valign', 'middle');
+              }
+            });
+          }
+        });
+
+        // Get image data
+        const imgData = canvas.toDataURL('image/png');
+        imageDataArray.push(imgData);
+
+        // Clean up
+        document.body.removeChild(tempContainer);
+      }
+
+      // Wait for iframe to be ready
+      printIframe.onload = () => {
+        const iframeDoc = printIframe.contentDocument || printIframe.contentWindow?.document;
+        if (!iframeDoc) {
+          toast({
+            title: "Error",
+            description: "Failed to prepare print content.",
+            variant: "destructive"
+          });
+          setPrintingInvoice(false);
+          document.body.removeChild(printIframe);
+          return;
+        }
+
+        // Build HTML with all pages
+        let imagesHTML = '';
+        imageDataArray.forEach((imgData, index) => {
+          if (index > 0) {
+            imagesHTML += '<div style="page-break-before: always;"></div>';
+          }
+          imagesHTML += `<img src="${imgData}" style="width: 210mm; height: auto; display: block; ${index < imageDataArray.length - 1 ? 'page-break-after: always;' : ''}" />`;
+        });
+
+        iframeDoc.open();
+        iframeDoc.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Invoice ${selectedInvoice.invoice_number}</title>
+              <style>
+                @media print {
+                  @page {
+                    size: A4;
+                    margin: 0;
+                  }
+                  body {
+                    margin: 0;
+                    padding: 0;
+                  }
+                  img {
+                    width: 210mm;
+                    height: auto;
+                    display: block;
+                  }
+                }
+                body {
+                  margin: 0;
+                  padding: 0;
+                }
+                img {
+                  width: 210mm;
+                  height: auto;
+                  display: block;
+                }
+              </style>
+            </head>
+            <body>
+              ${imagesHTML}
+            </body>
+          </html>
+        `);
+        iframeDoc.close();
+
+        // Wait for images to load, then print
+        const iframeWindow = printIframe.contentWindow;
+        if (iframeWindow) {
+          iframeWindow.onload = () => {
+            setTimeout(() => {
+              iframeWindow.focus();
+              iframeWindow.print();
+              setPrintingInvoice(false);
+              // Clean up iframe after a delay
+              setTimeout(() => {
+                if (printIframe.parentNode) {
+                  document.body.removeChild(printIframe);
+                }
+              }, 1000);
+            }, 500);
+          };
+          // Trigger load event if already loaded
+          if (iframeDoc.readyState === 'complete') {
+            iframeWindow.onload?.({} as Event);
+          }
+        }
+      };
+
+      // Set iframe src to trigger onload
+      printIframe.src = 'about:blank';
+
+    } catch (error) {
+      console.error('Error printing invoice:', error);
+      toast({
+        title: "Error",
+        description: "Failed to print invoice. Please try again.",
+        variant: "destructive"
+      });
+      setPrintingInvoice(false);
+    }
+  };
 
   const printInvoiceWithMediaPrint = () => {
     if (!invoiceContainerRef.current || !selectedInvoice) {
@@ -1281,7 +1426,7 @@ ${cssVariables}
                   padding-right: 0px !important;
                   margin-top: 46px !important;
                   text-align: left !important;
-                  color: #000000 !important;
+                  color: #303030 !important;
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                   color-adjust: exact !important;
@@ -1583,7 +1728,9 @@ ${cssVariables}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Invoicing</h1>
-          
+          <p className="text-muted-foreground">
+            Manage invoices and track payments
+          </p>
         </div>
         <Button size="icon" onClick={() => setIsSettingsOpen(true)}>
           <Settings className="w-4 h-4" />
@@ -1663,32 +1810,15 @@ ${cssVariables}
 
                 <div>
                   <Label>Issue Date</Label>
-                  <Popover open={isIssueDatePickerOpen} onOpenChange={setIsIssueDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !newInvoice.issueDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newInvoice.issueDate ? format(new Date(newInvoice.issueDate), "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={newInvoice.issueDate ? new Date(newInvoice.issueDate) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            const newIssueDate = formatDateForInput(date);
+                  <Input type="date" value={newInvoice.issueDate} onChange={e => {
+                    const newIssueDate = e.target.value;
                     const customer = getSelectedCustomer();
                     let dueDate = newInvoice.dueDate;
                     
                     // Recalculate due date if customer has payment terms
                     if (customer && (customer as any).payment_terms !== null && (customer as any).payment_terms !== undefined) {
-                              dueDate = calculateDueDate((customer as any).payment_terms, date);
+                      const issueDateObj = newIssueDate ? new Date(newIssueDate) : new Date();
+                      dueDate = calculateDueDate((customer as any).payment_terms, issueDateObj);
                     }
                     
                     setNewInvoice({
@@ -1696,47 +1826,15 @@ ${cssVariables}
                       issueDate: newIssueDate,
                       dueDate: dueDate
                     });
-                            setIsIssueDatePickerOpen(false);
-                          }
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  }} />
                 </div>
 
                 <div>
                   <Label>Shipping Date</Label>
-                  <Popover open={isShippingDatePickerOpen} onOpenChange={setIsShippingDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !newInvoice.shippingDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newInvoice.shippingDate ? format(new Date(newInvoice.shippingDate), "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={newInvoice.shippingDate ? new Date(newInvoice.shippingDate) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            setNewInvoice({
+                  <Input type="date" value={newInvoice.shippingDate} onChange={e => setNewInvoice({
                   ...newInvoice,
-                              shippingDate: formatDateForInput(date)
-                            });
-                            setIsShippingDatePickerOpen(false);
-                          }
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  shippingDate: e.target.value
+                })} />
                 </div>
 
                 <div>
@@ -1834,7 +1932,7 @@ ${cssVariables}
                 </div>
 
                 <div className="space-y-3">
-                  {invoiceItems.map((item, index) => <div key={index} className="grid gap-2 p-3 rounded-lg shadow-sm" style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 0.8fr' }}>
+                  {invoiceItems.map((item, index) => <div key={index} className="grid gap-2 p-3 border rounded-lg" style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 0.8fr' }}>
                       <div>
                         <Label className="text-xs">Product</Label>
                         <Popover 
@@ -2183,6 +2281,65 @@ ${cssVariables}
         </Card>
       </div>
 
+      {/* Search and Filters */}
+      <div className="flex items-center space-x-2">
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input placeholder="Search invoices..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+        </div>
+        <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by customer" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Customers</SelectItem>
+            {customers.map(customer => (
+              <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Popover open={isDateRangeOpen} onOpenChange={setIsDateRangeOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange.from && dateRange.to 
+                ? `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd, yyyy")}`
+                : dateRange.from 
+                ? `From ${format(dateRange.from, "MMM dd, yyyy")}`
+                : "Date Range"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={{ from: dateRange.from, to: dateRange.to }}
+              onSelect={(range) => {
+                setDateRange({
+                  from: range?.from,
+                  to: range?.to
+                });
+                // Close popover when both dates are selected
+                if (range?.from && range?.to) {
+                  setIsDateRangeOpen(false);
+                }
+              }}
+              numberOfMonths={2}
+              className="rounded-md border"
+            />
+          </PopoverContent>
+        </Popover>
+        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
+            <SelectItem value="overdue">Overdue</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Invoices List */}
       <Card>
@@ -2193,272 +2350,28 @@ ${cssVariables}
           </Button>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Invoice Number
-                    <Popover open={isInvoiceNumberFilterOpen} onOpenChange={setIsInvoiceNumberFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${invoiceNumberFilter.search || invoiceNumberFilter.from || invoiceNumberFilter.to ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="start">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Invoice Number</Label>
-                            {(invoiceNumberFilter.search || invoiceNumberFilter.from || invoiceNumberFilter.to) && (
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                setInvoiceNumberFilter({ search: "", from: "", to: "" });
-                              }}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
-        </div>
-                          <div>
-                            <Label>Search</Label>
-                            <Input
-                              placeholder="Search invoice number..."
-                              value={invoiceNumberFilter.search}
-                              onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, search: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label>From</Label>
-                              <Input
-                                placeholder="e.g., 001"
-                                value={invoiceNumberFilter.from}
-                                onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, from: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label>To</Label>
-                              <Input
-                                placeholder="e.g., 100"
-                                value={invoiceNumberFilter.to}
-                                onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, to: e.target.value })}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Issue Date
-                    <Popover open={isIssueDateFilterOpen} onOpenChange={setIsIssueDateFilterOpen}>
-          <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${issueDateFilter.from || issueDateFilter.to ? 'text-primary' : ''}`} />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="range"
-                          selected={{ from: issueDateFilter.from, to: issueDateFilter.to }}
-              onSelect={(range) => {
-                            setIssueDateFilter({
-                  from: range?.from,
-                  to: range?.to
-                });
-                if (range?.from && range?.to) {
-                              setIsIssueDateFilterOpen(false);
-                }
-              }}
-              numberOfMonths={2}
-              className="rounded-md border"
-            />
-          </PopoverContent>
-        </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Due Date
-                    <Popover open={isDueDateFilterOpen} onOpenChange={setIsDueDateFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${dueDateFilter.from || dueDateFilter.to ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="range"
-                          selected={{ from: dueDateFilter.from, to: dueDateFilter.to }}
-                          onSelect={(range) => {
-                            setDueDateFilter({
-                              from: range?.from,
-                              to: range?.to
-                            });
-                            if (range?.from && range?.to) {
-                              setIsDueDateFilterOpen(false);
-                            }
-                          }}
-                          numberOfMonths={2}
-                          className="rounded-md border"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Customer
-                    <Popover open={isCustomerFilterOpen} onOpenChange={setIsCustomerFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${customerFilter.selectedId !== "all" ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="start">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Customer</Label>
-                            {customerFilter.selectedId !== "all" && (
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                setCustomerFilter({ search: "", selectedId: "all" });
-                              }}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                          <div>
-                            <Label>Search</Label>
-                            <Input
-                              placeholder="Search customers..."
-                              value={customerFilter.search}
-                              onChange={(e) => setCustomerFilter({ ...customerFilter, search: e.target.value })}
-                            />
-                          </div>
-                          <div className="max-h-60 overflow-y-auto">
-                            <Select value={customerFilter.selectedId} onValueChange={(value) => {
-                              setCustomerFilter({ ...customerFilter, selectedId: value });
-                              setIsCustomerFilterOpen(false);
-                            }}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select customer" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">All Customers</SelectItem>
-                                {customers
-                                  .filter(c => !customerFilter.search || c.name.toLowerCase().includes(customerFilter.search.toLowerCase()))
-                                  .map(customer => (
-                                    <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Status
-                    <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-48" align="start">
           <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Status</Label>
-                            {statusFilter !== "all" && (
-                              <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
-                  </div>
-                          <Select value={statusFilter} onValueChange={(value) => {
-                            setStatusFilter(value);
-                            setIsStatusFilterOpen(false);
-                          }}>
-                            <SelectTrigger>
-                              <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="overdue">Overdue</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Total
-                    <Popover open={isAmountFilterOpen} onOpenChange={setIsAmountFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${amountFilter.from || amountFilter.to ? 'text-primary' : ''}`} />
-          </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="start">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Amount</Label>
-                            {(amountFilter.from || amountFilter.to) && (
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                setAmountFilter({ from: "", to: "" });
-                              }}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
-                  </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label>From</Label>
-                              <Input
-                                type="number"
-                                placeholder="Min amount"
-                                value={amountFilter.from}
-                                onChange={(e) => setAmountFilter({ ...amountFilter, from: e.target.value })}
-                              />
-                  </div>
-                            <div>
-                              <Label>To</Label>
-                              <Input
-                                type="number"
-                                placeholder="Max amount"
-                                value={amountFilter.to}
-                                onChange={(e) => setAmountFilter({ ...amountFilter, to: e.target.value })}
-                              />
-                  </div>
-                  </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead className="w-32">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInvoices.map(invoice => (
-                <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
-                  <TableCell className="font-medium">
-                    <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline text-left">
+            {filteredInvoices.map(invoice => <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors min-h-[80px]">
+                <div className="flex items-center space-x-4 flex-1">
+                  <div className="min-w-[120px]">
+                    <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline font-medium text-left">
                       {invoice.invoice_number}
                     </button>
-                  </TableCell>
-                  <TableCell>{formatDate(invoice.issue_date)}</TableCell>
-                  <TableCell>{invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</TableCell>
-                  <TableCell>{invoice.customers?.name}</TableCell>
-                  <TableCell>
+                  </div>
+                  <div className="min-w-[100px]">
+                    <p className="text-sm text-muted-foreground">Issue Date</p>
+                    <p className="font-medium">{formatDate(invoice.issue_date)}</p>
+                  </div>
+                  <div className="min-w-[100px]">
+                    <p className="text-sm text-muted-foreground">Due Date</p>
+                    <p className="font-medium">{invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</p>
+                  </div>
+                  <div className="min-w-[150px]">
+                    <p className="text-sm text-muted-foreground">Customer</p>
+                    <p className="font-medium">{invoice.customers?.name}</p>
+                  </div>
+                  <div className="min-w-[100px]">
                     <InvoiceStatusBadge invoice={invoice} onStatusChange={async (newStatus) => {
-                      const oldStatus = invoice.status;
                       const { error } = await supabase
                         .from('invoices')
                         .update({ status: newStatus })
@@ -2471,80 +2384,54 @@ ${cssVariables}
                           variant: "destructive"
                         });
                       } else {
-                        // If status changed to "paid" and it wasn't "paid" before, create accounting entry
-                        if (newStatus === "paid" && oldStatus !== "paid") {
-                          // Check if accounting entry already exists for this invoice
-                          const { data: existingEntry } = await supabase
-                            .from('accounting_entries')
-                            .select('id')
-                            .eq('reference', invoice.invoice_number)
-                            .eq('type', 'income')
-                            .maybeSingle();
-                          
-                          if (!existingEntry) {
-                            // Convert amount to BAM if currency is EUR (1 EUR = 1.955 BAM)
-                            const invoiceAmount = invoice.amount || 0;
-                            const invoiceCurrency = invoice.currency || 'BAM';
-                            const amountInBAM = invoiceCurrency.toUpperCase() === 'EUR' 
-                              ? invoiceAmount * 1.955 
-                              : invoiceAmount;
-                            
-                            // Create accounting entry as income
-                            const { error: accountingError } = await supabase
-                              .from('accounting_entries')
-                              .insert([{
-                                type: 'income',
-                                category: 'invoice',
-                                amount: amountInBAM,
-                                description: `Invoice Payment - ${invoice.invoice_number}${invoice.customers?.name ? ` (${invoice.customers.name})` : ''}`,
-                                date: new Date().toISOString().split('T')[0],
-                                reference: invoice.invoice_number
-                              }]);
-                            
-                            if (accountingError) {
-                              console.error('Error creating accounting entry:', accountingError);
-                              toast({
-                                title: "Warning",
-                                description: "Invoice status updated, but failed to create accounting entry",
-                                variant: "destructive"
-                              });
-                            }
-                          }
-                        }
-                        
                         await fetchInvoices();
                         toast({
                           title: "Status Updated",
-                          description: `Invoice status changed to ${newStatus}${newStatus === "paid" && oldStatus !== "paid" ? " - Added to accounting as income" : ""}`
+                          description: `Invoice status changed to ${newStatus}`
                         });
                       }
                     }} />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {formatCurrency(invoice.amount || 0, invoice.currency)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditInvoice(invoice)}
-                      >
-                        Edit
-                  </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDeletingInvoice(invoice)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                  </Button>
+                  </div>
+                   <div className="min-w-[120px] text-right">
+                     <p className="text-sm text-muted-foreground">Total</p>
+                     <p className="font-bold text-lg">{formatCurrency(invoice.amount || 0, invoice.currency)}</p>
+                   </div>
                 </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                
+                <div className="flex gap-1 ml-4">
+                  <Button variant="ghost" size="icon" onClick={() => handleViewInvoice(invoice)} title="View Invoice">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleEditInvoice(invoice)} title="Edit Invoice">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="Download">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete invoice "{invoice.invoice_number}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteInvoice(invoice.id)}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>)}
+          </div>
         </CardContent>
       </Card>
 
@@ -3044,9 +2931,6 @@ ${cssVariables}
                 const paginatedItems = paginateInvoiceItems(invoiceItems);
                 const totalPages = paginatedItems.length;
                 
-                // Get translations based on customer country
-                const translations = getInvoiceTranslations(selectedInvoice.customers?.country);
-                
                 return paginatedItems.map((pageItems, pageIndex) => {
                   const isFirstPage = pageIndex === 0;
                   const isLastPage = pageIndex === totalPages - 1;
@@ -3086,7 +2970,7 @@ ${cssVariables}
                               justifyContent: 'left'
                             }}
                           >
-                             <span className="text-lg print-text-lg font-medium text-black">{translations.invoice}</span>
+                             <span className="text-lg print-text-lg font-medium text-black">INVOICE</span>
                              {totalPages > 1 && (
                                <span className="text-sm print-text-sm ml-2">(Page {pageIndex + 1} of {totalPages})</span>
                              )}
@@ -3097,7 +2981,7 @@ ${cssVariables}
                       {/* Invoice Header */}
                       <div className="invoice-header grid grid-cols-2 gap-6">
                         <div>
-                          <h3 className="mb-2 print-text-sm text-sm font-normal">{translations.billTo}</h3>
+                          <h3 className="mb-2 print-text-sm text-sm font-normal">Bill To:</h3>
                           <p className="font-bold print-text-base print:font-bold">{selectedInvoice.customers?.name}</p>
                           {selectedInvoice.customers?.address && (
                             <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.customers.address}</p>
@@ -3114,14 +2998,14 @@ ${cssVariables}
                         </div>
                         <div className="text-right">
                           <div className="space-y-1 print:space-y-2">
-                            <p className="print-text-sm"><span className="font-medium">{translations.invoiceNumber}</span> {selectedInvoice.invoice_number}</p>
-                            <p className="print-text-sm"><span className="font-medium">{translations.issueDate}</span> {formatDate(selectedInvoice.issue_date)}</p>
-                            <p className="print-text-sm"><span className="font-medium">{translations.dueDate}</span> {selectedInvoice.due_date ? formatDate(selectedInvoice.due_date) : 'N/A'}</p>
-                            {selectedInvoice.order_number && <p className="print-text-sm"><span className="font-medium">{translations.orderNumber}</span> {selectedInvoice.order_number}</p>}
-                            {selectedInvoice.shipping_date && <p className="print-text-sm"><span className="font-medium">{translations.shippingDate}</span> {formatDate(selectedInvoice.shipping_date)}</p>}
+                            <p className="print-text-sm"><span className="font-medium">Invoice Number:</span> {selectedInvoice.invoice_number}</p>
+                            <p className="print-text-sm"><span className="font-medium">Issue Date:</span> {formatDate(selectedInvoice.issue_date)}</p>
+                            <p className="print-text-sm"><span className="font-medium">Due Date:</span> {selectedInvoice.due_date ? formatDate(selectedInvoice.due_date) : 'N/A'}</p>
+                            {selectedInvoice.order_number && <p className="print-text-sm"><span className="font-medium">Order Number:</span> {selectedInvoice.order_number}</p>}
+                            {selectedInvoice.shipping_date && <p className="print-text-sm"><span className="font-medium">Shipping Date:</span> {formatDate(selectedInvoice.shipping_date)}</p>}
                             {selectedInvoice.incoterms && (
                               <p className="print-text-sm">
-                                <span className="font-medium">{translations.incoterms}</span>{' '}
+                                <span className="font-medium">Incoterms:</span>{' '}
                                 {selectedInvoice.incoterms}
                                 {(() => {
                                   // For EXW, use company address
@@ -3147,7 +3031,7 @@ ${cssVariables}
                                 })()}
                               </p>
                             )}
-                            {selectedInvoice.declaration_number && <p className="print-text-sm"><span className="font-medium">{translations.declarationNumber}</span> {selectedInvoice.declaration_number}</p>}
+                            {selectedInvoice.declaration_number && <p className="print-text-sm"><span className="font-medium">Declaration Number:</span> {selectedInvoice.declaration_number}</p>}
                           </div>
                         </div>
                       </div>
@@ -3157,13 +3041,13 @@ ${cssVariables}
                         <table className="invoice-items-table w-full border-collapse print:border-black">
                           <thead>
                             <tr>
-                              <th className="text-left text-sm">{translations.partName}</th>
-                              <th className="text-left text-sm">{translations.partNumber}</th>
-                              <th className="text-left text-sm">{translations.unit}</th>
-                              <th className="text-left text-sm">{translations.quantity}</th>
-                              <th className="text-left text-sm">{translations.subtotalWeight}</th>
-                              <th className="text-left text-sm">{translations.price}</th>
-                              <th className="text-right text-sm">{translations.amount}</th>
+                              <th className="text-left text-sm">Part name</th>
+                              <th className="text-left text-sm">Part number</th>
+                              <th className="text-left text-sm">Unit</th>
+                              <th className="text-left text-sm">Qty</th>
+                              <th className="text-left text-sm">Weight</th>
+                              <th className="text-left text-sm">Price</th>
+                              <th className="text-right text-sm">Amount</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -3182,7 +3066,7 @@ ${cssVariables}
                                 <tr key={itemIndex}>
                                   <td className="text-left text-sm">{item.description}</td>
                                   <td className="text-left text-sm">{inventoryItem?.part_number || '-'}</td>
-                                  <td className="text-left text-sm">{inventoryItem?.unit || translations.piece}</td>
+                                  <td className="text-left text-sm">{inventoryItem?.unit || 'piece'}</td>
                                   <td className="text-left text-sm">{item.quantity}</td>
                                   <td className="text-left text-sm">{subtotalWeight.toFixed(2)} kg</td>
                                   <td className="text-left text-sm">{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
@@ -3200,12 +3084,12 @@ ${cssVariables}
                           <div className="grid grid-cols-2 gap-6 no-page-break print:mt-2">
                          
                             <div style={{ width: '420px' }}>
-                              <h3 className="font-semibold mb-2 print-text-base">{translations.summary}</h3>
+                              <h3 className="font-semibold mb-2 print-text-base">Summary</h3>
                               <div className="space-y-1 text-sm print:space-y-2 print-text-sm">
-                                <p><span className="font-medium">{translations.totalQuantity}</span> {selectedInvoice.total_quantity} {translations.pieces}</p>
-                                <p><span className="font-medium">{translations.netWeight}</span> {selectedInvoice.net_weight} kg</p>
-                                <p><span className="font-medium">{translations.totalWeight}</span> {selectedInvoice.total_weight} kg</p>
-                                <p><span className="font-medium">{translations.packing}</span> {selectedInvoice.packing} {selectedInvoice.packing === 1 ? translations.package : translations.packages}</p>
+                                <p><span className="font-medium">Total Quantity:</span> {selectedInvoice.total_quantity} pcs</p>
+                                <p><span className="font-medium">Net Weight:</span> {selectedInvoice.net_weight} kg</p>
+                                <p><span className="font-medium">Total Weight:</span> {selectedInvoice.total_weight} kg</p>
+                                <p><span className="font-medium">Packing:</span> {selectedInvoice.packing} {selectedInvoice.packing === 1 ? 'package' : 'packages'}</p>
                               </div>
                               {/* Declaration for foreign invoices under 6000€ */}
                               {selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' && 
@@ -3225,11 +3109,11 @@ ${cssVariables}
                             <div className="text-right w-3/5 ml-auto">
                               <div className="space-y-2 print:space-y-3">
                                 <div className="flex justify-between print-text-sm">
-                                  <span>{translations.subtotal}</span>
+                                  <span>Subtotal:</span>
                                   <span>{formatCurrency((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
                                 </div>
                                 <div className="flex justify-between print-text-sm">
-                                  <span>{translations.vat} ({selectedInvoice.vat_rate}%):</span>
+                                  <span>VAT ({selectedInvoice.vat_rate}%):</span>
                                   <span>{formatCurrency((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
                                 </div>
                                 <div 
@@ -3245,7 +3129,7 @@ ${cssVariables}
                                   }} 
                                   className="flex justify-between font-bold text-lg print-invoice-bg h-[35px] items-center print-text-base total-amount-bg"
                                 >
-                                  <span>{translations.total}</span>
+                                  <span>Total:</span>
                                   <span>{formatCurrency(selectedInvoice.amount || 0, selectedInvoice.currency)}</span>
                                 </div>
                               </div>
@@ -3262,7 +3146,7 @@ ${cssVariables}
                                     paddingRight: '0px',
                                     marginTop: '40px',
                                     textAlign: 'left',
-                                    color: '#000000'
+                                    color: '#303030'
                                   }}
                                 >
                                   <p className="mb-1 leading-tight">Oslobođeno od plaćanja PDV-a po članu 27. tačka 1. zakona o PDV-u, Službeni glasnik br. 91/05 i 35/05.</p>
@@ -3293,7 +3177,7 @@ ${cssVariables}
 
                           {selectedInvoice.notes && (
                             <div className="no-page-break print:mt-6">
-                              <h3 className="font-semibold mb-2 print-text-base">{translations.notes}</h3>
+                              <h3 className="font-semibold mb-2 print-text-base">Notes</h3>
                               <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.notes}</p>
                             </div>
                           )}
@@ -3309,7 +3193,7 @@ ${cssVariables}
                           <p 
                             className="print-text-xs text-xs leading-relaxed" 
                             style={{ 
-                              color: '#000000',
+                              color: '#303030',
                               textAlign: 'justify',
                               marginBottom: 0
                             }}
@@ -3323,7 +3207,7 @@ ${cssVariables}
                       {(invoiceSettings.foreignFooter.some(col => col.trim()) || invoiceSettings.domesticFooter.some(col => col.trim())) && (
                         <div className="invoice-footer-wrapper mt-auto">
                           <Separator className="print:border-black print:border-t print:mt-4 print:mb-2 border-t border-gray-600 mt-4 mb-2" />
-                          <div className="text-xs print-text-xs flex justify-between gap-6 invoice-footer-columns" style={{ color: '#000000' }}>
+                          <div className="text-xs print-text-xs flex justify-between gap-6 invoice-footer-columns" style={{ color: '#303030' }}>
                             {selectedInvoice.customers?.country === 'Bosnia and Herzegovina' ? (
                               <>
                                 <div className="whitespace-pre-line text-left flex-1 min-w-0">{invoiceSettings.domesticFooter[0]}</div>
@@ -3347,9 +3231,13 @@ ${cssVariables}
               
               {/* Buttons outside the white paper page - Always visible after scrolling */}
               <div className="flex gap-2 pt-4 pb-4 print:hidden justify-center w-full">
-                <Button onClick={printInvoiceWithMediaPrint} disabled={printingInvoice || generatingPDF} variant="secondary">
+                <Button onClick={printInvoice} disabled={printingInvoice || generatingPDF}>
                   <Printer className="w-4 h-4 mr-2" />
                   {printingInvoice ? 'Preparing Print...' : 'Print Invoice'}
+                </Button>
+                <Button onClick={printInvoiceWithMediaPrint} disabled={printingInvoice || generatingPDF} variant="secondary">
+                  <Printer className="w-4 h-4 mr-2" />
+                  {printingInvoice ? 'Preparing Print...' : 'PDF print in development'}
                 </Button>
                 <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
                   Close
@@ -3459,26 +3347,6 @@ ${cssVariables}
               </div>
             </DialogContent>
           </Dialog>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deletingInvoice} onOpenChange={(open) => !open && setDeletingInvoice(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Invoice</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete invoice "{deletingInvoice?.invoice_number}"? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setDeletingInvoice(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteInvoice}>
-              Delete
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>;

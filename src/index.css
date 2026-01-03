@@ -496,6 +496,21 @@ All colors MUST be HSL.
     font-weight: normal !important;
   }
 
+  .invoice-items-table thead {
+    background-color: transparent !important;
+    background: transparent !important;
+  }
+
+  .invoice-items-table thead th {
+    background-color: transparent !important;
+    background: transparent !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border: none !important;
+  }
+
   /* Text sizes */
   .print-text-lg {
     font-size: 14pt !important;

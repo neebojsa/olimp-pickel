@@ -367,10 +367,9 @@ const Settings = () => {
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage stock locations and staff members</p>
+        <h1 className="text-3xl font-bold">Settings</h1>        
       </div>
 
       <Tabs defaultValue="locations" className="w-full">
@@ -382,8 +381,7 @@ const Settings = () => {
         <TabsContent value="locations" className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-semibold">Stock Locations</h2>
-              <p className="text-muted-foreground">Manage warehouse and storage locations</p>
+                    
             </div>
             <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
               <DialogTrigger asChild>

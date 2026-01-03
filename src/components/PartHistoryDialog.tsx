@@ -75,7 +75,7 @@ export default function PartHistoryDialog({ isOpen, onClose, item, historyData }
               <div className="space-y-2">
                 {historyData.length > 0 ? (
                   historyData.map((entry, index) => (
-                    <div key={index} className="flex items-center gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div key={index} className="flex items-center gap-4 p-3 rounded-lg shadow-sm hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2 min-w-0">
                         {getActivityIcon(entry.activity)}
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">

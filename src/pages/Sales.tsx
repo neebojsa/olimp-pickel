@@ -447,7 +447,7 @@ export default function Sales() {
             <CardContent>
               <div className="space-y-4">
                 {paginatedCustomers.map((customer, index) => (
-                  <div key={customer.name} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={customer.name} className="flex items-center justify-between p-4 rounded-lg shadow-sm">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{customer.name}</h3>
@@ -547,7 +547,7 @@ export default function Sales() {
             <CardContent>
               <div className="space-y-4">
                 {paginatedParts.map((part, index) => (
-                  <div key={part.name} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={part.name} className="flex items-center justify-between p-4 rounded-lg shadow-sm">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{part.name}</h3>

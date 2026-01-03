@@ -152,6 +152,20 @@ export default function Accounting() {
     fetchTransactions();
   }, []);
 
+  // Exchange rate: 1 EUR = 1.955 BAM
+  const EUR_TO_BAM_RATE = 1.955;
+  
+  const convertToBAM = (amount: number, currency?: string | null): number => {
+    if (!currency || currency.toUpperCase() === 'BAM' || currency.toUpperCase() === 'KM') {
+      return amount;
+    }
+    if (currency.toUpperCase() === 'EUR') {
+      return amount * EUR_TO_BAM_RATE;
+    }
+    // Default: assume BAM if currency unknown
+    return amount;
+  };
+
   const fetchTransactions = async () => {
     // Only fetch invoices and credit notes from accounting_entries
     // Quotes and other document types are filtered out
@@ -161,12 +175,45 @@ export default function Accounting() {
       .in('category', ['invoice', 'credit_note']);
     
     if (data) {
-      const formattedTransactions = data.map(entry => ({
-        ...entry,
-        description: entry.description,
-        account: "General", // Placeholder
-        reference: entry.reference || `TXN-${entry.id}`
-      }));
+      // Fetch currency from invoices for entries that reference invoices (for backward compatibility)
+      // New entries are already converted to BAM at creation time
+      const invoiceReferences = data
+        .filter(entry => entry.reference && entry.category === 'invoice')
+        .map(entry => entry.reference);
+      
+      let invoiceCurrencies: Record<string, string> = {};
+      if (invoiceReferences.length > 0) {
+        const { data: invoices } = await supabase
+          .from('invoices')
+          .select('invoice_number, currency')
+          .in('invoice_number', invoiceReferences);
+        
+        if (invoices) {
+          invoiceCurrencies = invoices.reduce((acc, inv) => {
+            acc[inv.invoice_number] = inv.currency || 'BAM';
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      }
+      
+      const formattedTransactions = data.map(entry => {
+        // Get currency from invoice if available, otherwise default to BAM
+        const currency = entry.reference && invoiceCurrencies[entry.reference] 
+          ? invoiceCurrencies[entry.reference] 
+          : 'BAM';
+        
+        // Convert amount to BAM (for backward compatibility with old entries)
+        // New entries are already in BAM, so this is a no-op for them
+        const amountInBAM = convertToBAM(entry.amount || 0, currency);
+        
+        return {
+          ...entry,
+          description: entry.description,
+          account: "General", // Placeholder
+          reference: entry.reference || `TXN-${entry.id}`,
+          amount: amountInBAM // Amount in BAM
+        };
+      });
       setTransactions(formattedTransactions);
     }
   };
@@ -235,7 +282,7 @@ export default function Accounting() {
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.reference.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedType === "all" || transaction.type === selectedType;
+    const matchesType = selectedType === "all" || transaction.type?.toLowerCase() === selectedType.toLowerCase();
     const matchesCategory = selectedCategory === "all" || transaction.category === selectedCategory;
     
     // Column header filters
@@ -249,7 +296,7 @@ export default function Accounting() {
     const matchesDate = (!dateFromTime || transactionDate.getTime() >= dateFromTime) &&
       (!dateToTime || transactionDate.getTime() <= dateToTime);
     
-    const matchesTypeFilter = typeFilter === "all" || transaction.type === typeFilter;
+    const matchesTypeFilter = typeFilter === "all" || transaction.type?.toLowerCase() === typeFilter.toLowerCase();
     const matchesCategoryFilter = categoryFilter === "all" || transaction.category === categoryFilter;
     
     const amount = transaction.amount || 0;
@@ -271,8 +318,8 @@ export default function Accounting() {
       matchesDate && matchesTypeFilter && matchesCategoryFilter && matchesAmount && matchesReference && referenceMatch;
   });
 
-  const totalIncome = transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
-  const totalExpenses = transactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = transactions.filter(t => t.type?.toLowerCase() === "income").reduce((sum, t) => sum + t.amount, 0);
+  const totalExpenses = transactions.filter(t => t.type?.toLowerCase() === "expense").reduce((sum, t) => sum + t.amount, 0);
   const netIncome = totalIncome - totalExpenses;
 
   const categories = [...new Set(transactions.map(t => t.category))];
@@ -402,7 +449,7 @@ export default function Accounting() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">${totalIncome.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">{totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM</div>
             <p className="text-xs text-muted-foreground">
               Revenue this period
             </p>
@@ -415,7 +462,7 @@ export default function Accounting() {
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">${totalExpenses.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-red-600">{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM</div>
             <p className="text-xs text-muted-foreground">
               Costs this period
             </p>
@@ -429,7 +476,7 @@ export default function Accounting() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              ${Math.abs(netIncome).toLocaleString()}
+              {Math.abs(netIncome).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM
             </div>
             <p className="text-xs text-muted-foreground">
               {netIncome >= 0 ? 'Profit' : 'Loss'} this period
@@ -729,8 +776,8 @@ export default function Accounting() {
                         </TableCell>
                         <TableCell>{transaction.category}</TableCell>
                         <TableCell>{transaction.account}</TableCell>
-                        <TableCell className={`font-medium ${transaction.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}>
-                          {transaction.type === 'Income' ? '+' : '-'}${transaction.amount.toLocaleString()}
+                        <TableCell className={`font-medium ${transaction.type?.toLowerCase() === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                          {transaction.type?.toLowerCase() === 'income' ? '+' : '-'}{transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM
                         </TableCell>
                         <TableCell>{transaction.reference}</TableCell>
                         <TableCell>
@@ -802,16 +849,16 @@ export default function Accounting() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Revenue</span>
-                    <span className="font-medium">${totalIncome.toLocaleString()}</span>
+                    <span className="font-medium">{totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Expenses</span>
-                    <span className="font-medium">${totalExpenses.toLocaleString()}</span>
+                    <span className="font-medium">{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM</span>
                   </div>
                   <div className="border-t pt-2 flex justify-between font-bold">
                     <span>Net Income</span>
                     <span className={netIncome >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      ${Math.abs(netIncome).toLocaleString()}
+                      {Math.abs(netIncome).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM
                     </span>
                   </div>
                 </div>
@@ -826,16 +873,16 @@ export default function Accounting() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Cash Inflows</span>
-                    <span className="font-medium text-green-600">${totalIncome.toLocaleString()}</span>
+                    <span className="font-medium text-green-600">{totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Cash Outflows</span>
-                    <span className="font-medium text-red-600">${totalExpenses.toLocaleString()}</span>
+                    <span className="font-medium text-red-600">{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM</span>
                   </div>
                   <div className="border-t pt-2 flex justify-between font-bold">
                     <span>Net Cash Flow</span>
                     <span className={netIncome >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      ${Math.abs(netIncome).toLocaleString()}
+                      {Math.abs(netIncome).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM
                     </span>
                   </div>
                 </div>

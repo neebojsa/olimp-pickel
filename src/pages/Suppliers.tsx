@@ -392,13 +392,13 @@ export default function Suppliers() {
           <CardTitle>Supplier Directory</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Company Name</TableHead>
-                <TableHead>Contact Person</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Company Name</TableHead>
+                  <TableHead>Contact Person</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
                 <TableHead>
                   <div className="flex items-center gap-2">
                     Country
@@ -451,7 +451,7 @@ export default function Suppliers() {
                       </Popover>
                     </div>
                 </TableHead>
-                <TableHead>Payment Terms</TableHead>
+                  <TableHead>Payment Terms</TableHead>
                 <TableHead>
                   <div className="flex items-center gap-2">
                     Status
@@ -490,70 +490,70 @@ export default function Suppliers() {
                       </Popover>
                     </div>
                 </TableHead>
-                <TableHead>Total Orders</TableHead>
-                <TableHead>Total Value</TableHead>
-                <TableHead className="w-20">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedSuppliers.map((supplier) => (
-                <TableRow key={supplier.id}>
-                  <TableCell>
-                    <button 
-                      onClick={() => handleSupplierClick(supplier)}
-                      className="text-primary hover:underline font-medium text-left"
-                    >
-                      {supplier.name}
-                    </button>
-                  </TableCell>
-                  <TableCell>{supplier.contact_person}</TableCell>
-                  <TableCell className="text-sm">
-                    <a href={`mailto:${supplier.email}`} className="hover:underline">
-                      {supplier.email}
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-sm">{supplier.phone}</TableCell>
-                  <TableCell className="text-sm">{supplier.country || '-'}</TableCell>
-                  <TableCell>{supplier.payment_terms}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={getStatusColor(supplier.status)}
-                    >
-                      {supplier.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{supplier.totalOrders}</TableCell>
-                  <TableCell className="font-medium">
-                    ${supplier.totalValue.toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Supplier</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete "{supplier.name}"? This action cannot be undone and will remove all associated data.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteSupplier(supplier.id)}>
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
+                  <TableHead>Total Orders</TableHead>
+                  <TableHead>Total Value</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {paginatedSuppliers.map((supplier) => (
+                  <TableRow key={supplier.id}>
+                    <TableCell>
+                      <button 
+                        onClick={() => handleSupplierClick(supplier)}
+                        className="text-primary hover:underline font-medium text-left"
+                      >
+                        {supplier.name}
+                      </button>
+                    </TableCell>
+                    <TableCell>{supplier.contact_person}</TableCell>
+                    <TableCell className="text-sm">
+                      <a href={`mailto:${supplier.email}`} className="hover:underline">
+                        {supplier.email}
+                      </a>
+                    </TableCell>
+                    <TableCell className="text-sm">{supplier.phone}</TableCell>
+                    <TableCell className="text-sm">{supplier.country || '-'}</TableCell>
+                    <TableCell>{supplier.payment_terms}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={getStatusColor(supplier.status)}
+                      >
+                        {supplier.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{supplier.totalOrders}</TableCell>
+                    <TableCell className="font-medium">
+                      ${supplier.totalValue.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Supplier</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{supplier.name}"? This action cannot be undone and will remove all associated data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteSupplier(supplier.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           
           {/* Pagination Controls */}
           {totalPages > 1 && (

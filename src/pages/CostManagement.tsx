@@ -592,17 +592,24 @@ export default function CostManagement() {
       } else {
         // Only insert invoices and credit notes into accounting_entries
         if (isInvoiceOrCreditNote) {
-        const accountingData = {
-          amount: entryData.total_amount || 0,
-          description: `${entryData.supplier_name} - ${entryData.document_number}`,
-          reference: entryData.document_number || '',
-          date: entryData.issue_date || '',
-          category: entryData.document_type || 'invoice',
-          type: 'expense',
-          document_url: uploadedDocumentUrl || null,
-          status: entryData.status || 'pending',
-          due_date: entryData.due_date || null
-        };
+          // Convert amount to BAM if currency is EUR (1 EUR = 1.955 BAM)
+          const entryAmount = entryData.total_amount || 0;
+          const entryCurrency = entryData.currency || 'BAM';
+          const amountInBAM = entryCurrency.toUpperCase() === 'EUR' 
+            ? entryAmount * 1.955 
+            : entryAmount;
+          
+          const accountingData = {
+            amount: amountInBAM,
+            description: `${entryData.supplier_name} - ${entryData.document_number}`,
+            reference: entryData.document_number || '',
+            date: entryData.issue_date || '',
+            category: entryData.document_type || 'invoice',
+            type: 'expense',
+            document_url: uploadedDocumentUrl || null,
+            status: entryData.status || 'pending',
+            due_date: entryData.due_date || null
+          };
 
         console.log('Inserting accounting entry:', accountingData);
         const { error, data } = await supabase
@@ -2609,14 +2616,14 @@ export default function CostManagement() {
                     return isPDF ? (
                       <iframe
                         src={url}
-                        className="w-full min-h-[800px] border rounded-lg"
+                        className="w-full min-h-[800px] rounded-lg shadow-sm"
                         title="Document Preview"
                       />
                     ) : (
                       <img
                         src={url}
                         alt="Document Preview"
-                        className="max-w-full h-auto border rounded-lg shadow-sm"
+                        className="max-w-full h-auto rounded-lg shadow-sm"
                       />
                     );
                   })()}
@@ -2817,14 +2824,14 @@ export default function CostManagement() {
                     return isPDF ? (
                       <iframe
                         src={url}
-                        className="w-full min-h-[800px] border rounded-lg"
+                        className="w-full min-h-[800px] rounded-lg shadow-sm"
                         title="Document Preview"
                       />
                     ) : (
                       <img
                         src={url}
                         alt="Document Preview"
-                        className="max-w-full h-auto border rounded-lg shadow-sm"
+                        className="max-w-full h-auto rounded-lg shadow-sm"
                       />
                     );
                   })()}

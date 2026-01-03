@@ -19,6 +19,8 @@ import Sales from "./pages/Sales";
 import Customers from "./pages/Customers";
 import Suppliers from "./pages/Suppliers";
 import OtherDocs from "./pages/OtherDocs";
+import DeliveryNoteView from "./pages/DeliveryNoteView";
+import OrderConfirmationView from "./pages/OrderConfirmationView";
 import Settings from "./pages/Settings";
 import StaffAndLocation from "./pages/StaffAndLocation";
 import NotFound from "./pages/NotFound";
@@ -112,6 +114,16 @@ const AppContent: React.FC = () => {
               <Route path="/other-docs" element={
                 <ProtectedRoute page="other-docs">
                   <Layout><OtherDocs /></Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/delivery-note/:id" element={
+                <ProtectedRoute page="other-docs">
+                  <Layout><DeliveryNoteView /></Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/order-confirmation/:id" element={
+                <ProtectedRoute page="other-docs">
+                  <Layout><OrderConfirmationView /></Layout>
                 </ProtectedRoute>
               } />
               <Route path="/settings" element={

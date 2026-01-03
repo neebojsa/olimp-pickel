@@ -53,6 +53,17 @@ export default function Labels() {
   useEffect(() => {
     fetchInvoices();
     fetchInventoryItems();
+    
+    // Load saved package info from localStorage
+    const saved = localStorage.getItem('labelPackageInfo');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setSavedPackageInfo(parsed);
+      } catch (e) {
+        console.error('Error loading saved package info:', e);
+      }
+    }
   }, []);
 
   const fetchInvoices = async () => {
@@ -86,7 +97,10 @@ export default function Labels() {
     const labels = [];
     
     invoice.invoice_items.forEach(item => {
-      const inventoryItem = inventoryItems.find(inv => inv.name === item.description);
+      // Use inventory_id if available, otherwise fallback to name lookup for backward compatibility
+      const inventoryItem = (item as any).inventory_id 
+        ? inventoryItems.find(inv => inv.id === (item as any).inventory_id)
+        : inventoryItems.find(inv => inv.name === item.description);
       const weightPerPiece = inventoryItem?.weight || 0;
       const itemKey = `${item.id}-${item.description}`;
       const pkgInfo = packageInfo[itemKey] || { packageCount: 1, piecesPerPackage: [item.quantity] };
@@ -174,14 +188,32 @@ export default function Labels() {
     setSelectedInvoice(invoice);
     setIsDialogOpen(true);
     
-    // Load saved package info for this invoice, or initialize with defaults
+    // Load saved package info for this invoice from localStorage, or initialize with defaults
     const invoiceKey = invoice.id;
-    const savedInfo = savedPackageInfo[invoiceKey];
-    
-    if (savedInfo) {
-      setPackageInfo(savedInfo);
-    } else {
-      // Initialize package info for all items
+    try {
+      const currentSaved = localStorage.getItem('labelPackageInfo');
+      const currentSavedInfo = currentSaved ? JSON.parse(currentSaved) : {};
+      const savedInfo = currentSavedInfo[invoiceKey];
+      
+      if (savedInfo) {
+        setPackageInfo(savedInfo);
+        // Also update state to keep it in sync
+        setSavedPackageInfo(currentSavedInfo);
+      } else {
+        // Initialize package info for all items
+        const initialPackageInfo: Record<string, PackageInfo> = {};
+        invoice.invoice_items.forEach(item => {
+          const itemKey = `${item.id}-${item.description}`;
+          initialPackageInfo[itemKey] = {
+            packageCount: 1,
+            piecesPerPackage: [item.quantity]
+          };
+        });
+        setPackageInfo(initialPackageInfo);
+      }
+    } catch (e) {
+      console.error('Error loading package info:', e);
+      // Fallback to defaults if there's an error
       const initialPackageInfo: Record<string, PackageInfo> = {};
       invoice.invoice_items.forEach(item => {
         const itemKey = `${item.id}-${item.description}`;
@@ -198,10 +230,19 @@ export default function Labels() {
     if (!open && selectedInvoice) {
       // Save package info when dialog closes
       const invoiceKey = selectedInvoice.id;
-      setSavedPackageInfo(prev => ({
-        ...prev,
-        [invoiceKey]: packageInfo
-      }));
+      // Read current saved info from localStorage to ensure we have latest data
+      try {
+        const currentSaved = localStorage.getItem('labelPackageInfo');
+        const currentSavedInfo = currentSaved ? JSON.parse(currentSaved) : {};
+        const updated = {
+          ...currentSavedInfo,
+          [invoiceKey]: packageInfo
+        };
+        localStorage.setItem('labelPackageInfo', JSON.stringify(updated));
+        setSavedPackageInfo(updated);
+      } catch (e) {
+        console.error('Error saving package info:', e);
+      }
     }
     setIsDialogOpen(open);
   };
@@ -221,13 +262,30 @@ export default function Labels() {
       newPiecesPerPackage.push(pieces);
     }
     
-    setPackageInfo(prev => ({
-      ...prev,
-      [itemKey]: {
-        packageCount: maxPackages,
-        piecesPerPackage: newPiecesPerPackage
+    setPackageInfo(prev => {
+      const updated = {
+        ...prev,
+        [itemKey]: {
+          packageCount: maxPackages,
+          piecesPerPackage: newPiecesPerPackage
+        }
+      };
+      // Auto-save to localStorage when package count changes
+      if (selectedInvoice) {
+        const invoiceKey = selectedInvoice.id;
+        // Read current saved info from localStorage to ensure we have latest data
+        try {
+          const currentSaved = localStorage.getItem('labelPackageInfo');
+          const currentSavedInfo = currentSaved ? JSON.parse(currentSaved) : {};
+          const savedInfo = { ...currentSavedInfo, [invoiceKey]: updated };
+          localStorage.setItem('labelPackageInfo', JSON.stringify(savedInfo));
+          setSavedPackageInfo(savedInfo);
+        } catch (e) {
+          console.error('Error saving package info:', e);
+        }
       }
-    }));
+      return updated;
+    });
   };
 
   const updatePiecesPerPackage = (itemKey: string, packageIndex: number, pieces: number, totalQuantity: number) => {
@@ -259,13 +317,30 @@ export default function Labels() {
         }
       }
       
-      return {
+      const updated = {
         ...prev,
         [itemKey]: {
           ...current,
           piecesPerPackage: newPiecesPerPackage
         }
       };
+      
+      // Auto-save to localStorage when pieces per package changes
+      if (selectedInvoice) {
+        const invoiceKey = selectedInvoice.id;
+        // Read current saved info from localStorage to ensure we have latest data
+        try {
+          const currentSaved = localStorage.getItem('labelPackageInfo');
+          const currentSavedInfo = currentSaved ? JSON.parse(currentSaved) : {};
+          const savedInfo = { ...currentSavedInfo, [invoiceKey]: updated };
+          localStorage.setItem('labelPackageInfo', JSON.stringify(savedInfo));
+          setSavedPackageInfo(savedInfo);
+        } catch (e) {
+          console.error('Error saving package info:', e);
+        }
+      }
+      
+      return updated;
     });
   };
 
@@ -1270,7 +1345,7 @@ export default function Labels() {
                 const pkgInfo = packageInfo[itemKey] || { packageCount: 1, piecesPerPackage: [item.quantity] };
                 
                 return (
-                  <div key={itemKey} className="border rounded-lg p-3 space-y-2">
+                  <div key={itemKey} className="rounded-lg p-3 space-y-2 shadow-sm">
                     <div className="font-medium">{item.description}</div>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">

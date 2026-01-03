@@ -60,6 +60,34 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Document Scanning (OCR) Features
+
+The app supports document scanning in Cost Management with two OCR engines:
+
+### 1. Tesseract.js (Default)
+- **Free and open-source**
+- Works offline
+- Supports multiple languages (Serbian, Croatian, English)
+- No API key required
+
+### 2. Google Gemini AI (Optional)
+- **More accurate** AI-powered extraction
+- Better at understanding document context
+- Requires Google Gemini API key
+
+#### Setting up Gemini AI:
+
+1. Get a Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a `.env.local` file in the root directory
+3. Add your API key:
+   ```
+   VITE_GEMINI_API_KEY=your_api_key_here
+   ```
+4. Restart the development server
+5. In Cost Management, select "Gemini AI" from the OCR engine dropdown
+
+**Note**: If no API key is set, the app will automatically use Tesseract OCR.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/d1870b16-3378-4e57-8d75-63522444d028) and click on Share -> Publish.

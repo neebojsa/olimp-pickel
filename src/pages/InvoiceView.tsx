@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { formatDate } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { getInvoiceTranslations } from "@/lib/translationUtils";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
@@ -25,7 +26,7 @@ const paginateInvoiceItems = (items: any[]) => {
   if (!items || items.length === 0) return [];
   
   const linesPerFullPage = 35;
-  const linesPerLastPage = 20;
+  const linesPerLastPage = 11;
   
   const itemsWithLines = items.map(item => ({
     item,
@@ -171,7 +172,7 @@ export default function InvoiceView() {
         .from('invoices')
         .select(`
           *,
-          customers!inner(id, name, country, address, city, phone),
+          customers!inner(id, name, country, address, city, phone, dap_address, fco_address, vat_rate),
           invoice_items!fk_invoice_items_invoice(*)
         `)
         .eq('id', id)
@@ -366,6 +367,18 @@ export default function InvoiceView() {
   const invoiceItems = invoice.invoice_items || [];
   const paginatedItems = paginateInvoiceItems(invoiceItems);
   const totalPages = paginatedItems.length;
+  
+  // Get translations based on customer country - recalculate when invoice changes
+  const translations = useMemo(() => {
+    if (!invoice) {
+      return getInvoiceTranslations(undefined);
+    }
+    
+    const customerCountry = invoice.customers?.country;
+    console.log('TRANSLATION CHECK - Country:', customerCountry, '| Is Bosnia?', customerCountry === 'Bosnia and Herzegovina');
+    
+    return getInvoiceTranslations(customerCountry);
+  }, [invoice]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 print:p-0 print:bg-white" ref={invoiceContainerRef}>
@@ -804,7 +817,7 @@ export default function InvoiceView() {
                       justifyContent: 'left'
                     }}
                   >
-                    <span className="text-lg print-text-lg font-medium text-black">INVOICE</span>
+                    <span className="text-lg print-text-lg font-medium text-black">{translations.invoice}</span>
                     {totalPages > 1 && (
                       <span className="text-sm print-text-sm ml-2">(Page {pageIndex + 1} of {totalPages})</span>
                     )}
@@ -815,10 +828,10 @@ export default function InvoiceView() {
               {/* Invoice Header */}
               <div className="invoice-header grid grid-cols-2 gap-6">
                 <div>
-                  <h3 className="mb-2 print-text-sm text-sm font-normal">Bill To:</h3>
+                  <h3 className="mb-2 print-text-sm text-sm font-normal">{translations.billTo}</h3>
                   <p className="font-bold print-text-base print:font-bold">{invoice.customers?.name}</p>
-                  {invoice.shipping_address && (
-                    <p className="text-sm whitespace-pre-line print-text-sm">{invoice.shipping_address}</p>
+                  {invoice.customers?.address && (
+                    <p className="text-sm whitespace-pre-line print-text-sm">{invoice.customers.address}</p>
                   )}
                   {invoice.customers?.city && (
                     <p className="text-sm print-text-sm">{invoice.customers.city}</p>
@@ -832,17 +845,17 @@ export default function InvoiceView() {
                 </div>
                 <div className="text-right">
                   <div className="space-y-1 print:space-y-2">
-                    <p className="print-text-sm"><span className="font-medium">Invoice Number:</span> {invoice.invoice_number}</p>
-                    <p className="print-text-sm"><span className="font-medium">Issue Date:</span> {formatDate(invoice.issue_date)}</p>
-                    <p className="print-text-sm"><span className="font-medium">Due Date:</span> {invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</p>
-                    {invoice.order_number && <p className="print-text-sm"><span className="font-medium">Order Number:</span> {invoice.order_number}</p>}
-                    {invoice.shipping_date && <p className="print-text-sm"><span className="font-medium">Shipping Date:</span> {formatDate(invoice.shipping_date)}</p>}
+                    <p className="print-text-sm"><span className="font-medium">{translations.invoiceNumber}</span> {invoice.invoice_number}</p>
+                    <p className="print-text-sm"><span className="font-medium">{translations.issueDate}</span> {formatDate(invoice.issue_date)}</p>
+                    <p className="print-text-sm"><span className="font-medium">{translations.dueDate}</span> {invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</p>
+                    {invoice.order_number && <p className="print-text-sm"><span className="font-medium">{translations.orderNumber}</span> {invoice.order_number}</p>}
+                    {invoice.shipping_date && <p className="print-text-sm"><span className="font-medium">{translations.shippingDate}</span> {formatDate(invoice.shipping_date)}</p>}
                     {invoice.incoterms && (
                       <p className="print-text-sm">
-                        <span className="font-medium">Incoterms:</span>{' '}
+                        <span className="font-medium">{translations.incoterms}</span>{' '}
                         {invoice.incoterms}
                         {(() => {
-                          // For EXW, use company address; for DAP/FCO, use customer address
+                          // For EXW, use company address
                           if (invoice.incoterms === 'EXW' && companyInfo) {
                             const parts: string[] = [];
                             if (companyInfo.postal_code) parts.push(companyInfo.postal_code);
@@ -852,25 +865,20 @@ export default function InvoiceView() {
                               if (countryCode) parts.push(countryCode);
                             }
                             return parts.length > 0 ? `, ${parts.join(' ')}` : '';
-                          } else {
-                            // For DAP/FCO, use customer address
-                            const parts: string[] = [];
-                            if ((invoice.customers as any)?.postal_code) {
-                              parts.push((invoice.customers as any).postal_code);
-                            }
-                            if (invoice.customers?.city) {
-                              parts.push(invoice.customers.city);
-                            }
-                            if (invoice.customers?.country) {
-                              const countryCode = getCountryCode(invoice.customers.country);
-                              if (countryCode) parts.push(countryCode);
-                            }
-                            return parts.length > 0 ? `, ${parts.join(' ')}` : '';
+                          } else if (invoice.incoterms === 'DAP') {
+                            // For DAP, use customer's DAP address
+                            const dapAddress = (invoice.customers as any)?.dap_address;
+                            return dapAddress ? `, ${dapAddress}` : '';
+                          } else if (invoice.incoterms === 'FCO') {
+                            // For FCO, use customer's FCO address
+                            const fcoAddress = (invoice.customers as any)?.fco_address;
+                            return fcoAddress ? `, ${fcoAddress}` : '';
                           }
+                          return '';
                         })()}
                       </p>
                     )}
-                    {invoice.declaration_number && <p className="print-text-sm"><span className="font-medium">Declaration Number:</span> {invoice.declaration_number}</p>}
+                    {invoice.declaration_number && <p className="print-text-sm"><span className="font-medium">{translations.declarationNumber}</span> {invoice.declaration_number}</p>}
                   </div>
                 </div>
               </div>
@@ -880,13 +888,13 @@ export default function InvoiceView() {
                 <table className="invoice-items-table w-full border-collapse print:border-black">
                   <thead>
                     <tr>
-                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>Part name</th>
-                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>Part number</th>
-                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>Unit</th>
-                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>Qty</th>
-                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>Subtotal weight</th>
-                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>Price</th>
-                      <th className="text-right text-sm" style={{verticalAlign: 'middle'}}>Amount</th>
+                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.partName}</th>
+                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.partNumber}</th>
+                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.unit}</th>
+                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.quantity}</th>
+                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.subtotalWeight}</th>
+                      <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.price}</th>
+                      <th className="text-right text-sm" style={{verticalAlign: 'middle'}}>{translations.amount}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -900,7 +908,7 @@ export default function InvoiceView() {
                         <tr key={itemIndex}>
                           <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{item.description}</td>
                           <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{inventoryItem?.part_number || '-'}</td>
-                          <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{inventoryItem?.unit || 'piece'}</td>
+                          <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{inventoryItem?.unit || translations.piece}</td>
                           <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{item.quantity}</td>
                           <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{subtotalWeight.toFixed(2)} kg</td>
                           <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{formatCurrency(item.unit_price, invoice.currency)}</td>
@@ -917,12 +925,12 @@ export default function InvoiceView() {
                 <>
                   <div className="grid grid-cols-2 gap-6 no-page-break print:mt-8">
                     <div style={{ width: '111mm' }}>
-                      <h3 className="font-semibold mb-2 print-text-base">Summary</h3>
+                      <h3 className="font-semibold mb-2 print-text-base">{translations.summary}</h3>
                       <div className="space-y-1 text-sm print:space-y-2 print-text-sm">
-                        <p><span className="font-medium">Total Quantity:</span> {invoice.total_quantity} pcs</p>
-                        <p><span className="font-medium">Net Weight:</span> {invoice.net_weight} kg</p>
-                        <p><span className="font-medium">Total Weight:</span> {invoice.total_weight} kg</p>
-                        <p><span className="font-medium">Packing:</span> {invoice.packing} {invoice.packing === 1 ? 'package' : 'packages'}</p>
+                        <p><span className="font-medium">{translations.totalQuantity}</span> {invoice.total_quantity} {translations.pieces}</p>
+                        <p><span className="font-medium">{translations.netWeight}</span> {invoice.net_weight} kg</p>
+                        <p><span className="font-medium">{translations.totalWeight}</span> {invoice.total_weight} kg</p>
+                        <p><span className="font-medium">{translations.packing}</span> {invoice.packing} {invoice.packing === 1 ? translations.package : translations.packages}</p>
                       </div>
                       {/* Declaration for foreign invoices under 6000€ */}
                       {invoice.customers?.country !== 'Bosnia and Herzegovina' && 
@@ -941,14 +949,21 @@ export default function InvoiceView() {
                     
                     <div className="text-right w-3/5 ml-auto">
                       <div className="space-y-2 print:space-y-3">
-                        <div className="flex justify-between print-text-sm">
-                          <span>Subtotal:</span>
-                          <span>{formatCurrency((invoice.amount || 0) / (1 + (invoice.vat_rate || 0) / 100), invoice.currency)}</span>
-                        </div>
-                        <div className="flex justify-between print-text-sm">
-                          <span>VAT ({invoice.vat_rate}%):</span>
-                          <span>{formatCurrency((invoice.amount || 0) - (invoice.amount || 0) / (1 + (invoice.vat_rate || 0) / 100), invoice.currency)}</span>
-                        </div>
+                        {(() => {
+                          const vatRate = invoice.customers?.vat_rate || 17;
+                          return (
+                            <>
+                              <div className="flex justify-between print-text-sm">
+                                <span>{translations.subtotal}</span>
+                                <span>{formatCurrency((invoice.amount || 0) / (1 + (vatRate / 100)), invoice.currency)}</span>
+                              </div>
+                              <div className="flex justify-between print-text-sm">
+                                <span>{translations.vat} ({vatRate}%):</span>
+                                <span>{formatCurrency((invoice.amount || 0) - (invoice.amount || 0) / (1 + (vatRate / 100)), invoice.currency)}</span>
+                              </div>
+                            </>
+                          );
+                        })()}
                         <div 
                           style={{
                             backgroundColor: invoiceSettings.primaryColor,
@@ -961,7 +976,7 @@ export default function InvoiceView() {
                           }} 
                           className="flex justify-between font-bold text-lg print-invoice-bg h-[2.2rem] items-center print-text-base total-amount-bg"
                         >
-                          <span>Total:</span>
+                          <span>{translations.total}</span>
                           <span>{formatCurrency(invoice.amount || 0, invoice.currency)}</span>
                         </div>
                       </div>
@@ -977,7 +992,7 @@ export default function InvoiceView() {
                             paddingRight: '0',
                             marginTop: '10.5mm',
                             textAlign: 'left',
-                            color: '#303030'
+                            color: '#000000'
                           }}
                         >
                           <p className="mb-1 leading-tight">Oslobođeno od plaćanja PDV-a po članu 27. tačka 1. zakona o PDV-u, Službeni glasnik br. 91/05 i 35/05.</p>
@@ -1007,7 +1022,7 @@ export default function InvoiceView() {
 
                   {invoice.notes && (
                     <div className="no-page-break print:mt-6">
-                      <h3 className="font-semibold mb-2 print-text-base">Notes</h3>
+                      <h3 className="font-semibold mb-2 print-text-base">{translations.notes}</h3>
                       <p className="text-sm whitespace-pre-line print-text-sm">{invoice.notes}</p>
                     </div>
                   )}
@@ -1023,7 +1038,7 @@ export default function InvoiceView() {
                   <p 
                     className="print-text-xs text-xs leading-relaxed" 
                     style={{ 
-                      color: '#303030',
+                      color: '#000000',
                       textAlign: 'justify',
                       marginBottom: 0
                     }}
@@ -1037,7 +1052,7 @@ export default function InvoiceView() {
               {(invoiceSettings.foreignFooter.some(col => col.trim()) || invoiceSettings.domesticFooter.some(col => col.trim())) && (
                 <div className="invoice-footer-wrapper mt-auto">
                   <Separator className="print:border-black print:border-t print:mt-4 print:mb-2 border-t border-gray-600 mt-4 mb-2" />
-                  <div className="text-xs print-text-xs flex justify-between gap-6 invoice-footer-columns" style={{ color: '#303030' }}>
+                  <div className="text-xs print-text-xs flex justify-between gap-6 invoice-footer-columns" style={{ color: '#000000' }}>
                     {invoice.customers?.country === 'Bosnia and Herzegovina' ? (
                       <>
                         <div className="whitespace-pre-line text-left flex-1 min-w-0">{invoiceSettings.domesticFooter[0]}</div>

@@ -9,9 +9,15 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DeliveryNoteForm } from "@/components/DeliveryNoteForm";
+import { DeliveryNoteViewDialog } from "@/components/DeliveryNoteViewDialog";
+import OrderConfirmationForm from "@/components/OrderConfirmationForm";
+import { useNavigate } from "react-router-dom";
 
 const getTypeColor = (type: string) => {
   switch (type) {
@@ -30,12 +36,21 @@ const getTypeColor = (type: string) => {
 
 export default function OtherDocs() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [documents, setDocuments] = useState<any[]>([]);
+  const [deliveryNotes, setDeliveryNotes] = useState<any[]>([]);
+  const [orderConfirmations, setOrderConfirmations] = useState<any[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDeliveryNoteFormOpen, setIsDeliveryNoteFormOpen] = useState(false);
+  const [isOrderConfirmationFormOpen, setIsOrderConfirmationFormOpen] = useState(false);
+  const [isDeliveryNoteViewOpen, setIsDeliveryNoteViewOpen] = useState(false);
+  const [viewingDeliveryNote, setViewingDeliveryNote] = useState<any>(null);
   const [editingDocument, setEditingDocument] = useState<any>(null);
+  const [editingDeliveryNote, setEditingDeliveryNote] = useState<any>(null);
+  const [editingOrderConfirmation, setEditingOrderConfirmation] = useState<any>(null);
   const [viewingDocument, setViewingDocument] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -45,15 +60,89 @@ export default function OtherDocs() {
   // Column header filters
   const [documentTypeFilter, setDocumentTypeFilter] = useState("all");
   const [isDocumentTypeFilterOpen, setIsDocumentTypeFilterOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("Regulations");
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (activeTab === "Delivery Notes") {
+      fetchDeliveryNotes();
+    } else if (activeTab === "Order Confirmations") {
+      fetchOrderConfirmations();
+    } else {
+      fetchDocuments();
+    }
+  }, [activeTab]);
 
   const fetchDocuments = async () => {
     const { data } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
     if (data) {
       setDocuments(data);
+    }
+  };
+
+  const fetchDeliveryNotes = async () => {
+    const { data: notesData, error } = await supabase
+      .from('delivery_notes')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching delivery notes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load delivery notes",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (notesData) {
+      // Fetch customers and suppliers separately
+      const { data: customersData } = await supabase.from('customers').select('id, name');
+      const { data: suppliersData } = await supabase.from('suppliers').select('id, name');
+      
+      // Map delivery notes with their related entities
+      const notesWithEntities = notesData.map(note => {
+        let entity = null;
+        if (note.to_type === 'customer' && customersData) {
+          entity = customersData.find(c => c.id === note.to_id);
+        } else if (note.to_type === 'supplier' && suppliersData) {
+          entity = suppliersData.find(s => s.id === note.to_id);
+        }
+        
+        return {
+          ...note,
+          customers: note.to_type === 'customer' ? entity : null,
+          suppliers: note.to_type === 'supplier' ? entity : null
+        };
+      });
+      
+      setDeliveryNotes(notesWithEntities);
+    }
+  };
+
+  const fetchOrderConfirmations = async () => {
+    const { data: ocData, error } = await supabase
+      .from('order_confirmations')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching order confirmations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load order confirmations",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (ocData) {
+      const { data: customersData } = await supabase.from('customers').select('id, name');
+      const withCustomer = ocData.map(oc => ({
+        ...oc,
+        customer: customersData?.find(c => c.id === oc.customer_id) || null
+      }));
+      setOrderConfirmations(withCustomer);
     }
   };
 
@@ -166,67 +255,162 @@ export default function OtherDocs() {
     const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.type.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = documentTypeFilter === "all" || doc.type === documentTypeFilter;
-    return matchesSearch && matchesType;
+    const matchesTab = doc.type === activeTab;
+    return matchesSearch && matchesType && matchesTab;
+  });
+
+  const filteredDeliveryNotes = deliveryNotes.filter(note => {
+    const entityName = note.to_type === "customer" 
+      ? (note.customers?.name || "")
+      : (note.suppliers?.name || "");
+    return note.delivery_note_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entityName.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const filteredOrderConfirmations = orderConfirmations.filter(oc => {
+    const customerName = oc.customer?.name || "";
+    return oc.order_confirmation_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customerName.toLowerCase().includes(searchTerm.toLowerCase());
   });
   
   // Get unique document types
   const documentTypes = [...new Set(documents.map(doc => doc.type).filter(Boolean))].sort();
 
+  const tabTypes = [
+    "Regulations",
+    "Statements",
+    "Requests",
+    "Purchase Orders",
+    "Order Confirmations",
+    "Pallet tags",
+    "Contracts",
+    "Reports",
+    "Delivery Notes",
+    "Quotes"
+  ];
+
+  // Get button text based on tab name
+  const getAddButtonText = (tabName: string): string => {
+    const buttonTexts: Record<string, string> = {
+      "Regulations": "Add Regulation",
+      "Statements": "Add Statement",
+      "Requests": "Add Request",
+      "Purchase Orders": "Add Purchase Order",
+      "Order Confirmations": "Add Order Confirmation",
+      "Pallet tags": "Add Pallet tag",
+      "Contracts": "Add Contract",
+      "Reports": "Add Report",
+      "Delivery Notes": "Add Delivery Note",
+      "Quotes": "Add Quote"
+    };
+    
+    return buttonTexts[tabName] || `Add ${tabName}`;
+  };
+
+  const handleAddDocumentForTab = (tabName: string) => {
+    if (tabName === "Delivery Notes") {
+      setEditingDeliveryNote(null);
+      setIsDeliveryNoteFormOpen(true);
+    } else if (tabName === "Order Confirmations") {
+      setEditingOrderConfirmation(null);
+      setIsOrderConfirmationFormOpen(true);
+    } else {
+      setFormData({
+        name: "",
+        type: tabName,
+        content: ""
+      });
+      setIsAddDialogOpen(true);
+    }
+  };
+
+  const handleEditDeliveryNote = (note: any) => {
+    setEditingDeliveryNote(note);
+    setIsDeliveryNoteFormOpen(true);
+  };
+
+  const handleDeleteDeliveryNote = async (noteId: string) => {
+    const { error } = await supabase.from('delivery_notes').delete().eq('id', noteId);
+    if (!error) {
+      await fetchDeliveryNotes();
+      toast({
+        title: "Delivery Note Deleted",
+        description: "The delivery note has been successfully deleted.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete delivery note",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleViewDeliveryNote = (note: any) => {
+    setViewingDeliveryNote(note);
+    setIsDeliveryNoteViewOpen(true);
+  };
+
+  const handleViewOrderConfirmation = (oc: any) => {
+    navigate(`/order-confirmation/${oc.id}`);
+  };
+
+  const handleEditOrderConfirmation = async (oc: any) => {
+    const { data: itemsData } = await supabase
+      .from('order_confirmation_items')
+      .select('*')
+      .eq('order_confirmation_id', oc.id);
+    setEditingOrderConfirmation({
+      ...oc,
+      order_confirmation_items: itemsData || []
+    });
+    setIsOrderConfirmationFormOpen(true);
+  };
+
+  const handleDeleteOrderConfirmation = async (ocId: string) => {
+    const { error } = await supabase.from('order_confirmations').delete().eq('id', ocId);
+    if (!error) {
+      await fetchOrderConfirmations();
+      toast({
+        title: "Order Confirmation Deleted",
+        description: "The order confirmation has been successfully deleted.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete order confirmation",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold">Other Documents</h1>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Document
-        </Button>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{documents.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contracts</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {documents.filter(doc => doc.type === 'Contract').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reports</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {documents.filter(doc => doc.type === 'Report').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Agreements</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {documents.filter(doc => doc.type === 'Agreement').length}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
+          {tabTypes.map((tab) => (
+            <TabsTrigger key={tab} value={tab} className="whitespace-nowrap flex-shrink-0">
+              {tab}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        {/* Tab Content */}
+        {tabTypes.map((tab) => (
+          <TabsContent key={tab} value={tab} className="mt-6">
+            {/* Tab Header with Add Button */}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">{tab}</h2>
+              <Button onClick={() => handleAddDocumentForTab(tab)}>
+                <Plus className="w-4 h-4 mr-2" />
+                {getAddButtonText(tab)}
+              </Button>
       </div>
 
       {/* Search */}
@@ -242,137 +426,314 @@ export default function OtherDocs() {
         </div>
       </div>
 
-      {/* Documents List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Documents</CardTitle>
-        </CardHeader>
-        <CardContent>
-        {filteredDocuments.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Document Name</TableHead>
-                  <TableHead>
-                  <div className="flex items-center gap-2">
-                      Type
-                      <Popover open={isDocumentTypeFilterOpen} onOpenChange={setIsDocumentTypeFilterOpen}>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6">
-                            <Filter className={`h-3 w-3 ${documentTypeFilter !== "all" ? 'text-primary' : ''}`} />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-48" align="start">
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <Label>Filter by Document Type</Label>
-                              {documentTypeFilter !== "all" && (
-                                <Button variant="ghost" size="sm" onClick={() => setDocumentTypeFilter("all")}>
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                            <Select value={documentTypeFilter} onValueChange={(value) => {
-                              setDocumentTypeFilter(value);
-                              setIsDocumentTypeFilterOpen(false);
-                            }}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">All Types</SelectItem>
-                                {documentTypes.map(type => (
-                                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+            {/* Documents List */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{activeTab === "Delivery Notes" ? "Delivery Notes" : "Documents"}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activeTab === "Delivery Notes" ? (
+                  filteredDeliveryNotes.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Delivery Note Number</TableHead>
+                          <TableHead>Issue Date</TableHead>
+                          <TableHead>To</TableHead>
+                          <TableHead>Delivery Address</TableHead>
+                          <TableHead>Total Weight</TableHead>
+                          <TableHead className="w-32">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredDeliveryNotes.map((note) => {
+                          const entityName = note.to_type === "customer" 
+                            ? (note.customers?.name || "")
+                            : (note.suppliers?.name || "");
+                          return (
+                            <TableRow key={note.id}>
+                              <TableCell className="font-medium">
+                                <button
+                                  onClick={() => handleViewDeliveryNote(note)}
+                                  className="text-left hover:text-primary hover:underline cursor-pointer transition-colors"
+                                >
+                                  {note.delivery_note_number}
+                                </button>
+                              </TableCell>
+                              <TableCell>{new Date(note.issue_date).toLocaleDateString()}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  {note.to_type === "customer" ? "Customer" : "Supplier"}: {entityName}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm">{note.delivery_address}</TableCell>
+                              <TableCell>{note.total_weight?.toFixed(2) || "0.00"} kg</TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleEditDeliveryNote(note)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Delivery Note</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete "{note.delivery_note_number}"? This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteDeliveryNote(note.id)}>
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-muted-foreground mb-2">No delivery notes found</h3>
+                      <p className="text-muted-foreground">
+                        {searchTerm ? "Try adjusting your search terms." : "Get started by adding your first delivery note."}
+                      </p>
                     </div>
-                  </TableHead>
-                  <TableHead>Content Preview</TableHead>
-                  <TableHead>Created Date</TableHead>
-                  <TableHead className="w-32">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredDocuments.map((doc) => (
-                  <TableRow key={doc.id}>
-                    <TableCell className="font-medium">{doc.name}</TableCell>
-                    <TableCell>
-                    <Badge variant="outline" className={getTypeColor(doc.type)}>
-                      {doc.type}
-                    </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {doc.content ? (
-                        <span className="line-clamp-2">{doc.content}</span>
-                      ) : (
-                        <span className="text-muted-foreground">No content</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{new Date(doc.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleViewDocument(doc)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleOpenEditDialog(doc)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Document</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete "{doc.name}"? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteDocument(doc.id)}>
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-        ) : (
-            <div className="text-center py-8">
-            <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-muted-foreground mb-2">No documents found</h3>
-            <p className="text-muted-foreground">
-              {searchTerm ? "Try adjusting your search terms." : "Get started by adding your first document."}
-            </p>
-          </div>
-        )}
-        </CardContent>
-      </Card>
+                  )
+                ) : activeTab === "Order Confirmations" ? (
+                  filteredOrderConfirmations.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Order Confirmation Number</TableHead>
+                          <TableHead>Issue Date</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Shipping Date</TableHead>
+                          <TableHead className="w-32">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOrderConfirmations.map((oc) => {
+                          const amountValue = Number(oc.amount || 0);
+                          return (
+                            <TableRow key={oc.id}>
+                              <TableCell className="font-medium">
+                                <button
+                                  onClick={() => handleViewOrderConfirmation(oc)}
+                                  className="text-left hover:text-primary hover:underline cursor-pointer transition-colors"
+                                >
+                                  {oc.order_confirmation_number}
+                                </button>
+                              </TableCell>
+                              <TableCell>{oc.issue_date ? new Date(oc.issue_date).toLocaleDateString() : "-"}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  {oc.customer?.name || "Customer"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{amountValue.toFixed(2)} {oc.currency || "EUR"}</TableCell>
+                              <TableCell>{oc.shipping_date ? new Date(oc.shipping_date).toLocaleDateString() : "-"}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleEditOrderConfirmation(oc)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Order Confirmation</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete "{oc.order_confirmation_number}"? This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteOrderConfirmation(oc.id)}>
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-muted-foreground mb-2">No order confirmations found</h3>
+                      <p className="text-muted-foreground">
+                        {searchTerm ? "Try adjusting your search terms." : "Get started by adding your first order confirmation."}
+                      </p>
+                    </div>
+                  )
+                ) : (
+                  filteredDocuments.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Document Name</TableHead>
+                          <TableHead>
+                    <div className="flex items-center gap-2">
+                              Type
+                              <Popover open={isDocumentTypeFilterOpen} onOpenChange={setIsDocumentTypeFilterOpen}>
+                                <PopoverTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <Filter className={`h-3 w-3 ${documentTypeFilter !== "all" ? 'text-primary' : ''}`} />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-48" align="start">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <Label>Filter by Document Type</Label>
+                                      {documentTypeFilter !== "all" && (
+                                        <Button variant="ghost" size="sm" onClick={() => setDocumentTypeFilter("all")}>
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                    <Select value={documentTypeFilter} onValueChange={(value) => {
+                                      setDocumentTypeFilter(value);
+                                      setIsDocumentTypeFilterOpen(false);
+                                    }}>
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="all">All Types</SelectItem>
+                                        {documentTypes.map(type => (
+                                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </TableHead>
+                          <TableHead>Content Preview</TableHead>
+                          <TableHead>Created Date</TableHead>
+                          <TableHead className="w-32">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredDocuments.map((doc) => (
+                          <TableRow key={doc.id}>
+                            <TableCell className="font-medium">{doc.name}</TableCell>
+                            <TableCell>
+                      <Badge variant="outline" className={getTypeColor(doc.type)}>
+                        {doc.type}
+                      </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {doc.content ? (
+                                <span className="line-clamp-2">{doc.content}</span>
+                              ) : (
+                                <span className="text-muted-foreground">No content</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{new Date(doc.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleViewDocument(doc)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleOpenEditDialog(doc)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{doc.name}"? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteDocument(doc.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-muted-foreground mb-2">No documents found</h3>
+                      <p className="text-muted-foreground">
+                        {searchTerm ? "Try adjusting your search terms." : "Get started by adding your first document."}
+                      </p>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
+      </Tabs>
 
       {/* Add Document Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -397,13 +758,16 @@ export default function OtherDocs() {
                   <SelectValue placeholder="Select document type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Contract">Contract</SelectItem>
-                  <SelectItem value="Invoice">Invoice</SelectItem>
-                  <SelectItem value="Report">Report</SelectItem>
-                  <SelectItem value="Agreement">Agreement</SelectItem>
-                  <SelectItem value="Policy">Policy</SelectItem>
-                  <SelectItem value="Manual">Manual</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="Regulations">Regulations</SelectItem>
+                  <SelectItem value="Statements">Statements</SelectItem>
+                  <SelectItem value="Requests">Requests</SelectItem>
+                  <SelectItem value="Purchase Orders">Purchase Orders</SelectItem>
+                  <SelectItem value="Order Confirmations">Order Confirmations</SelectItem>
+                  <SelectItem value="Pallet tags">Pallet tags</SelectItem>
+                  <SelectItem value="Contracts">Contracts</SelectItem>
+                  <SelectItem value="Reports">Reports</SelectItem>
+                  <SelectItem value="Delivery Notes">Delivery Notes</SelectItem>
+                  <SelectItem value="Quotes">Quotes</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -452,13 +816,16 @@ export default function OtherDocs() {
                   <SelectValue placeholder="Select document type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Contract">Contract</SelectItem>
-                  <SelectItem value="Invoice">Invoice</SelectItem>
-                  <SelectItem value="Report">Report</SelectItem>
-                  <SelectItem value="Agreement">Agreement</SelectItem>
-                  <SelectItem value="Policy">Policy</SelectItem>
-                  <SelectItem value="Manual">Manual</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="Regulations">Regulations</SelectItem>
+                  <SelectItem value="Statements">Statements</SelectItem>
+                  <SelectItem value="Requests">Requests</SelectItem>
+                  <SelectItem value="Purchase Orders">Purchase Orders</SelectItem>
+                  <SelectItem value="Order Confirmations">Order Confirmations</SelectItem>
+                  <SelectItem value="Pallet tags">Pallet tags</SelectItem>
+                  <SelectItem value="Contracts">Contracts</SelectItem>
+                  <SelectItem value="Reports">Reports</SelectItem>
+                  <SelectItem value="Delivery Notes">Delivery Notes</SelectItem>
+                  <SelectItem value="Quotes">Quotes</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -520,6 +887,47 @@ export default function OtherDocs() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delivery Note Form */}
+      <DeliveryNoteForm
+        open={isDeliveryNoteFormOpen}
+        onOpenChange={(open) => {
+          setIsDeliveryNoteFormOpen(open);
+          if (!open) {
+            setEditingDeliveryNote(null);
+          }
+        }}
+        onSuccess={() => {
+          fetchDeliveryNotes();
+        }}
+        editingNote={editingDeliveryNote}
+      />
+
+      <OrderConfirmationForm
+        isOpen={isOrderConfirmationFormOpen}
+        onClose={() => {
+          setIsOrderConfirmationFormOpen(false);
+          setEditingOrderConfirmation(null);
+        }}
+        onSuccess={() => {
+          fetchOrderConfirmations();
+        }}
+        editingOrderConfirmation={editingOrderConfirmation}
+      />
+
+      {/* Delivery Note View Dialog */}
+      {viewingDeliveryNote && (
+        <DeliveryNoteViewDialog
+          deliveryNoteId={viewingDeliveryNote.id}
+          open={isDeliveryNoteViewOpen}
+          onOpenChange={(open) => {
+            setIsDeliveryNoteViewOpen(open);
+            if (!open) {
+              setViewingDeliveryNote(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
