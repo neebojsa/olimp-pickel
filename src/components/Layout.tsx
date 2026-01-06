@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 
 const navigation = [
   { name: "Inventory", href: "/inventory", icon: Package },
@@ -160,6 +161,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <main className="flex-1 overflow-auto">
               {children}
+              <ScrollToTopButton />
             </main>
           </div>
           <SheetContent side="left" className="w-64 p-0">

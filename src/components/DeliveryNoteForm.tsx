@@ -567,7 +567,7 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                   value={formData.packingNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, packingNumber: parseInt(e.target.value) || 0 }))}
                   min="0"
-                  className="text-center rounded-full pr-12 pl-12 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                  className="text-center rounded-full pr-6 pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
                 />
                 <Button
@@ -600,7 +600,7 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                   value={formData.taraWeight}
                   onChange={(e) => setFormData(prev => ({ ...prev, taraWeight: parseFloat(e.target.value) || 0 }))}
                   min="0"
-                  className="text-center rounded-full pr-12 pl-12 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                  className="text-center rounded-full pr-6 pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
                 />
                 <Button
@@ -692,7 +692,12 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                             className="w-full justify-between text-left font-normal"
                           >
                             {inventoryItem ? (
-                              <span>{inventoryItem.name}</span>
+                              <span>
+                                {inventoryItem.name}
+                                {inventoryItem.part_number && (
+                                  <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
+                                )}
+                              </span>
                             ) : "Select product..."}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
@@ -753,7 +758,7 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                           value={item.quantity}
                           onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
                           min="1"
-                          className="text-center rounded-full pr-12 pl-12 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                          className="text-center rounded-full pr-6 pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                           style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
                         />
                         <Button

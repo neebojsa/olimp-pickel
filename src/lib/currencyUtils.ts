@@ -205,3 +205,15 @@ export const getCurrencySymbol = (currency: string): string => {
   };
   return symbols[currency] || currency;
 };
+
+/**
+ * Format currency with unit (e.g., "0.90 €/kg" instead of "€0.90/kg")
+ */
+export const formatCurrencyWithUnit = (amount: number, currency: string, unit: string): string => {
+  const formattedAmount = amount.toLocaleString('en-US', { 
+    minimumFractionDigits: 2, 
+    maximumFractionDigits: 2 
+  });
+  const symbol = getCurrencySymbol(currency);
+  return `${formattedAmount} ${symbol}/${unit}`;
+};

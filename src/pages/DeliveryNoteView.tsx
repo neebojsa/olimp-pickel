@@ -221,99 +221,99 @@ export default function DeliveryNoteView({ deliveryNoteId, hideBackButton = fals
   const preparePagesForRender = async (pages: NodeListOf<Element>) => {
     const preparedPages: string[] = [];
 
-    for (let i = 0; i < pages.length; i++) {
-      const page = pages[i] as HTMLElement;
-      
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.width = '210mm';
-      tempContainer.style.backgroundColor = 'white';
-      tempContainer.style.fontSize = '16px';
-      tempContainer.appendChild(page.cloneNode(true));
-      document.body.appendChild(tempContainer);
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i] as HTMLElement;
+        
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.width = '210mm';
+        tempContainer.style.backgroundColor = 'white';
+        tempContainer.style.fontSize = '16px';
+        tempContainer.appendChild(page.cloneNode(true));
+        document.body.appendChild(tempContainer);
 
-      const mmToPixels = (mm: number) => (mm * 96) / 25.4;
-      const baseWidthPx = mmToPixels(210);
-      const baseHeightPx = mmToPixels(297);
+        const mmToPixels = (mm: number) => (mm * 96) / 25.4;
+        const baseWidthPx = mmToPixels(210);
+        const baseHeightPx = mmToPixels(297);
 
-      const canvas = await html2canvas(tempContainer, {
-        scale: pdfSettings.scale,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: baseWidthPx,
-        height: baseHeightPx,
-        windowWidth: baseWidthPx,
-        windowHeight: baseHeightPx,
-        allowTaint: false,
-        removeContainer: false,
-        onclone: (clonedDoc) => {
-          // Ensure all styles are applied in the cloned document
-          const clonedContainer = clonedDoc.querySelector('.print-delivery-note-page');
-          if (clonedContainer) {
-            (clonedContainer as HTMLElement).style.transform = 'scale(1)';
-          }
-          
-          // Fix img display for proper vertical alignment
-          const allImages = clonedDoc.querySelectorAll('.delivery-note-items-table img');
-          allImages.forEach((img: any) => {
-            if (img.style) {
-              img.style.display = 'block';
-              img.style.margin = '0 auto';
-              img.style.verticalAlign = 'middle';
+        const canvas = await html2canvas(tempContainer, {
+          scale: pdfSettings.scale,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          width: baseWidthPx,
+          height: baseHeightPx,
+          windowWidth: baseWidthPx,
+          windowHeight: baseHeightPx,
+          allowTaint: false,
+          removeContainer: false,
+          onclone: (clonedDoc) => {
+            // Ensure all styles are applied in the cloned document
+            const clonedContainer = clonedDoc.querySelector('.print-delivery-note-page');
+            if (clonedContainer) {
+              (clonedContainer as HTMLElement).style.transform = 'scale(1)';
             }
-          });
-          
-          // Force vertical-align middle on all table cells and fix borders
-          const allCells = clonedDoc.querySelectorAll('.delivery-note-items-table th, .delivery-note-items-table td');
-          allCells.forEach((cell: any) => {
-            if (cell.style) {
-              cell.style.verticalAlign = 'middle';
-              cell.setAttribute('valign', 'middle');
-            }
-          });
-          
-          // Fix table cell borders - remove border-bottom from all cells
-          const allTdCells = clonedDoc.querySelectorAll('.delivery-note-items-table tbody td');
-          allTdCells.forEach((cell: any) => {
-            if (cell.style) {
-              cell.style.borderBottom = 'none';
-            }
-          });
-          
-          // Add border-bottom only to last row cells
-          const lastRow = clonedDoc.querySelector('.delivery-note-items-table tbody tr:last-child');
-          if (lastRow) {
-            const lastRowCells = lastRow.querySelectorAll('td');
-            lastRowCells.forEach((cell: any) => {
+            
+            // Fix img display for proper vertical alignment
+            const allImages = clonedDoc.querySelectorAll('.delivery-note-items-table img');
+            allImages.forEach((img: any) => {
+              if (img.style) {
+                img.style.display = 'block';
+                img.style.margin = '0 auto';
+                img.style.verticalAlign = 'middle';
+              }
+            });
+            
+            // Force vertical-align middle on all table cells and fix borders
+            const allCells = clonedDoc.querySelectorAll('.delivery-note-items-table th, .delivery-note-items-table td');
+            allCells.forEach((cell: any) => {
               if (cell.style) {
-                cell.style.borderBottom = '1px solid #6b7280';
+                cell.style.verticalAlign = 'middle';
+                cell.setAttribute('valign', 'middle');
+              }
+            });
+            
+            // Fix table cell borders - remove border-bottom from all cells
+            const allTdCells = clonedDoc.querySelectorAll('.delivery-note-items-table tbody td');
+            allTdCells.forEach((cell: any) => {
+              if (cell.style) {
+                cell.style.borderBottom = 'none';
+              }
+            });
+            
+            // Add border-bottom only to last row cells
+            const lastRow = clonedDoc.querySelector('.delivery-note-items-table tbody tr:last-child');
+            if (lastRow) {
+              const lastRowCells = lastRow.querySelectorAll('td');
+              lastRowCells.forEach((cell: any) => {
+                if (cell.style) {
+                  cell.style.borderBottom = '1px solid #6b7280';
+                }
+              });
+            }
+            
+            // Also ensure table rows have proper display
+            const allRows = clonedDoc.querySelectorAll('.delivery-note-items-table tr');
+            allRows.forEach((row: any) => {
+              if (row.style) {
+                row.style.display = 'table-row';
+              }
+            });
+            
+            // Ensure table has proper display
+            const tables = clonedDoc.querySelectorAll('.delivery-note-items-table');
+            tables.forEach((table: any) => {
+              if (table.style) {
+                table.style.display = 'table';
+                table.style.borderCollapse = 'collapse';
+                table.style.borderSpacing = '0';
               }
             });
           }
-          
-          // Also ensure table rows have proper display
-          const allRows = clonedDoc.querySelectorAll('.delivery-note-items-table tr');
-          allRows.forEach((row: any) => {
-            if (row.style) {
-              row.style.display = 'table-row';
-            }
-          });
-          
-          // Ensure table has proper display
-          const tables = clonedDoc.querySelectorAll('.delivery-note-items-table');
-          tables.forEach((table: any) => {
-            if (table.style) {
-              table.style.display = 'table';
-              table.style.borderCollapse = 'collapse';
-              table.style.borderSpacing = '0';
-            }
-          });
-        }
-      });
+        });
 
-      const imgData = canvas.toDataURL('image/png', pdfSettings.quality);
+        const imgData = canvas.toDataURL('image/png', pdfSettings.quality);
       preparedPages.push(imgData);
 
       document.body.removeChild(tempContainer);
@@ -350,10 +350,10 @@ export default function DeliveryNoteView({ deliveryNoteId, hideBackButton = fals
         img.src = imgData;
         await new Promise((resolve) => {
           img.onload = () => {
-            const imgWidth = 210;
+        const imgWidth = 210;
             const imgHeight = (img.height * imgWidth) / img.width;
-            const finalHeight = Math.min(imgHeight, 297);
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, finalHeight, undefined, 'FAST');
+        const finalHeight = Math.min(imgHeight, 297);
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, finalHeight, undefined, 'FAST');
             resolve(null);
           };
         });
@@ -953,19 +953,19 @@ export default function DeliveryNoteView({ deliveryNoteId, hideBackButton = fals
 
       {/* Action Buttons */}
       {!hideBackButton && (
-        <div className="mb-4 flex gap-2 print:hidden">
-          <Button variant="outline" onClick={() => navigate('/other-docs')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <Button onClick={generatePDF} disabled={generatingPDF}>
-            <FileDown className="w-4 h-4 mr-2" />
-            {generatingPDF ? 'Generating PDF...' : 'Download PDF'}
-          </Button>
+      <div className="mb-4 flex gap-2 print:hidden">
+        <Button variant="outline" onClick={() => navigate('/other-docs')}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+        <Button onClick={generatePDF} disabled={generatingPDF}>
+          <FileDown className="w-4 h-4 mr-2" />
+          {generatingPDF ? 'Generating PDF...' : 'Download PDF'}
+        </Button>
           <Button variant="outline" onClick={handlePrint}>
-            Print
-          </Button>
-        </div>
+          Print
+        </Button>
+      </div>
       )}
       {hideBackButton && (
         <div className="mb-4 flex gap-2 print:hidden">

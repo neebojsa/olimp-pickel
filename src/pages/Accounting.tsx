@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { NumericInput } from "@/components/NumericInput";
 
 // Mock accounting data
 const mockTransactions = [
@@ -684,20 +685,20 @@ export default function Accounting() {
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
                                   <Label>From</Label>
-                                  <Input
-                                    type="number"
+                                  <NumericInput
+                                    value={amountFilter.from ? parseFloat(amountFilter.from) : 0}
+                                    onChange={(val) => setAmountFilter({ ...amountFilter, from: val.toString() })}
+                                    min={0}
                                     placeholder="Min amount"
-                                    value={amountFilter.from}
-                                    onChange={(e) => setAmountFilter({ ...amountFilter, from: e.target.value })}
                                   />
                                 </div>
                                 <div>
                                   <Label>To</Label>
-                                  <Input
-                                    type="number"
+                                  <NumericInput
+                                    value={amountFilter.to ? parseFloat(amountFilter.to) : 0}
+                                    onChange={(val) => setAmountFilter({ ...amountFilter, to: val.toString() })}
+                                    min={0}
                                     placeholder="Max amount"
-                                    value={amountFilter.to}
-                                    onChange={(e) => setAmountFilter({ ...amountFilter, to: e.target.value })}
                                   />
                                 </div>
                               </div>

@@ -24,6 +24,7 @@ import { formatDate, formatDateForInput } from "@/lib/dateUtils";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NumericInput } from "@/components/NumericInput";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -562,12 +563,11 @@ export default function Customers() {
               </div>
               <div>
                 <Label>Payment Terms</Label>
-                <Input 
-                  type="number"
-                  placeholder="Enter payment terms in days" 
-                  value={newCustomer.dueDate}
-                  onChange={(e) => setNewCustomer({...newCustomer, dueDate: e.target.value})}
-                  min="0"
+                <NumericInput
+                  value={newCustomer.dueDate ? parseFloat(newCustomer.dueDate) : 0}
+                  onChange={(val) => setNewCustomer({...newCustomer, dueDate: val.toString()})}
+                  min={0}
+                  placeholder="Enter payment terms in days"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Payment terms in days (e.g., 30 for Net 30)
@@ -1144,13 +1144,12 @@ export default function Customers() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-payment-terms">Payment Terms</Label>
-              <Input
+              <NumericInput
                 id="edit-payment-terms"
-                type="number"
-                value={newCustomer.dueDate}
-                onChange={(e) => setNewCustomer(prev => ({ ...prev, dueDate: e.target.value }))}
+                value={newCustomer.dueDate ? parseFloat(newCustomer.dueDate) : 0}
+                onChange={(val) => setNewCustomer(prev => ({ ...prev, dueDate: val.toString() }))}
+                min={0}
                 placeholder="Enter payment terms in days"
-                min="0"
               />
               <p className="text-xs text-muted-foreground">
                 Payment terms in days (e.g., 30 for Net 30)

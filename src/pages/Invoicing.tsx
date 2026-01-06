@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { NumericInput } from "@/components/NumericInput";
 const getStatusColor = (status: string) => {
   switch (status) {
     case "paid":
@@ -189,7 +190,8 @@ export default function Invoicing() {
     packing: 1,
     taraWeight: 0,
     notes: '',
-    dueDate: ''
+    dueDate: '',
+    contactPersonReference: ''
   });
   const [invoiceItems, setInvoiceItems] = useState([{
     inventoryId: '',
@@ -521,6 +523,7 @@ export default function Invoicing() {
       notes: newInvoice.notes,
       issue_date: issueDate,
       due_date: dueDate || null,
+      contact_person_reference: newInvoice.contactPersonReference || null,
       status: 'pending'
     }]).select().single();
     if (invoiceError) {
@@ -637,7 +640,8 @@ export default function Invoicing() {
       vat_rate: totals.vatRate,
       notes: newInvoice.notes,
       issue_date: issueDate,
-      due_date: newInvoice.dueDate || null
+      due_date: newInvoice.dueDate || null,
+      contact_person_reference: newInvoice.contactPersonReference || null
     }).eq('id', selectedInvoice.id);
     if (invoiceError) {
       toast({
@@ -768,7 +772,8 @@ export default function Invoicing() {
       packing: invoice.packing || 1,
       taraWeight: invoice.tara_weight || 0,
       notes: invoice.notes || '',
-      dueDate: invoice.due_date || ''
+      dueDate: invoice.due_date || '',
+      contactPersonReference: invoice.contact_person_reference || ''
     });
     setInvoiceItems(invoice.invoice_items?.map(item => ({
       // Use inventory_id if available, otherwise fallback to name lookup for backward compatibility
@@ -1131,10 +1136,11 @@ ${cssVariables}
                   border-left: none !important;
                   border-right: none !important;
                   border: none !important;
+                  vertical-align: middle !important;
                 }
                 
                 .invoice-items-table td {
-                  vertical-align: top !important;
+                  vertical-align: middle !important;
                   border-top: 1px solid rgb(212, 212, 212) !important;
                   border-bottom: none !important;
                   border-left: none !important;
@@ -1638,7 +1644,8 @@ ${cssVariables}
                       ...prev,
                       shippingAddress: shippingAddress,
                       declarationNumber: customer.declaration_numbers?.[0] || '',
-                      dueDate: dueDate
+                      dueDate: dueDate,
+                      contactPersonReference: '' // Reset when customer changes
                     }));
                   }
                 }}>
@@ -1652,6 +1659,46 @@ ${cssVariables}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {newInvoice.customerId && (() => {
+                  const selectedCustomer = customers.find(c => c.id === newInvoice.customerId);
+                  const contactPerson = selectedCustomer?.contact_person;
+                  // Only render if contactPerson exists and is not an empty string
+                  return contactPerson && contactPerson.trim() !== '' ? (
+                    <div>
+                      <Label>Reference (Contact Person)</Label>
+                      <div className="flex gap-2">
+                        <Select 
+                          value={newInvoice.contactPersonReference || undefined} 
+                          onValueChange={value => setNewInvoice({
+                            ...newInvoice,
+                            contactPersonReference: value
+                          })}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select contact person (optional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={contactPerson.trim()}>{contactPerson.trim()}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {newInvoice.contactPersonReference && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setNewInvoice({
+                              ...newInvoice,
+                              contactPersonReference: ''
+                            })}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
 
                 <div>
                   <Label>Order Number</Label>
@@ -1812,18 +1859,27 @@ ${cssVariables}
 
                 <div>
                   <Label>Packing (packages)</Label>
-                  <Input type="number" value={newInvoice.packing} onChange={e => setNewInvoice({
-                  ...newInvoice,
-                  packing: parseInt(e.target.value) || 1
-                })} min="1" />
+                  <NumericInput
+                    value={newInvoice.packing}
+                    onChange={(val) => setNewInvoice({
+                      ...newInvoice,
+                      packing: val
+                    })}
+                    min={1}
+                  />
                 </div>
 
                 <div>
                   <Label>TARA Weight (kg)</Label>
-                  <Input type="number" step="0.01" value={newInvoice.taraWeight} onChange={e => setNewInvoice({
-                  ...newInvoice,
-                  taraWeight: parseFloat(e.target.value) || 0
-                })} min="0" />
+                  <NumericInput
+                    value={newInvoice.taraWeight}
+                    onChange={(val) => setNewInvoice({
+                      ...newInvoice,
+                      taraWeight: val
+                    })}
+                    min={0}
+                    step={0.01}
+                  />
                 </div>
               </div>
 
@@ -1914,12 +1970,21 @@ ${cssVariables}
 
                       <div>
                         <Label className="text-xs">Quantity</Label>
-                        <Input type="number" value={item.quantity} onChange={e => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)} min="1" />
+                        <NumericInput
+                          value={item.quantity}
+                          onChange={(val) => updateInvoiceItem(index, 'quantity', val)}
+                          min={1}
+                        />
                       </div>
 
                       <div>
                         <Label className="text-xs">Unit Price</Label>
-                        <Input type="number" step="0.01" value={item.unitPrice} onChange={e => updateInvoiceItem(index, 'unitPrice', parseFloat(e.target.value) || 0)} min="0" />
+                        <NumericInput
+                          value={item.unitPrice}
+                          onChange={(val) => updateInvoiceItem(index, 'unitPrice', val)}
+                          min={0}
+                          step={0.01}
+                        />
                       </div>
 
                       <div>
@@ -2420,20 +2485,20 @@ ${cssVariables}
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <Label>From</Label>
-                              <Input
-                                type="number"
+                              <NumericInput
+                                value={amountFilter.from ? parseFloat(amountFilter.from) : 0}
+                                onChange={(val) => setAmountFilter({ ...amountFilter, from: val.toString() })}
+                                min={0}
                                 placeholder="Min amount"
-                                value={amountFilter.from}
-                                onChange={(e) => setAmountFilter({ ...amountFilter, from: e.target.value })}
                               />
                   </div>
                             <div>
                               <Label>To</Label>
-                              <Input
-                                type="number"
+                              <NumericInput
+                                value={amountFilter.to ? parseFloat(amountFilter.to) : 0}
+                                onChange={(val) => setAmountFilter({ ...amountFilter, to: val.toString() })}
+                                min={0}
                                 placeholder="Max amount"
-                                value={amountFilter.to}
-                                onChange={(e) => setAmountFilter({ ...amountFilter, to: e.target.value })}
                               />
                   </div>
                   </div>
@@ -2658,11 +2723,11 @@ ${cssVariables}
                   }
                   
                   .invoice-items-table th {
-                    vertical-align: bottom !important;
+                    vertical-align: middle !important;
                   }
                   
                   .invoice-items-table td {
-                    vertical-align: top !important;
+                    vertical-align: middle !important;
                     border-top: 1px solid rgb(212, 212, 212) !important;
                     border-bottom: none !important;
                   }
@@ -2901,7 +2966,7 @@ ${cssVariables}
                     }
                    
                     .invoice-items-table th {
-                      vertical-align: bottom !important;
+                      vertical-align: middle !important;
                       background-color: #f5f5f5 !important;
                       font-weight: bold !important;
                       border-top: 1px solid #000 !important;
@@ -2921,10 +2986,11 @@ ${cssVariables}
                       border-left: none !important;
                       border-right: none !important;
                       border: none !important;
+                      vertical-align: middle !important;
                     }
                     
                     .invoice-items-table td {
-                      vertical-align: top !important;
+                      vertical-align: middle !important;
                       border-top: 1px solid #6b7280 !important;
                       border-bottom: none !important;
                       -webkit-print-color-adjust: exact !important;
@@ -3111,13 +3177,16 @@ ${cssVariables}
                           {selectedInvoice.customers?.phone && (
                             <p className="text-sm print-text-sm">{selectedInvoice.customers.phone}</p>
                           )}
+                          {selectedInvoice.contact_person_reference && (
+                            <p className="text-sm print-text-sm"><span className="font-medium">Reference:</span> {selectedInvoice.contact_person_reference}</p>
+                          )}
                         </div>
                         <div className="text-right">
                           <div className="space-y-1 print:space-y-2">
                             <p className="print-text-sm"><span className="font-medium">{translations.invoiceNumber}</span> {selectedInvoice.invoice_number}</p>
+                            {selectedInvoice.order_number && <p className="print-text-sm"><span className="font-medium">{translations.orderNumber}</span> {selectedInvoice.order_number}</p>}
                             <p className="print-text-sm"><span className="font-medium">{translations.issueDate}</span> {formatDate(selectedInvoice.issue_date)}</p>
                             <p className="print-text-sm"><span className="font-medium">{translations.dueDate}</span> {selectedInvoice.due_date ? formatDate(selectedInvoice.due_date) : 'N/A'}</p>
-                            {selectedInvoice.order_number && <p className="print-text-sm"><span className="font-medium">{translations.orderNumber}</span> {selectedInvoice.order_number}</p>}
                             {selectedInvoice.shipping_date && <p className="print-text-sm"><span className="font-medium">{translations.shippingDate}</span> {formatDate(selectedInvoice.shipping_date)}</p>}
                             {selectedInvoice.incoterms && (
                               <p className="print-text-sm">
@@ -3157,13 +3226,13 @@ ${cssVariables}
                         <table className="invoice-items-table w-full border-collapse print:border-black">
                           <thead>
                             <tr>
-                              <th className="text-left text-sm">{translations.partName}</th>
-                              <th className="text-left text-sm">{translations.partNumber}</th>
-                              <th className="text-left text-sm">{translations.unit}</th>
-                              <th className="text-left text-sm">{translations.quantity}</th>
-                              <th className="text-left text-sm">{translations.subtotalWeight}</th>
-                              <th className="text-left text-sm">{translations.price}</th>
-                              <th className="text-right text-sm">{translations.amount}</th>
+                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.partName}</th>
+                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.partNumber}</th>
+                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.unit}</th>
+                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.quantity}</th>
+                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.subtotalWeight}</th>
+                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.price}</th>
+                              <th className="text-right text-sm" style={{verticalAlign: 'middle'}}>{translations.amount}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -3180,13 +3249,13 @@ ${cssVariables}
                               const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
                               return (
                                 <tr key={itemIndex}>
-                                  <td className="text-left text-sm">{item.description}</td>
-                                  <td className="text-left text-sm">{inventoryItem?.part_number || '-'}</td>
-                                  <td className="text-left text-sm">{inventoryItem?.unit || translations.piece}</td>
-                                  <td className="text-left text-sm">{item.quantity}</td>
-                                  <td className="text-left text-sm">{subtotalWeight.toFixed(2)} kg</td>
-                                  <td className="text-left text-sm">{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
-                                  <td className="text-right text-sm">{formatCurrency(item.total, selectedInvoice.currency)}</td>
+                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{item.description}</td>
+                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{inventoryItem?.part_number || '-'}</td>
+                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{inventoryItem?.unit || translations.piece}</td>
+                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{item.quantity}</td>
+                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{subtotalWeight.toFixed(2)} kg</td>
+                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
+                                  <td className="text-right text-sm" style={{verticalAlign: 'middle'}}>{formatCurrency(item.total, selectedInvoice.currency)}</td>
                                 </tr>
                               );
                             })}

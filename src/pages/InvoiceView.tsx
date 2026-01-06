@@ -842,13 +842,16 @@ export default function InvoiceView() {
                   {invoice.customers?.phone && (
                     <p className="text-sm print-text-sm">{invoice.customers.phone}</p>
                   )}
+                  {invoice.contact_person_reference && (
+                    <p className="text-sm print-text-sm"><span className="font-medium">Reference:</span> {invoice.contact_person_reference}</p>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="space-y-1 print:space-y-2">
                     <p className="print-text-sm"><span className="font-medium">{translations.invoiceNumber}</span> {invoice.invoice_number}</p>
+                    {invoice.order_number && <p className="print-text-sm"><span className="font-medium">{translations.orderNumber}</span> {invoice.order_number}</p>}
                     <p className="print-text-sm"><span className="font-medium">{translations.issueDate}</span> {formatDate(invoice.issue_date)}</p>
                     <p className="print-text-sm"><span className="font-medium">{translations.dueDate}</span> {invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</p>
-                    {invoice.order_number && <p className="print-text-sm"><span className="font-medium">{translations.orderNumber}</span> {invoice.order_number}</p>}
                     {invoice.shipping_date && <p className="print-text-sm"><span className="font-medium">{translations.shippingDate}</span> {formatDate(invoice.shipping_date)}</p>}
                     {invoice.incoterms && (
                       <p className="print-text-sm">

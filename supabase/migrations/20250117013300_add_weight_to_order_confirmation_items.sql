@@ -6,3 +6,9 @@ ADD COLUMN IF NOT EXISTS weight DECIMAL(10,2) DEFAULT 0;
 
 
 
+
+
+
+
+
+

@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DeliveryNoteForm } from "@/components/DeliveryNoteForm";
 import { DeliveryNoteViewDialog } from "@/components/DeliveryNoteViewDialog";
 import OrderConfirmationForm from "@/components/OrderConfirmationForm";
+import { OrderConfirmationViewDialog } from "@/components/OrderConfirmationViewDialog";
 import { useNavigate } from "react-router-dom";
 
 const getTypeColor = (type: string) => {
@@ -48,6 +49,8 @@ export default function OtherDocs() {
   const [isOrderConfirmationFormOpen, setIsOrderConfirmationFormOpen] = useState(false);
   const [isDeliveryNoteViewOpen, setIsDeliveryNoteViewOpen] = useState(false);
   const [viewingDeliveryNote, setViewingDeliveryNote] = useState<any>(null);
+  const [isOrderConfirmationViewOpen, setIsOrderConfirmationViewOpen] = useState(false);
+  const [viewingOrderConfirmationId, setViewingOrderConfirmationId] = useState<string | null>(null);
   const [editingDocument, setEditingDocument] = useState<any>(null);
   const [editingDeliveryNote, setEditingDeliveryNote] = useState<any>(null);
   const [editingOrderConfirmation, setEditingOrderConfirmation] = useState<any>(null);
@@ -60,7 +63,7 @@ export default function OtherDocs() {
   // Column header filters
   const [documentTypeFilter, setDocumentTypeFilter] = useState("all");
   const [isDocumentTypeFilterOpen, setIsDocumentTypeFilterOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("Regulations");
+  const [activeTab, setActiveTab] = useState("Bill Of Materials");
 
   useEffect(() => {
     if (activeTab === "Delivery Notes") {
@@ -277,7 +280,7 @@ export default function OtherDocs() {
   const documentTypes = [...new Set(documents.map(doc => doc.type).filter(Boolean))].sort();
 
   const tabTypes = [
-    "Regulations",
+    "Bill Of Materials",
     "Statements",
     "Requests",
     "Purchase Orders",
@@ -292,7 +295,7 @@ export default function OtherDocs() {
   // Get button text based on tab name
   const getAddButtonText = (tabName: string): string => {
     const buttonTexts: Record<string, string> = {
-      "Regulations": "Add Regulation",
+      "Bill Of Materials": "Add Bill Of Materials",
       "Statements": "Add Statement",
       "Requests": "Add Request",
       "Purchase Orders": "Add Purchase Order",
@@ -352,7 +355,8 @@ export default function OtherDocs() {
   };
 
   const handleViewOrderConfirmation = (oc: any) => {
-    navigate(`/order-confirmation/${oc.id}`);
+    setViewingOrderConfirmationId(oc.id);
+    setIsOrderConfirmationViewOpen(true);
   };
 
   const handleEditOrderConfirmation = async (oc: any) => {
@@ -758,7 +762,7 @@ export default function OtherDocs() {
                   <SelectValue placeholder="Select document type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Regulations">Regulations</SelectItem>
+                  <SelectItem value="Bill Of Materials">Bill Of Materials</SelectItem>
                   <SelectItem value="Statements">Statements</SelectItem>
                   <SelectItem value="Requests">Requests</SelectItem>
                   <SelectItem value="Purchase Orders">Purchase Orders</SelectItem>
@@ -816,7 +820,7 @@ export default function OtherDocs() {
                   <SelectValue placeholder="Select document type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Regulations">Regulations</SelectItem>
+                  <SelectItem value="Bill Of Materials">Bill Of Materials</SelectItem>
                   <SelectItem value="Statements">Statements</SelectItem>
                   <SelectItem value="Requests">Requests</SelectItem>
                   <SelectItem value="Purchase Orders">Purchase Orders</SelectItem>
@@ -924,6 +928,20 @@ export default function OtherDocs() {
             setIsDeliveryNoteViewOpen(open);
             if (!open) {
               setViewingDeliveryNote(null);
+            }
+          }}
+        />
+      )}
+
+      {/* Order Confirmation View Dialog */}
+      {viewingOrderConfirmationId && (
+        <OrderConfirmationViewDialog
+          orderConfirmationId={viewingOrderConfirmationId}
+          open={isOrderConfirmationViewOpen}
+          onOpenChange={(open) => {
+            setIsOrderConfirmationViewOpen(open);
+            if (!open) {
+              setViewingOrderConfirmationId(null);
             }
           }}
         />

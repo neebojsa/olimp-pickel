@@ -16,6 +16,7 @@ import { getCurrencyForCountry } from "@/lib/currencyUtils";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { NumericInput } from "./NumericInput";
 
 interface OrderConfirmationFormProps {
   isOpen: boolean;
@@ -127,7 +128,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
       weight: item.weight || 0,
     })) || [];
 
-    const { totalQuantity, netWeight, totalWeight } = recalcTotals(itemsMapped, editingOrderConfirmation.tara_weight || 0);
+      const { totalQuantity, netWeight, totalWeight } = recalcTotals(itemsMapped, 0);
 
     setFormData({
       orderConfirmationNumber: editingOrderConfirmation.order_confirmation_number || '',
@@ -203,7 +204,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
     
     setFormData(prev => {
       const newItems = prev.items.filter((_, i) => i !== index);
-      const { totalQuantity, netWeight, totalWeight } = recalcTotals(newItems, prev.taraWeight);
+      const { totalQuantity, netWeight, totalWeight } = recalcTotals(newItems, 0);
       return {
         ...prev,
         items: newItems,
@@ -252,7 +253,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
       item.total = item.quantity * item.unitPrice;
       newItems[index] = item;
 
-      const { totalAmount, totalQuantity, netWeight, totalWeight } = recalcTotals(newItems, prev.taraWeight);
+      const { totalAmount, totalQuantity, netWeight, totalWeight } = recalcTotals(newItems, 0);
 
       return {
         ...prev,
@@ -305,7 +306,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
         orderConfirmationNumber = numberData;
       }
 
-      const { totalAmount, totalQuantity, netWeight, totalWeight } = recalcTotals(formData.items, formData.taraWeight);
+      const { totalAmount, totalQuantity, netWeight, totalWeight } = recalcTotals(formData.items, 0);
 
       const orderConfirmationData = {
         order_confirmation_number: orderConfirmationNumber,
@@ -316,8 +317,8 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
         issue_date: formData.issueDate,
         order_number: formData.orderNumber?.trim() || null,
         shipping_address: formData.shippingAddress?.trim() || null,
-        packing: formData.packing || 0,
-        tara_weight: formData.taraWeight || 0,
+        packing: 0,
+        tara_weight: 0,
         net_weight: netWeight || 0,
         total_weight: totalWeight || 0,
         total_quantity: totalQuantity || 0,
@@ -370,6 +371,8 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
           unit_price: item.unitPrice || 0,
           total: item.total || 0,
           weight: itemWeight,
+          part_number: inventoryItem?.part_number || null,
+          photo_url: inventoryItem?.photo_url || null,
         };
       });
 
@@ -406,7 +409,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
     }
   };
 
-  const { totalAmount } = recalcTotals(formData.items, formData.taraWeight);
+  const { totalAmount } = recalcTotals(formData.items, 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -527,57 +530,27 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
             />
           </div>
 
-          {/* Packing and Weight Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Packing</Label>
-              <Input
-                type="number"
-                value={formData.packing}
-                onChange={e => setFormData(prev => ({ ...prev, packing: parseInt(e.target.value) || 0 }))}
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <Label>Tara Weight</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.taraWeight}
-                onChange={e => {
-                  const tara = parseFloat(e.target.value) || 0;
-                  setFormData(prev => {
-                    const { netWeight, totalWeight } = recalcTotals(prev.items, tara);
-                    return { ...prev, taraWeight: tara, netWeight, totalWeight };
-                  });
-                }}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          {/* Currency (auto-set from customer country) */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Currency (auto)</Label>
-              <Input value={formData.currency} readOnly />
-            </div>
-          </div>
-
           {/* Products Section */}
           <div>
             <div className="mb-4">
-              <Label className="text-base font-medium">Products</Label>
+              <Label className="text-lg font-semibold">Products</Label>
             </div>
 
-            <div className="space-y-3">
+            {/* Headers */}
+            <div className="grid grid-cols-[1fr_80px_96px_96px_auto] gap-2 mb-2">
+              <Label className="text-sm font-medium">Product</Label>
+              <Label className="text-sm font-medium">Qty</Label>
+              <Label className="text-sm font-medium">Unit Price</Label>
+              <Label className="text-sm font-medium">Total</Label>
+              <div></div>
+            </div>
+
+            {/* Product rows */}
+            <div className="space-y-2">
               {formData.items.map((item, index) => {
                 const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
                 return (
-                <div key={index} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-end p-3 rounded-lg border">
-                  <div>
-                    <Label className="text-xs">Product</Label>
+                  <div key={index} className="grid grid-cols-[1fr_80px_96px_96px_auto] gap-2 items-center">
                     <Popover
                       open={productSearchOpen[index] || false}
                       onOpenChange={(open) => setProductSearchOpen(prev => ({ ...prev, [index]: open }))}
@@ -589,12 +562,12 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
                           className="w-full justify-between text-left font-normal"
                         >
                           {inventoryItem ? (
-                            <div className="flex flex-col items-start flex-1">
-                              <span>{inventoryItem.name || inventoryItem.part_name}</span>
+                            <span>
+                              {inventoryItem.name || inventoryItem.part_name}
                               {inventoryItem.part_number && (
-                                <span className="text-xs text-muted-foreground">Part #: {inventoryItem.part_number}</span>
+                                <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
                               )}
-                            </div>
+                            </span>
                           ) : "Select product..."}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -648,60 +621,55 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
                         </Command>
                       </PopoverContent>
                     </Popover>
-                  </div>
 
-                  <div className="w-20">
-                    <Label className="text-xs">Qty</Label>
-                    <Input
-                      type="number"
-                      value={item.quantity}
-                      onChange={e => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                      min="1"
-                    />
-                  </div>
+                    <div className="w-40">
+                      <NumericInput
+                        value={item.quantity}
+                        onChange={(val) => updateItem(index, 'quantity', val)}
+                        min={1}
+                      />
+                    </div>
 
-                  <div className="w-24">
-                    <Label className="text-xs">Unit Price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={e => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      min="0"
-                    />
-                  </div>
+                    <div className="w-40">
+                      <NumericInput
+                        value={item.unitPrice}
+                        onChange={(val) => updateItem(index, 'unitPrice', val)}
+                        min={0}
+                        step={0.01}
+                      />
+                    </div>
 
-                  <div className="w-24">
-                    <Label className="text-xs">Total</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.total.toFixed(2)}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  </div>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={item.total.toFixed(2)}
+                        readOnly
+                        className="bg-muted"
+                      />
+                    </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeItem(index)}
-                    disabled={formData.items.length === 1}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeItem(index)}
+                      disabled={formData.items.length === 1}
+                      className="h-10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 );
               })}
-              
-              {/* Add Product button below items */}
-              <div className="mt-3">
-                <Button type="button" onClick={addItem} size="sm" variant="outline">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Product
-                </Button>
-              </div>
+            </div>
+
+            {/* Add Product button below items */}
+            <div className="mt-3">
+              <Button type="button" onClick={addItem} size="sm" variant="outline">
+                <Plus className="w-4 h-4 mr-1" />
+                Add Product
+              </Button>
             </div>
 
             <div className="mt-4 text-right">

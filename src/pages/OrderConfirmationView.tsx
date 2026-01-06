@@ -65,8 +65,15 @@ const paginateOrderConfirmationItems = (items: any[], notes?: string | null) => 
   return pages.length > 0 ? pages : [items];
 };
 
-export default function OrderConfirmationView() {
-  const { id } = useParams<{ id: string }>();
+interface OrderConfirmationViewProps {
+  orderConfirmationId?: string;
+  hideBackButton?: boolean;
+  inDialog?: boolean;
+}
+
+export default function OrderConfirmationView({ orderConfirmationId, hideBackButton = false, inDialog = false }: OrderConfirmationViewProps = {}) {
+  const { id: routeId } = useParams<{ id: string }>();
+  const currentId = orderConfirmationId || routeId;
   const navigate = useNavigate();
   const [orderConfirmation, setOrderConfirmation] = useState<any>(null);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
@@ -89,7 +96,7 @@ export default function OrderConfirmationView() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (id) {
+    if (currentId) {
       fetchData();
     }
     const savedSettings = localStorage.getItem("pdfSettings");
@@ -100,7 +107,7 @@ export default function OrderConfirmationView() {
         console.error("Error loading PDF settings:", e);
       }
     }
-  }, [id]);
+  }, [currentId]);
 
   const fetchData = async () => {
     try {
@@ -108,7 +115,7 @@ export default function OrderConfirmationView() {
       const { data: ocData, error: ocError } = await supabase
         .from("order_confirmations")
         .select("*")
-        .eq("id", id)
+        .eq("id", currentId)
         .single();
 
       if (ocError) {
@@ -129,7 +136,7 @@ export default function OrderConfirmationView() {
       const { data: itemsData } = await supabase
         .from("order_confirmation_items")
         .select("*")
-        .eq("order_confirmation_id", id);
+        .eq("order_confirmation_id", currentId);
 
       const inventoryIds = itemsData?.map((item) => item.inventory_id).filter(Boolean) || [];
       let invMap: Record<string, any> = {};
@@ -188,92 +195,114 @@ export default function OrderConfirmationView() {
     }
   };
 
+  const preparePagesForRender = async (pages: NodeListOf<Element>) => {
+    const preparedPages: string[] = [];
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i] as HTMLElement;
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.width = '210mm';
+      tempContainer.style.backgroundColor = 'white';
+      tempContainer.style.fontSize = '16px';
+      tempContainer.appendChild(page.cloneNode(true));
+      document.body.appendChild(tempContainer);
+      const mmToPixels = (mm: number) => (mm * 96) / 25.4;
+      const baseWidthPx = mmToPixels(210);
+      const baseHeightPx = mmToPixels(297);
+      const canvas = await html2canvas(tempContainer, {
+        scale: pdfSettings.scale,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: baseWidthPx,
+        height: baseHeightPx,
+        windowWidth: baseWidthPx,
+        windowHeight: baseHeightPx,
+        allowTaint: false,
+        removeContainer: false,
+        onclone: (clonedDoc) => {
+          const clonedContainer = clonedDoc.querySelector('.print-order-confirmation-page');
+          if (clonedContainer) {
+            (clonedContainer as HTMLElement).style.transform = 'scale(1)';
+          }
+          const allImages = clonedDoc.querySelectorAll('.order-confirmation-items-table img');
+          allImages.forEach((img: any) => {
+            if (img.style) {
+              img.style.display = 'block';
+              img.style.margin = '0 auto';
+              img.style.verticalAlign = 'middle';
+            }
+          });
+          const allCells = clonedDoc.querySelectorAll('.order-confirmation-items-table th, .order-confirmation-items-table td');
+          allCells.forEach((cell: any) => {
+            if (cell.style) {
+              cell.style.verticalAlign = 'middle';
+              cell.setAttribute('valign', 'middle');
+            }
+          });
+          const allTdCells = clonedDoc.querySelectorAll('.order-confirmation-items-table tbody td');
+          allTdCells.forEach((cell: any) => {
+            if (cell.style) {
+              cell.style.borderBottom = 'none';
+            }
+          });
+          const lastRow = clonedDoc.querySelector('.order-confirmation-items-table tbody tr:last-child');
+          if (lastRow) {
+            const lastRowCells = lastRow.querySelectorAll('td');
+            lastRowCells.forEach((cell: any) => {
+              if (cell.style) {
+                cell.style.borderBottom = '1px solid #6b7280';
+              }
+            });
+          }
+          const allRows = clonedDoc.querySelectorAll('.order-confirmation-items-table tr');
+          allRows.forEach((row: any) => {
+            if (row.style) {
+              row.style.display = 'table-row';
+            }
+          });
+          const tables = clonedDoc.querySelectorAll('.order-confirmation-items-table');
+          tables.forEach((table: any) => {
+            if (table.style) {
+              table.style.display = 'table';
+              table.style.borderCollapse = 'collapse';
+              table.style.borderSpacing = '0';
+            }
+          });
+        }
+      });
+      const imgData = canvas.toDataURL('image/png', pdfSettings.quality);
+      preparedPages.push(imgData);
+      document.body.removeChild(tempContainer);
+    }
+    return preparedPages;
+  };
+
   const generatePDF = async () => {
     if (!containerRef.current || !orderConfirmation) return;
     setGeneratingPDF(true);
     try {
       const pages = containerRef.current.querySelectorAll(".print-order-confirmation-page");
+      const preparedPages = await preparePagesForRender(pages);
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i] as HTMLElement;
-        const tempContainer = document.createElement("div");
-        tempContainer.style.position = "absolute";
-        tempContainer.style.left = "-9999px";
-        tempContainer.style.width = "210mm";
-        tempContainer.style.backgroundColor = "white";
-        tempContainer.style.fontSize = "16px";
-        tempContainer.appendChild(page.cloneNode(true));
-        document.body.appendChild(tempContainer);
-
-        const mmToPixels = (mm: number) => (mm * 96) / 25.4;
-        const baseWidthPx = mmToPixels(210);
-        const baseHeightPx = mmToPixels(297);
-
-        const canvas = await html2canvas(tempContainer, {
-          scale: pdfSettings.scale,
-          useCORS: true,
-          logging: false,
-          backgroundColor: "#ffffff",
-          width: baseWidthPx,
-          height: baseHeightPx,
-          windowWidth: baseWidthPx,
-          windowHeight: baseHeightPx,
-          allowTaint: false,
-          removeContainer: false,
-          onclone: (clonedDoc) => {
-            const clonedPage = clonedDoc.querySelector(".print-order-confirmation-page");
-            if (clonedPage) {
-              (clonedPage as HTMLElement).style.transform = "scale(1)";
-            }
-
-            const allImages = clonedDoc.querySelectorAll(".order-confirmation-items-table img");
-            allImages.forEach((img: any) => {
-              if (img.style) {
-                img.style.display = "block";
-                img.style.margin = "0 auto";
-                img.style.verticalAlign = "middle";
-              }
-            });
-
-            const allCells = clonedDoc.querySelectorAll(
-              ".order-confirmation-items-table th, .order-confirmation-items-table td"
-            );
-            allCells.forEach((cell: any) => {
-              if (cell.style) {
-                cell.style.verticalAlign = "middle";
-                cell.setAttribute("valign", "middle");
-              }
-            });
-
-            const allRows = clonedDoc.querySelectorAll(".order-confirmation-items-table tr");
-            allRows.forEach((row: any) => {
-              if (row.style) {
-                row.style.display = "table-row";
-                row.style.height = `${ITEM_HEIGHT_PX}px`;
-              }
-            });
-
-            const tables = clonedDoc.querySelectorAll(".order-confirmation-items-table");
-            tables.forEach((table: any) => {
-              if (table.style) {
-                table.style.display = "table";
-                table.style.borderCollapse = "collapse";
-                table.style.borderSpacing = "0";
-              }
-            });
-          },
-        });
-
-        const imgData = canvas.toDataURL("image/png", pdfSettings.quality);
+      for (let i = 0; i < preparedPages.length; i++) {
+        const imgData = preparedPages[i];
         if (i > 0) pdf.addPage();
-
-        const imgWidth = 210;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        const finalHeight = Math.min(imgHeight, 297);
-
-        pdf.addImage(imgData, "PNG", 0, 0, imgWidth, finalHeight, undefined, "FAST");
-        document.body.removeChild(tempContainer);
+        
+        // Create a temporary image to get dimensions
+        const img = new Image();
+        img.src = imgData;
+        await new Promise((resolve) => {
+          img.onload = () => {
+            const imgWidth = 210;
+            const imgHeight = (img.height * imgWidth) / img.width;
+            const finalHeight = Math.min(imgHeight, 297);
+            pdf.addImage(imgData, "PNG", 0, 0, imgWidth, finalHeight, undefined, "FAST");
+            resolve(null);
+          };
+        });
       }
 
       const fileName = `OrderConfirmation_${orderConfirmation.order_confirmation_number}_${new Date()
@@ -285,6 +314,49 @@ export default function OrderConfirmationView() {
       alert("Failed to generate PDF. Please try again.");
     } finally {
       setGeneratingPDF(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!containerRef.current || !orderConfirmation) {
+      return;
+    }
+    try {
+      const container = containerRef.current;
+      const pages = container.querySelectorAll('.print-order-confirmation-page');
+      const preparedPages = await preparePagesForRender(pages);
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        alert('Please allow popups to print the order confirmation');
+        return;
+      }
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Order Confirmation ${orderConfirmation.order_confirmation_number}</title>
+            <style>
+              @page {
+                margin: 0;
+                size: A4;
+              }
+              body { margin: 0; padding: 0; }
+              img { width: 210mm; height: auto; display: block; page-break-after: always; }
+              img:last-child { page-break-after: auto; }
+            </style>
+          </head>
+          <body>
+            ${preparedPages.map(imgData => `<img src="${imgData}" />`).join('')}
+          </body>
+        </html>
+      `;
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    } catch (error) {
+      console.error('Error preparing for print:', error);
+      alert('Failed to prepare order confirmation for printing. Please try again.');
     }
   };
 
@@ -330,7 +402,7 @@ export default function OrderConfirmationView() {
       : items.reduce((sum: number, item: any) => sum + Number(item.total || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 print:p-0 print:bg-white" ref={containerRef}>
+    <div className={inDialog ? "bg-gray-100 print:p-0 print:bg-white" : "min-h-screen bg-gray-100 p-6 print:p-0 print:bg-white"} ref={containerRef}>
       <style>{`
         @media screen {
           .order-confirmation-container {
@@ -344,6 +416,14 @@ export default function OrderConfirmationView() {
             overflow-y: auto !important;
             max-height: 90vh !important;
           }
+          
+          ${inDialog ? `
+          .order-confirmation-container {
+            padding: 0px !important;
+            overflow-y: visible !important;
+            max-height: none !important;
+          }
+          ` : ''}
           .print-order-confirmation-page {
             width: 210mm !important;
             min-width: 210mm !important;
@@ -379,14 +459,14 @@ export default function OrderConfirmationView() {
           .order-confirmation-items-table tbody tr:first-child td { border-top: 0.25mm solid rgb(212, 212, 212) !important; }
           .order-confirmation-items-table tbody tr:last-child td { border-bottom: 0.25mm solid rgb(212, 212, 212) !important; }
           .order-confirmation-items-table td:first-child img { display: block; margin: 0 auto; }
-          /* Column 1: Picture */
-          .order-confirmation-items-table th:nth-child(1), .order-confirmation-items-table td:nth-child(1) { width: 10% !important; max-width: 10% !important; text-align: center !important; }
+          /* Column 1: Picture - increased to match Delivery Notes (86.11px) */
+          .order-confirmation-items-table th:nth-child(1), .order-confirmation-items-table td:nth-child(1) { width: 12.3% !important; max-width: 12.3% !important; text-align: center !important; }
           /* Column 2: Part name */
-          .order-confirmation-items-table th:nth-child(2), .order-confirmation-items-table td:nth-child(2) { width: 25% !important; max-width: 25% !important; }
+          .order-confirmation-items-table th:nth-child(2), .order-confirmation-items-table td:nth-child(2) { width: 24.7% !important; max-width: 24.7% !important; }
           /* Column 3: Part number */
           .order-confirmation-items-table th:nth-child(3), .order-confirmation-items-table td:nth-child(3) { width: 15% !important; max-width: 15% !important; }
           /* Column 4: Quantity */
-          .order-confirmation-items-table th:nth-child(4), .order-confirmation-items-table td:nth-child(4) { width: 12% !important; max-width: 12% !important; text-align: center !important; }
+          .order-confirmation-items-table th:nth-child(4), .order-confirmation-items-table td:nth-child(4) { width: 10% !important; max-width: 10% !important; text-align: center !important; }
           /* Column 5: Weight */
           .order-confirmation-items-table th:nth-child(5), .order-confirmation-items-table td:nth-child(5) { width: 10% !important; max-width: 10% !important; text-align: right !important; }
           /* Column 6: Unit price */
@@ -420,14 +500,14 @@ export default function OrderConfirmationView() {
           .order-confirmation-items-table tbody tr:last-child td { border-bottom: 0.25mm solid #6b7280 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
           .order-confirmation-items-table td:first-child img { display: block; margin: 0 auto; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
           .order-confirmation-items-table td:first-child { text-align: center !important; }
-          /* Column 1: Picture */
-          .order-confirmation-items-table th:nth-child(1), .order-confirmation-items-table td:nth-child(1) { width: 10% !important; max-width: 10% !important; text-align: center !important; }
+          /* Column 1: Picture - increased to match Delivery Notes (86.11px) */
+          .order-confirmation-items-table th:nth-child(1), .order-confirmation-items-table td:nth-child(1) { width: 12.3% !important; max-width: 12.3% !important; text-align: center !important; }
           /* Column 2: Part name */
-          .order-confirmation-items-table th:nth-child(2), .order-confirmation-items-table td:nth-child(2) { width: 25% !important; max-width: 25% !important; }
+          .order-confirmation-items-table th:nth-child(2), .order-confirmation-items-table td:nth-child(2) { width: 24.7% !important; max-width: 24.7% !important; }
           /* Column 3: Part number */
           .order-confirmation-items-table th:nth-child(3), .order-confirmation-items-table td:nth-child(3) { width: 15% !important; max-width: 15% !important; }
           /* Column 4: Quantity */
-          .order-confirmation-items-table th:nth-child(4), .order-confirmation-items-table td:nth-child(4) { width: 12% !important; max-width: 12% !important; text-align: center !important; }
+          .order-confirmation-items-table th:nth-child(4), .order-confirmation-items-table td:nth-child(4) { width: 10% !important; max-width: 10% !important; text-align: center !important; }
           /* Column 5: Weight */
           .order-confirmation-items-table th:nth-child(5), .order-confirmation-items-table td:nth-child(5) { width: 10% !important; max-width: 10% !important; text-align: right !important; }
           /* Column 6: Unit price */
@@ -449,19 +529,32 @@ export default function OrderConfirmationView() {
         }
       `}</style>
 
-      <div className="mb-4 flex gap-2 print:hidden">
-        <Button variant="outline" onClick={() => navigate("/other-docs")}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </Button>
-        <Button onClick={generatePDF} disabled={generatingPDF}>
-          <FileDown className="w-4 h-4 mr-2" />
-          {generatingPDF ? "Generating PDF..." : "Download PDF"}
-        </Button>
-        <Button variant="outline" onClick={() => window.print()}>
-          Print
-        </Button>
-      </div>
+      {!hideBackButton && (
+        <div className="mb-4 flex gap-2 print:hidden">
+          <Button variant="outline" onClick={() => navigate("/other-docs")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <Button onClick={generatePDF} disabled={generatingPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            {generatingPDF ? "Generating PDF..." : "Download PDF"}
+          </Button>
+          <Button variant="outline" onClick={handlePrint}>
+            Print
+          </Button>
+        </div>
+      )}
+      {hideBackButton && (
+        <div className="mb-4 flex gap-2 print:hidden">
+          <Button onClick={generatePDF} disabled={generatingPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            {generatingPDF ? "Generating PDF..." : "Download PDF"}
+          </Button>
+          <Button variant="outline" onClick={handlePrint}>
+            Print
+          </Button>
+        </div>
+      )}
 
       <div className="order-confirmation-container">
         {pagesToRender.map((pageItems, pageIndex) => {
@@ -583,9 +676,9 @@ export default function OrderConfirmationView() {
                           }}
                         >
                           <td className="text-center" style={{ verticalAlign: "middle", padding: "0.3rem" }}>
-                            {inventoryItem?.photo_url ? (
+                            {(item.photo_url || inventoryItem?.photo_url) ? (
                               <img
-                                src={inventoryItem.photo_url}
+                                src={item.photo_url || inventoryItem?.photo_url}
                                 alt={item.description}
                                 style={{
                                   height: `${ITEM_IMAGE_SIZE}px`,
@@ -615,7 +708,7 @@ export default function OrderConfirmationView() {
                             {item.description}
                           </td>
                           <td className="text-left text-sm" style={{ verticalAlign: "middle" }}>
-                            {inventoryItem?.part_number || item.part_number || "-"}
+                            {item.part_number || inventoryItem?.part_number || "-"}
                           </td>
                           <td className="text-center text-sm" style={{ verticalAlign: "middle" }}>
                             {item.quantity} {unit}

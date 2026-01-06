@@ -8,6 +8,7 @@ import { FileText, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { formatDate } from "@/lib/dateUtils";
+import { NumericInput } from "@/components/NumericInput";
 
 interface InvoiceItem {
   id: string;
@@ -1350,13 +1351,11 @@ export default function Labels() {
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <label className="text-sm">Packages:</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max={item.quantity}
+                        <NumericInput
                           value={pkgInfo.packageCount}
-                          onChange={(e) => updatePackageCount(itemKey, parseInt(e.target.value) || 1, item.quantity)}
-                          className="w-16 px-2 py-1 border rounded text-sm"
+                          onChange={(val) => updatePackageCount(itemKey, val, item.quantity)}
+                          min={1}
+                          max={item.quantity}
                         />
                                 </div>
                       <div className="text-sm text-muted-foreground">
@@ -1371,12 +1370,10 @@ export default function Labels() {
                           {Array.from({ length: pkgInfo.packageCount }, (_, i) => (
                             <div key={i} className="flex items-center gap-1">
                               <label className="text-xs">Pkg {i + 1}:</label>
-                              <input
-                                type="number"
-                                min="1"
+                              <NumericInput
                                 value={pkgInfo.piecesPerPackage[i] || 1}
-                                onChange={(e) => updatePiecesPerPackage(itemKey, i, parseInt(e.target.value) || 1, item.quantity)}
-                                className="w-12 px-1 py-1 border rounded text-xs"
+                                onChange={(val) => updatePiecesPerPackage(itemKey, i, val, item.quantity)}
+                                min={1}
                               />
                           </div>
                           ))}

@@ -28,6 +28,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { formatDate, formatDateForInput } from "@/lib/dateUtils";
+import { NumericInput } from "@/components/NumericInput";
 import { OCRResult } from "@/lib/ocrService";
 import { geminiOCRService } from "@/lib/geminiOCRService";
 import { extractValueAfterPattern, calculateSimilarity } from "@/lib/fuzzyMatch";
@@ -1917,20 +1918,20 @@ export default function CostManagement() {
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
                                   <Label>From</Label>
-                                  <Input
-                                    type="number"
+                                  <NumericInput
+                                    value={amountFilter.from ? parseFloat(amountFilter.from) : 0}
+                                    onChange={(val) => setAmountFilter({ ...amountFilter, from: val.toString() })}
+                                    min={0}
                                     placeholder="Min amount"
-                                    value={amountFilter.from}
-                                    onChange={(e) => setAmountFilter({ ...amountFilter, from: e.target.value })}
                                   />
                                 </div>
                                 <div>
                                   <Label>To</Label>
-                                  <Input
-                                    type="number"
+                                  <NumericInput
+                                    value={amountFilter.to ? parseFloat(amountFilter.to) : 0}
+                                    onChange={(val) => setAmountFilter({ ...amountFilter, to: val.toString() })}
+                                    min={0}
                                     placeholder="Max amount"
-                                    value={amountFilter.to}
-                                    onChange={(e) => setAmountFilter({ ...amountFilter, to: e.target.value })}
                                   />
                                 </div>
                               </div>
@@ -2331,36 +2332,32 @@ export default function CostManagement() {
             <div className="space-y-2">
               <Label htmlFor="subtotal">Subtotal (Tax Excluded)</Label>
               <div className="relative">
-              <Input
+              <NumericInput
                 id="subtotal"
-                type="number"
-                step="0.01"
-                value={formData.subtotal_tax_excluded || ''}
-                  placeholder={ocrSuggestions.subtotal_tax_excluded && ocrSuggestions.subtotal_tax_excluded > 0 && !formData.subtotal_tax_excluded ? ocrSuggestions.subtotal_tax_excluded.toString() : ''}
-                  className={ocrSuggestions.subtotal_tax_excluded && ocrSuggestions.subtotal_tax_excluded > 0 && !formData.subtotal_tax_excluded ? 'placeholder:text-muted-foreground/50' : ''}
-                  onChange={(e) => {
-                    setFormData(prev => ({ ...prev, subtotal_tax_excluded: parseFloat(e.target.value) || 0 }));
-                    setApprovedFields(prev => new Set(prev).add('subtotal_tax_excluded'));
-                  }}
-                  onFocus={() => handleFieldFocus('subtotal_tax_excluded')}
-                />
+                value={formData.subtotal_tax_excluded || 0}
+                onChange={(val) => {
+                  setFormData(prev => ({ ...prev, subtotal_tax_excluded: val }));
+                  setApprovedFields(prev => new Set(prev).add('subtotal_tax_excluded'));
+                }}
+                min={0}
+                step={0.01}
+                placeholder={ocrSuggestions.subtotal_tax_excluded && ocrSuggestions.subtotal_tax_excluded > 0 && !formData.subtotal_tax_excluded ? ocrSuggestions.subtotal_tax_excluded.toString() : ''}
+              />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="total">Total Amount *</Label>
-              <Input
+              <NumericInput
                 id="total"
-                type="number"
-                step="0.01"
-                value={formData.total_amount || ''}
-                placeholder={ocrSuggestions.total_amount && ocrSuggestions.total_amount > 0 && !formData.total_amount ? ocrSuggestions.total_amount.toString() : ''}
-                className={ocrSuggestions.total_amount && ocrSuggestions.total_amount > 0 && !formData.total_amount ? 'placeholder:text-muted-foreground/50' : ''}
-                onChange={(e) => {
-                  setFormData(prev => ({ ...prev, total_amount: parseFloat(e.target.value) || 0 }));
+                value={formData.total_amount || 0}
+                onChange={(val) => {
+                  setFormData(prev => ({ ...prev, total_amount: val }));
                   setApprovedFields(prev => new Set(prev).add('total_amount'));
                 }}
-                onFocus={() => handleFieldFocus('total_amount')}
+                min={0}
+                step={0.01}
+                placeholder={ocrSuggestions.total_amount && ocrSuggestions.total_amount > 0 && !formData.total_amount ? ocrSuggestions.total_amount.toString() : ''}
               />
             </div>
 

@@ -27,6 +27,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { formatDateForInput } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
+import { NumericInput } from "@/components/NumericInput";
 
 // Predefined tools and machines for suggestions
 const toolsList = [
@@ -1167,7 +1168,11 @@ export default function WorkOrders() {
                     </div>
                     <div>
                       <Label>Quantity</Label>
-                      <Input type="number" defaultValue={selectedWorkOrder.quantity} />
+                      <NumericInput
+                        value={selectedWorkOrder.quantity || 0}
+                        onChange={() => {}}
+                        min={0}
+                      />
                     </div>
                     <div className="col-span-2">
                       <Label>Description</Label>
@@ -1216,9 +1221,14 @@ export default function WorkOrders() {
                           <Label>Tool Name</Label>
                           <Input defaultValue={tool.name} placeholder="Tool name" />
                         </div>
-                        <div className="w-24">
+                        <div className="w-40">
                           <Label>Quantity</Label>
-                          <Input type="number" defaultValue={tool.quantity} placeholder="Qty" />
+                          <NumericInput
+                            value={tool.quantity || 0}
+                            onChange={() => {}}
+                            min={0}
+                            placeholder="Qty"
+                          />
                         </div>
                         <Button variant="outline" size="sm">
                           <Trash2 className="w-4 h-4" />
@@ -1387,7 +1397,13 @@ export default function WorkOrders() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="quantity">Quantity</Label>
-                <Input id="quantity" type="number" placeholder="0" />
+                <NumericInput
+                  id="quantity"
+                  value={0}
+                  onChange={() => {}}
+                  min={0}
+                  placeholder="0"
+                />
               </div>
               <div>
                 <Label htmlFor="priority">Priority</Label>
@@ -1491,16 +1507,16 @@ export default function WorkOrders() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="w-24">
-                      <Input 
-                        type="number" 
-                        placeholder="Qty"
-                        value={tool.quantity}
-                        onChange={(e) => {
+                    <div className="w-40">
+                      <NumericInput
+                        value={tool.quantity ? parseFloat(tool.quantity) : 0}
+                        onChange={(val) => {
                           const newTools = [...tools];
-                          newTools[index].quantity = e.target.value;
+                          newTools[index].quantity = val.toString();
                           setTools(newTools);
                         }}
+                        min={0}
+                        placeholder="Qty"
                       />
                     </div>
                     <Button 
