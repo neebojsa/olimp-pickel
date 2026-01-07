@@ -567,7 +567,7 @@ export default function Customers() {
                   value={newCustomer.dueDate ? parseFloat(newCustomer.dueDate) : 0}
                   onChange={(val) => setNewCustomer({...newCustomer, dueDate: val.toString()})}
                   min={0}
-                  placeholder="Enter payment terms in days"
+                  placeholder="Enter payment terms in days" 
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Payment terms in days (e.g., 30 for Net 30)

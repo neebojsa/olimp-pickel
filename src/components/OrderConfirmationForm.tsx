@@ -364,12 +364,12 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
         const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
         const itemWeight = inventoryItem?.weight ? (inventoryItem.weight * item.quantity) : (item.weight || 0);
         return {
-          order_confirmation_id: orderConfirmationId,
-          inventory_id: item.inventoryId || null,
-          description: item.description?.trim() || '',
-          quantity: item.quantity || 1,
-          unit_price: item.unitPrice || 0,
-          total: item.total || 0,
+        order_confirmation_id: orderConfirmationId,
+        inventory_id: item.inventoryId || null,
+        description: item.description?.trim() || '',
+        quantity: item.quantity || 1,
+        unit_price: item.unitPrice || 0,
+        total: item.total || 0,
           weight: itemWeight,
           part_number: inventoryItem?.part_number || null,
           photo_url: inventoryItem?.photo_url || null,
@@ -624,52 +624,52 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
 
                     <div className="w-40">
                       <NumericInput
-                        value={item.quantity}
+                      value={item.quantity}
                         onChange={(val) => updateItem(index, 'quantity', val)}
                         min={1}
-                      />
-                    </div>
+                    />
+                  </div>
 
                     <div className="w-40">
                       <NumericInput
-                        value={item.unitPrice}
+                      value={item.unitPrice}
                         onChange={(val) => updateItem(index, 'unitPrice', val)}
                         min={0}
                         step={0.01}
-                      />
-                    </div>
-
-                    <div className="w-24">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={item.total.toFixed(2)}
-                        readOnly
-                        className="bg-muted"
-                      />
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeItem(index)}
-                      disabled={formData.items.length === 1}
-                      className="h-10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    />
                   </div>
+
+                  <div className="w-24">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={item.total.toFixed(2)}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeItem(index)}
+                    disabled={formData.items.length === 1}
+                      className="h-10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
                 );
               })}
             </div>
-
-            {/* Add Product button below items */}
-            <div className="mt-3">
-              <Button type="button" onClick={addItem} size="sm" variant="outline">
-                <Plus className="w-4 h-4 mr-1" />
-                Add Product
-              </Button>
+              
+              {/* Add Product button below items */}
+              <div className="mt-3">
+                <Button type="button" onClick={addItem} size="sm" variant="outline">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Product
+                </Button>
             </div>
 
             <div className="mt-4 text-right">

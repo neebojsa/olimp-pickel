@@ -197,45 +197,45 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
 
   const preparePagesForRender = async (pages: NodeListOf<Element>) => {
     const preparedPages: string[] = [];
-    for (let i = 0; i < pages.length; i++) {
-      const page = pages[i] as HTMLElement;
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i] as HTMLElement;
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'absolute';
       tempContainer.style.left = '-9999px';
       tempContainer.style.width = '210mm';
       tempContainer.style.backgroundColor = 'white';
       tempContainer.style.fontSize = '16px';
-      tempContainer.appendChild(page.cloneNode(true));
-      document.body.appendChild(tempContainer);
-      const mmToPixels = (mm: number) => (mm * 96) / 25.4;
-      const baseWidthPx = mmToPixels(210);
-      const baseHeightPx = mmToPixels(297);
-      const canvas = await html2canvas(tempContainer, {
-        scale: pdfSettings.scale,
-        useCORS: true,
-        logging: false,
+        tempContainer.appendChild(page.cloneNode(true));
+        document.body.appendChild(tempContainer);
+        const mmToPixels = (mm: number) => (mm * 96) / 25.4;
+        const baseWidthPx = mmToPixels(210);
+        const baseHeightPx = mmToPixels(297);
+        const canvas = await html2canvas(tempContainer, {
+          scale: pdfSettings.scale,
+          useCORS: true,
+          logging: false,
         backgroundColor: '#ffffff',
-        width: baseWidthPx,
-        height: baseHeightPx,
-        windowWidth: baseWidthPx,
-        windowHeight: baseHeightPx,
-        allowTaint: false,
-        removeContainer: false,
-        onclone: (clonedDoc) => {
+          width: baseWidthPx,
+          height: baseHeightPx,
+          windowWidth: baseWidthPx,
+          windowHeight: baseHeightPx,
+          allowTaint: false,
+          removeContainer: false,
+          onclone: (clonedDoc) => {
           const clonedContainer = clonedDoc.querySelector('.print-order-confirmation-page');
           if (clonedContainer) {
             (clonedContainer as HTMLElement).style.transform = 'scale(1)';
-          }
+            }
           const allImages = clonedDoc.querySelectorAll('.order-confirmation-items-table img');
-          allImages.forEach((img: any) => {
-            if (img.style) {
+            allImages.forEach((img: any) => {
+              if (img.style) {
               img.style.display = 'block';
               img.style.margin = '0 auto';
               img.style.verticalAlign = 'middle';
-            }
-          });
+              }
+            });
           const allCells = clonedDoc.querySelectorAll('.order-confirmation-items-table th, .order-confirmation-items-table td');
-          allCells.forEach((cell: any) => {
+            allCells.forEach((cell: any) => {
             if (cell.style) {
               cell.style.verticalAlign = 'middle';
               cell.setAttribute('valign', 'middle');
@@ -257,21 +257,21 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
             });
           }
           const allRows = clonedDoc.querySelectorAll('.order-confirmation-items-table tr');
-          allRows.forEach((row: any) => {
-            if (row.style) {
+            allRows.forEach((row: any) => {
+              if (row.style) {
               row.style.display = 'table-row';
-            }
-          });
+              }
+            });
           const tables = clonedDoc.querySelectorAll('.order-confirmation-items-table');
-          tables.forEach((table: any) => {
-            if (table.style) {
+            tables.forEach((table: any) => {
+              if (table.style) {
               table.style.display = 'table';
               table.style.borderCollapse = 'collapse';
               table.style.borderSpacing = '0';
-            }
-          });
+              }
+            });
         }
-      });
+        });
       const imgData = canvas.toDataURL('image/png', pdfSettings.quality);
       preparedPages.push(imgData);
       document.body.removeChild(tempContainer);
@@ -290,16 +290,16 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
       for (let i = 0; i < preparedPages.length; i++) {
         const imgData = preparedPages[i];
         if (i > 0) pdf.addPage();
-        
+
         // Create a temporary image to get dimensions
         const img = new Image();
         img.src = imgData;
         await new Promise((resolve) => {
           img.onload = () => {
-            const imgWidth = 210;
+        const imgWidth = 210;
             const imgHeight = (img.height * imgWidth) / img.width;
-            const finalHeight = Math.min(imgHeight, 297);
-            pdf.addImage(imgData, "PNG", 0, 0, imgWidth, finalHeight, undefined, "FAST");
+        const finalHeight = Math.min(imgHeight, 297);
+        pdf.addImage(imgData, "PNG", 0, 0, imgWidth, finalHeight, undefined, "FAST");
             resolve(null);
           };
         });
@@ -530,15 +530,15 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
       `}</style>
 
       {!hideBackButton && (
-        <div className="mb-4 flex gap-2 print:hidden">
-          <Button variant="outline" onClick={() => navigate("/other-docs")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <Button onClick={generatePDF} disabled={generatingPDF}>
-            <FileDown className="w-4 h-4 mr-2" />
-            {generatingPDF ? "Generating PDF..." : "Download PDF"}
-          </Button>
+      <div className="mb-4 flex gap-2 print:hidden">
+        <Button variant="outline" onClick={() => navigate("/other-docs")}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+        <Button onClick={generatePDF} disabled={generatingPDF}>
+          <FileDown className="w-4 h-4 mr-2" />
+          {generatingPDF ? "Generating PDF..." : "Download PDF"}
+        </Button>
           <Button variant="outline" onClick={handlePrint}>
             Print
           </Button>
@@ -551,9 +551,9 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
             {generatingPDF ? "Generating PDF..." : "Download PDF"}
           </Button>
           <Button variant="outline" onClick={handlePrint}>
-            Print
-          </Button>
-        </div>
+          Print
+        </Button>
+      </div>
       )}
 
       <div className="order-confirmation-container">
