@@ -511,25 +511,25 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                   placeholder="Enter custom address"
                 />
               ) : (
-                <Select value={formData.deliveryAddress} onValueChange={(value) => {
+              <Select value={formData.deliveryAddress} onValueChange={(value) => {
                   if (value === "Custom address") {
                     setIsCustomAddressMode(true);
                     setFormData(prev => ({ ...prev, deliveryAddress: "Custom address" }));
                   } else {
-                    setFormData(prev => ({ ...prev, deliveryAddress: value }));
+                setFormData(prev => ({ ...prev, deliveryAddress: value }));
                     setCustomAddress("");
                     setIsCustomAddressMode(false);
                   }
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select delivery address" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAddressOptions().map((addr, idx) => (
-                      <SelectItem key={idx} value={addr}>{addr}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select delivery address" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAddressOptions().map((addr, idx) => (
+                    <SelectItem key={idx} value={addr}>{addr}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               )}
             </div>
 
@@ -594,12 +594,12 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
             <div>
               <Label>Tara Weight (kg)</Label>
               <div className="relative w-40">
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.taraWeight}
-                  onChange={(e) => setFormData(prev => ({ ...prev, taraWeight: parseFloat(e.target.value) || 0 }))}
-                  min="0"
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.taraWeight}
+                onChange={(e) => setFormData(prev => ({ ...prev, taraWeight: parseFloat(e.target.value) || 0 }))}
+                min="0"
                   className="text-center rounded-full pr-6 pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
                 />
@@ -621,7 +621,7 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
-              </div>
+            </div>
             </div>
 
             {/* Custom Columns - spans all 3 columns */}
@@ -681,76 +681,76 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                   <div key={index} className="space-y-2">
                     {/* Product, Quantity, and Delete in one line */}
                     <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
-                      <Popover
-                        open={productSearchOpen[index] || false}
-                        onOpenChange={(open) => setProductSearchOpen(prev => ({ ...prev, [index]: open }))}
-                      >
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className="w-full justify-between text-left font-normal"
-                          >
-                            {inventoryItem ? (
+                        <Popover
+                          open={productSearchOpen[index] || false}
+                          onOpenChange={(open) => setProductSearchOpen(prev => ({ ...prev, [index]: open }))}
+                        >
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="w-full justify-between text-left font-normal"
+                            >
+                              {inventoryItem ? (
                               <span>
                                 {inventoryItem.name}
-                                {inventoryItem.part_number && (
+                                  {inventoryItem.part_number && (
                                   <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
-                                )}
+                                  )}
                               </span>
-                            ) : "Select product..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                          <Command>
-                            <CommandInput
-                              placeholder="Search products..."
-                              value={productSearchTerms[index] || ''}
-                              onValueChange={(value) => {
-                                setProductSearchTerms(prev => ({ ...prev, [index]: value }));
-                              }}
-                            />
-                            <CommandList>
-                              <CommandEmpty>No products found.</CommandEmpty>
-                              <CommandGroup>
-                                {inventoryItems
-                                  .filter(invItem => {
-                                    const searchTerm = (productSearchTerms[index] || '').toLowerCase();
-                                    if (!searchTerm) return true;
-                                    const nameMatch = invItem.name.toLowerCase().includes(searchTerm);
-                                    const partNumberMatch = (invItem.part_number || '').toLowerCase().includes(searchTerm);
-                                    return nameMatch || partNumberMatch;
-                                  })
-                                  .map((invItem) => (
-                                    <CommandItem
-                                      key={invItem.id}
-                                      value={`${invItem.name} ${invItem.part_number || ''}`}
-                                      onSelect={() => {
-                                        updateItem(index, 'inventoryId', invItem.id);
-                                        setProductSearchOpen(prev => ({ ...prev, [index]: false }));
-                                        setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          item.inventoryId === invItem.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      <div className="flex flex-col">
-                                        <span>{invItem.name}</span>
-                                        {invItem.part_number && (
-                                          <span className="text-xs text-muted-foreground">Part #: {invItem.part_number}</span>
-                                        )}
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                              ) : "Select product..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder="Search products..."
+                                value={productSearchTerms[index] || ''}
+                                onValueChange={(value) => {
+                                  setProductSearchTerms(prev => ({ ...prev, [index]: value }));
+                                }}
+                              />
+                              <CommandList>
+                                <CommandEmpty>No products found.</CommandEmpty>
+                                <CommandGroup>
+                                  {inventoryItems
+                                    .filter(invItem => {
+                                      const searchTerm = (productSearchTerms[index] || '').toLowerCase();
+                                      if (!searchTerm) return true;
+                                      const nameMatch = invItem.name.toLowerCase().includes(searchTerm);
+                                      const partNumberMatch = (invItem.part_number || '').toLowerCase().includes(searchTerm);
+                                      return nameMatch || partNumberMatch;
+                                    })
+                                    .map((invItem) => (
+                                      <CommandItem
+                                        key={invItem.id}
+                                        value={`${invItem.name} ${invItem.part_number || ''}`}
+                                        onSelect={() => {
+                                          updateItem(index, 'inventoryId', invItem.id);
+                                          setProductSearchOpen(prev => ({ ...prev, [index]: false }));
+                                          setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            item.inventoryId === invItem.id ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        <div className="flex flex-col">
+                                          <span>{invItem.name}</span>
+                                          {invItem.part_number && (
+                                            <span className="text-xs text-muted-foreground">Part #: {invItem.part_number}</span>
+                                          )}
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
 
                       <div className="relative w-40">
                         <Input
@@ -798,48 +798,48 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                     {/* Optional fields */}
                     {(visibleColumns.includes("Material") || visibleColumns.includes("Request") || formData.customColumns.length > 0) && (
                       <div className="grid grid-cols-2 gap-2 ml-0">
-                        {visibleColumns.includes("Material") && (
-                          <div>
-                            <Input
-                              value={item.material || ""}
-                              onChange={(e) => updateItem(index, 'material', e.target.value)}
+                      {visibleColumns.includes("Material") && (
+                        <div>
+                          <Input
+                            value={item.material || ""}
+                            onChange={(e) => updateItem(index, 'material', e.target.value)}
                               placeholder="Material (optional)"
                               className="text-sm"
-                            />
-                          </div>
-                        )}
+                          />
+                        </div>
+                      )}
 
-                        {visibleColumns.includes("Request") && (
-                          <div>
-                            <Input
-                              value={item.request || ""}
-                              onChange={(e) => updateItem(index, 'request', e.target.value)}
+                      {visibleColumns.includes("Request") && (
+                        <div>
+                          <Input
+                            value={item.request || ""}
+                            onChange={(e) => updateItem(index, 'request', e.target.value)}
                               placeholder="Request (optional)"
                               className="text-sm"
-                            />
-                          </div>
-                        )}
+                          />
+                        </div>
+                      )}
 
-                        {formData.customColumns.map(col => (
-                          <div key={col}>
-                            <Input
-                              value={item.customFields?.[col] || ""}
-                              onChange={(e) => {
-                                const updated = [...items];
-                                updated[index] = {
-                                  ...updated[index],
-                                  customFields: {
-                                    ...updated[index].customFields,
-                                    [col]: e.target.value
-                                  }
-                                };
-                                setItems(updated);
-                              }}
-                              placeholder={col}
+                      {formData.customColumns.map(col => (
+                        <div key={col}>
+                          <Input
+                            value={item.customFields?.[col] || ""}
+                            onChange={(e) => {
+                              const updated = [...items];
+                              updated[index] = {
+                                ...updated[index],
+                                customFields: {
+                                  ...updated[index].customFields,
+                                  [col]: e.target.value
+                                }
+                              };
+                              setItems(updated);
+                            }}
+                            placeholder={col}
                               className="text-sm"
-                            />
-                          </div>
-                        ))}
+                          />
+                        </div>
+                      ))}
                       </div>
                     )}
                   </div>

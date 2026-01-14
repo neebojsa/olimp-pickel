@@ -2337,12 +2337,12 @@ export default function CostManagement() {
                 value={formData.subtotal_tax_excluded || 0}
                 onChange={(val) => {
                   setFormData(prev => ({ ...prev, subtotal_tax_excluded: val }));
-                  setApprovedFields(prev => new Set(prev).add('subtotal_tax_excluded'));
-                }}
+                    setApprovedFields(prev => new Set(prev).add('subtotal_tax_excluded'));
+                  }}
                 min={0}
                 step={0.01}
                 placeholder={ocrSuggestions.subtotal_tax_excluded && ocrSuggestions.subtotal_tax_excluded > 0 && !formData.subtotal_tax_excluded ? ocrSuggestions.subtotal_tax_excluded.toString() : ''}
-              />
+                />
               </div>
             </div>
 

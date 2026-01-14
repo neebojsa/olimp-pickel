@@ -1096,10 +1096,10 @@ export default function Inventory() {
               </div>
 
               {/* Items List */}
-              <div className="space-y-3">
+              <div className="space-y-1.5">
                 {filteredItems.length > 0 ? filteredItems.map(item => item &&
             // Add null check for the entire item
-            <Card key={item.id} className={`${category === "Materials" ? "h-[90px]" : "h-40"} hover:shadow-md transition-shadow cursor-pointer ${
+            <Card key={item.id} className={`h-32 hover:shadow-md transition-shadow cursor-pointer ${
               item.quantity <= (item.minimum_stock || 0) ? 'border-destructive bg-destructive/5' : ''
             }`} onClick={() => {
               // Check if item still exists in the list (not deleted)
@@ -1110,7 +1110,7 @@ export default function Inventory() {
               }
             }}>
                        <CardContent className="p-4 h-full">
-                         <div className="flex h-full gap-4">
+                         <div className="grid grid-cols-[auto_1fr_auto] gap-4 h-full items-center">
                            {/* Material Shape Icon or Regular Image */}
                              {item?.category === "Materials" ? (() => {
                     const materialInfo = item.materials_used || {};
@@ -1121,14 +1121,14 @@ export default function Inventory() {
                         color
                       }} />
                   </div>;
-                })() : <div className="w-[170px] h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                            {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : <CategoryIcon className="w-12 h-12 text-muted-foreground" />}
+                })() : <div className="h-[94px] w-[125px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                            {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" /> : <CategoryIcon className="w-12 h-12 text-muted-foreground" />}
                           </div>}
                            
                            {/* Content */}
-                           <div className="flex-1 flex flex-col justify-between min-w-0">
-                             <div className="space-y-2">
-                                <div className="flex items-start justify-between">
+                           <div className="flex-1 flex flex-col justify-center min-w-0 h-full">
+                             <div className="space-y-1">
+                                <div className="flex items-center justify-between">
                                   <div className="min-w-0 flex-1">
                                      {item.category === "Tools" ? (
                                        <>
@@ -1216,7 +1216,7 @@ export default function Inventory() {
                                </div>
                              </div>
                             
-                             <div className="flex items-center justify-between">
+                             <div className="flex items-center justify-between mt-2">
                                <div className="flex items-center gap-4">
                                    {item?.category === "Materials" ? (() => {
                           const materialInfo = item.materials_used || {};
@@ -1239,9 +1239,6 @@ export default function Inventory() {
                           }
                           
                           return <>
-                                           <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
-                                             {quantity}
-                                           </Badge>
                                           {totalWeight > 0 && <span className="text-sm text-muted-foreground">
                                               {totalWeight.toFixed(1)} kg
                                             </span>}
@@ -1251,9 +1248,6 @@ export default function Inventory() {
                                              </span>
                                         </>;
                          })() : <>
-                                       <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
-                                         {item.quantity} {item.unit || "pcs"}
-                                       </Badge>
                                      {(item.category === "Parts" || item.category === "Machines") && item.weight > 0 && (
                                        <span className="text-sm text-muted-foreground">
                                          {item.weight} kg
@@ -1278,6 +1272,19 @@ export default function Inventory() {
                                     </div>}
                                 </div>
                             </div>
+                          </div>
+                          
+                          {/* Quantity Badge - Last Column */}
+                          <div className="flex items-center justify-center flex-shrink-0">
+                            {item?.category === "Materials" ? (() => {
+                              const materialInfo = item.materials_used || {};
+                              const quantity = formatMaterialQuantity(materialInfo, item.quantity);
+                              return <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"} className="text-[10px] px-1 py-0.5">
+                                {quantity}
+                              </Badge>;
+                            })() : <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"} className="text-[10px] px-1 py-0.5">
+                              {item.quantity} {item.unit || "pcs"}
+                            </Badge>}
                           </div>
                         </div>
                       </CardContent>
@@ -1435,7 +1442,7 @@ export default function Inventory() {
                         </span>
                       )}
                     </span>
-                  </div>
+              </div>
                   <Button
                     type="button"
                     variant="ghost"
@@ -2139,9 +2146,9 @@ export default function Inventory() {
                       <NumericInput
                         value={tool.quantity}
                         onChange={(val) => {
-                          const newTools = [...tools];
+                    const newTools = [...tools];
                           newTools[index].quantity = val.toString();
-                          setTools(newTools);
+                    setTools(newTools);
                         }}
                         min={0}
                         placeholder="Qty"

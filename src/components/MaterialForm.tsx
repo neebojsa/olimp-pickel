@@ -797,7 +797,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
       {currentStep === 'summary' && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="grid gap-2">
+      <div className="grid gap-2">
               <Label htmlFor="supplier">Supplier</Label>
               <Select 
                 value={supplierId} 
@@ -812,16 +812,16 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
               >
                 <SelectTrigger id="supplier">
                   <SelectValue placeholder="Select supplier" />
-                </SelectTrigger>
-                <SelectContent>
+          </SelectTrigger>
+          <SelectContent>
                   {suppliers.map((supplier) => (
                     <SelectItem key={supplier.id} value={supplier.id}>
                       {supplier.name}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
+          </SelectContent>
+        </Select>
+      </div>
 
             <div className="grid gap-2">
               <Label htmlFor="price_unit">Price Per Unit *</Label>
@@ -840,7 +840,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
               </Button>
             </div>
 
-            <div className="grid gap-2">
+        <div className="grid gap-2">
               <Label htmlFor="location">Location</Label>
               <Select 
                 value={location} 
@@ -860,8 +860,8 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
                   ))}
                 </SelectContent>
               </Select>
-            </div>
           </div>
+        </div>
 
         </>
       )}

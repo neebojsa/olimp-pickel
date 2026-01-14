@@ -326,24 +326,52 @@ export default function Customers() {
         return;
       }
 
+      // Sort inventory items by part number
+      inventoryItems.sort((a: any, b: any) => {
+        const partA = (a.part_number || '').toLowerCase();
+        const partB = (b.part_number || '').toLowerCase();
+        return partA.localeCompare(partB);
+      });
+
       const pdf = new jsPDF();
       const pageWidth = pdf.internal.pageSize.width;
       const pageHeight = pdf.internal.pageSize.height;
-      const itemsPerPage = 15;
-      
-      // Company header
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`Stock Report - ${customer.name}`, 20, 20);
-      
-      // Date
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
+      const itemsPerPage = 12;
+      const totalPages = Math.ceil(inventoryItems.length / itemsPerPage);
       const currentDate = formatDate(new Date());
-      pdf.text(`Generated: ${currentDate}`, 20, 30);
       
-      let yPosition = 50;
+      // Set narrow margins: 1.27cm (12.7mm) from each side
+      const margin = 12.7;
+      const contentLeft = margin;
+      const contentRight = pageWidth - margin;
+      const contentWidth = contentRight - contentLeft;
+      
+      let yPosition = margin;
       let itemCount = 0;
+      let currentPage = 1;
+      
+      // Function to add footer with pagination and date
+      const addFooter = (pageNum: number) => {
+        // Move footer down by 0.5cm (5mm) - from 15mm to 20mm from bottom
+        // Allow it to go behind margin if needed
+        const footerY = pageHeight - 8;
+        pdf.setFontSize(9);
+        pdf.setFont(fontFamily, 'normal');
+        pdf.setTextColor(128, 128, 128); // Gray color
+        
+        // Combine pagination and date with separator
+        const paginationText = `Page ${pageNum} of ${totalPages}`;
+        const footerText = `${paginationText} | ${currentDate}`;
+        const footerWidth = pdf.getTextWidth(footerText);
+        
+        // Align with the end of the last column (Quantity column ends at right margin)
+        // Allow footer to extend beyond margin if needed
+        const tableRightEdge = contentRight;
+        pdf.text(footerText, tableRightEdge - footerWidth, footerY);
+        
+        // Reset text color
+        pdf.setTextColor(0, 0, 0);
+      };
       
       // Function to convert image to base64 for PDF
       const getImageAsBase64 = async (imageUrl: string): Promise<string | null> => {
@@ -361,24 +389,200 @@ export default function Customers() {
         }
       };
       
+      // Helper function to split text into multiple lines
+      const splitTextIntoLines = (text: string, maxWidth: number, maxLines: number = 4): string[] => {
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        return lines.slice(0, maxLines);
+      };
+      
+      // Helper function to pluralize units correctly
+      const pluralizeUnit = (quantity: number, unit: string): string => {
+        if (quantity === 1) {
+          // Singular form for quantity of 1
+          return unit;
+        } else {
+          // Plural form for quantity > 1
+          // Handle common pluralization rules
+          if (unit.toLowerCase() === 'piece') {
+            return 'pieces';
+          } else if (unit.toLowerCase() === 'set') {
+            return 'sets';
+          } else if (unit.toLowerCase() === 'pcs') {
+            return 'pcs'; // "pcs" is already plural/abbreviation
+          } else if (unit.toLowerCase().endsWith('s')) {
+            return unit; // Already plural
+          } else {
+            return unit + 's'; // Default: add 's' for plural
+          }
+        }
+      };
+      
+      // Load and register Lexend font for jsPDF from GitHub
+      const loadLexendFont = async (): Promise<boolean> => {
+        try {
+          // Check if font is already loaded
+          const fontList = pdf.getFontList();
+          if (fontList && fontList['lexend']) {
+            return true;
+          }
+          
+          // Load Lexend Light TTF from GitHub raw content
+          // Using the GitHub repository: https://github.com/googlefonts/lexend/tree/main/fonts/lexend/ttf
+          const fontUrl = 'https://raw.githubusercontent.com/googlefonts/lexend/main/fonts/lexend/ttf/Lexend-Light.ttf';
+          
+          const response = await fetch(fontUrl, { 
+            method: 'GET',
+            headers: { 'Accept': 'font/ttf,*/*' }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Font fetch failed: ${response.status} ${response.statusText}`);
+          }
+          
+          const fontArrayBuffer = await response.arrayBuffer();
+          
+          // Convert to base64
+          const fontBase64 = btoa(String.fromCharCode(...new Uint8Array(fontArrayBuffer)));
+          
+          // Register font with jsPDF
+          pdf.addFileToVFS('Lexend-Light.ttf', fontBase64);
+          pdf.addFont('Lexend-Light.ttf', 'lexend', 'normal');
+          
+          // Verify font was registered
+          const updatedFontList = pdf.getFontList();
+          if (updatedFontList && updatedFontList['lexend']) {
+            return true;
+          }
+          
+          throw new Error('Font registration verification failed');
+        } catch (error) {
+          console.warn('Failed to load Lexend font from GitHub, falling back to helvetica:', error);
+          return false;
+        }
+      };
+      
+      // Load Lexend font before generating report
+      const lexendLoaded = await loadLexendFont();
+      const fontFamily = lexendLoaded ? 'lexend' : 'helvetica';
+      
+      // Helper function to add rounded image using canvas for true rounded corners
+      const addRoundedImage = async (imageBase64: string, x: number, y: number, width: number, height: number, radius: number = 3): Promise<void> => {
+        return new Promise((resolve, reject) => {
+          try {
+            const img = new Image();
+            img.onload = () => {
+              // Create canvas to draw rounded image
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d', { willReadFrequently: false });
+              if (!ctx) {
+                reject(new Error('Could not get canvas context'));
+                return;
+              }
+              
+              // Set canvas size at 300 PPI (300 pixels per inch = 300 DPI)
+              // This renders at 300 PPI resolution but displays at the same size in cm
+              const scale = 300 / 25.4; // pixels per mm at 300 PPI
+              canvas.width = width * scale;
+              canvas.height = height * scale;
+              
+              // Enable high-quality image rendering
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              
+              // Fill with white background first to avoid black corners
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              // Draw rounded rectangle path
+              ctx.beginPath();
+              ctx.moveTo(radius * scale, 0);
+              ctx.lineTo((width - radius) * scale, 0);
+              ctx.quadraticCurveTo(width * scale, 0, width * scale, radius * scale);
+              ctx.lineTo(width * scale, (height - radius) * scale);
+              ctx.quadraticCurveTo(width * scale, height * scale, (width - radius) * scale, height * scale);
+              ctx.lineTo(radius * scale, height * scale);
+              ctx.quadraticCurveTo(0, height * scale, 0, (height - radius) * scale);
+              ctx.lineTo(0, radius * scale);
+              ctx.quadraticCurveTo(0, 0, radius * scale, 0);
+              ctx.closePath();
+              
+              // Clip to rounded rectangle
+              ctx.clip();
+              
+              // Draw image at 300 PPI resolution
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              // Convert canvas to base64 using JPEG compression to reduce file size
+              // Quality 0.85 provides good balance between quality and file size
+              const roundedImageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+              pdf.addImage(roundedImageBase64, 'JPEG', x, y, width, height);
+              resolve();
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = imageBase64;
+          } catch (error) {
+            reject(error);
+          }
+        });
+      };
+      
       for (let i = 0; i < inventoryItems.length; i++) {
         const item = inventoryItems[i];
         
-        // Check for new page (15 items per page)
+        // Check for new page (12 items per page)
         if (itemCount >= itemsPerPage) {
-          pdf.addPage();
-          yPosition = 30;
-          itemCount = 0;
+          // Add footer to current page before adding new one
+          addFooter(currentPage);
           
-          // Redraw header on new page
-          pdf.setFontSize(16);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text(`Stock Report - ${customer.name} (cont.)`, 20, 20);
-          yPosition = 40;
+          pdf.addPage();
+          currentPage++;
+          yPosition = margin;
+          itemCount = 0;
         }
         
-        const rowHeight = 16;
-        const imageSize = 12;
+        // Image dimensions: 2cm high (20mm) x 2.67cm wide (26.7mm)
+        const imageWidth = 26.7;
+        const imageHeight = 20;
+        const imageX = contentLeft;
+        const imageY = yPosition;
+        
+        // Column positions and widths - calculated to end at right margin
+        // 0.4cm gap between all columns (including between image and part name)
+        const gap = 4; // 0.4cm = 4mm gap between columns
+        
+        // Calculate available width for text columns (excluding image and gaps)
+        const imageEndX = imageX + imageWidth;
+        const availableWidth = contentRight - imageEndX - gap; // Space after image
+        
+        // Fixed column widths
+        const quantityWidth = 15; // Fixed quantity column width
+        const partNumberWidth = 25;
+        const partNameWidth = 37.5; // Increased by 25% from 30mm (30 * 1.25 = 37.5mm)
+        
+        // Calculate positions with proper gaps
+        const partNameX = imageEndX + gap; // Start after image with gap
+        const partNumberX = partNameX + partNameWidth + gap;
+        const quantityX = contentRight - quantityWidth; // Quantity ends at right margin
+        const productionStatusX = partNumberX + partNumberWidth + gap;
+        
+        // Production status gets remaining space (reduced due to part name increase)
+        const productionStatusWidth = quantityX - productionStatusX - gap;
+        
+        // Ensure production status width is valid (at least 15mm - reduced minimum)
+        const minProductionStatusWidth = 15;
+        const actualProductionStatusWidth = Math.max(productionStatusWidth, minProductionStatusWidth);
+        
+        // Verify no overlap: ensure production status doesn't exceed available space
+        if (productionStatusX + actualProductionStatusWidth + gap > quantityX) {
+          // Adjust production status width if needed
+          const adjustedProductionStatusWidth = quantityX - productionStatusX - gap;
+          if (adjustedProductionStatusWidth < minProductionStatusWidth) {
+            console.warn('Warning: Production status column may be too narrow');
+          }
+        }
+        
+        const lineHeight = 5; // Height per line of text
+        const maxLines = 4;
         
         // Image section
         let imageBase64 = null;
@@ -392,53 +596,182 @@ export default function Customers() {
         
         if (imageBase64) {
           try {
-            pdf.addImage(imageBase64, 'JPEG', 20, yPosition - 2, imageSize, imageSize);
+            await addRoundedImage(imageBase64, imageX, imageY, imageWidth, imageHeight, 3);
           } catch (error) {
             // Fallback to placeholder if image fails
             pdf.setFillColor(245, 245, 245);
-            pdf.roundedRect(20, yPosition - 2, imageSize, imageSize, 2, 2, 'F');
-            pdf.setFontSize(6);
+            pdf.roundedRect(imageX, imageY, imageWidth, imageHeight, 3, 3, 'F');
+            pdf.setFontSize(8);
             pdf.setTextColor(120, 120, 120);
-            pdf.text('IMG', 24, yPosition + 4);
+            const imgTextWidth = pdf.getTextWidth('IMG');
+            pdf.text('IMG', imageX + (imageWidth - imgTextWidth) / 2, imageY + imageHeight / 2);
           }
         } else {
           // Image placeholder with rounded appearance
           pdf.setFillColor(245, 245, 245);
-          pdf.roundedRect(20, yPosition - 2, imageSize, imageSize, 2, 2, 'F');
-          pdf.setFontSize(6);
+          pdf.roundedRect(imageX, imageY, imageWidth, imageHeight, 3, 3, 'F');
+          pdf.setFontSize(8);
           pdf.setTextColor(120, 120, 120);
-          pdf.text('IMG', 24, yPosition + 4);
+          const imgTextWidth = pdf.getTextWidth('IMG');
+          pdf.text('IMG', imageX + (imageWidth - imgTextWidth) / 2, imageY + imageHeight / 2);
         }
         
-        // Reset text formatting
+        // Set font BEFORE splitting text so width calculations are correct
         pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setFont(fontFamily, 'normal');
         
-        // Part name (Description)
+        // Calculate row height first to determine vertical centering
         const partName = item.name || '';
-        const maxNameLength = 30;
-        const displayName = partName.length > maxNameLength ? partName.substring(0, maxNameLength) + '...' : partName;
-        pdf.text(displayName, 40, yPosition + 5);
+        const partNameLines = splitTextIntoLines(partName, partNameWidth, maxLines);
+        const partNumber = item.part_number || '';
+        const partNumberLines = partNumber ? splitTextIntoLines(partNumber, partNumberWidth, maxLines) : [];
+        const status = item.production_status || '';
+        const statusLines = status ? splitTextIntoLines(status, actualProductionStatusWidth, maxLines) : [];
         
-        // Part number
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(item.part_number || 'N/A', 120, yPosition + 5);
+        const maxTextHeight = Math.max(
+          partNameLines.length * lineHeight,
+          partNumberLines.length * lineHeight,
+          statusLines.length * lineHeight
+        );
+        const contentHeight = Math.max(imageHeight, maxTextHeight);
+        const rowHeight = contentHeight + 2.4; // Add 2.4mm padding (reduced by 20% from 3mm)
         
-        // Production status
-        const status = item.production_status || 'N/A';
-        const maxStatusLength = 12;
-        const displayStatus = status.length > maxStatusLength ? status.substring(0, maxStatusLength) + '...' : status;
-        pdf.text(displayStatus, 150, yPosition + 5);
+        // Calculate vertical center for text (based on content height, not row height)
+        const textCenterY = yPosition + contentHeight / 2;
         
-        // Quantity
-        pdf.setFont('helvetica', 'bold');
-        const quantityText = item.quantity?.toString() || '0';
-        pdf.text(quantityText, 180, yPosition + 5);
+        // Part name (Description) - multi-line support, vertically centered
+        // Trust the initial split - don't re-split during rendering to avoid overlap
+        const partNameStartY = textCenterY - ((partNameLines.length - 1) * lineHeight) / 2;
+        partNameLines.forEach((line, idx) => {
+          // Render the line as-is (splitTextToSize already handled the width)
+          // If it's still too wide, truncate with ellipsis to prevent overlap
+          let displayLine = line;
+          const textWidth = pdf.getTextWidth(line);
+          if (textWidth > partNameWidth) {
+            // Truncate with ellipsis if still too wide
+            let truncated = line;
+            while (pdf.getTextWidth(truncated + '...') > partNameWidth && truncated.length > 0) {
+              truncated = truncated.slice(0, -1);
+            }
+            displayLine = truncated + '...';
+          }
+          pdf.text(displayLine, partNameX, partNameStartY + (idx * lineHeight));
+        });
+        
+        // Part number - multi-line support, vertically centered
+        // Only render if there's a value (leave blank if empty)
+        if (partNumberLines.length > 0) {
+          pdf.setFont(fontFamily, 'normal');
+          const partNumberStartY = textCenterY - ((partNumberLines.length - 1) * lineHeight) / 2;
+          partNumberLines.forEach((line, idx) => {
+            // Render the line as-is (splitTextToSize already handled the width)
+            // If it's still too wide, truncate with ellipsis to prevent overlap
+            let displayLine = line;
+            const textWidth = pdf.getTextWidth(line);
+            if (textWidth > partNumberWidth) {
+              // Truncate with ellipsis if still too wide
+              let truncated = line;
+              while (pdf.getTextWidth(truncated + '...') > partNumberWidth && truncated.length > 0) {
+                truncated = truncated.slice(0, -1);
+              }
+              displayLine = truncated + '...';
+            }
+            pdf.text(displayLine, partNumberX, partNumberStartY + (idx * lineHeight));
+          });
+        }
+        
+        // Production status - multi-line support, vertically centered
+        // Only render if there's a value (leave blank if empty)
+        if (statusLines.length > 0) {
+          const statusStartY = textCenterY - ((statusLines.length - 1) * lineHeight) / 2;
+          statusLines.forEach((line, idx) => {
+            // Render the line as-is (splitTextToSize already handled the width)
+            // If it's still too wide, truncate with ellipsis to prevent overlap
+            let displayLine = line;
+            const textWidth = pdf.getTextWidth(line);
+            if (textWidth > actualProductionStatusWidth) {
+              // Truncate with ellipsis if still too wide
+              let truncated = line;
+              while (pdf.getTextWidth(truncated + '...') > actualProductionStatusWidth && truncated.length > 0) {
+                truncated = truncated.slice(0, -1);
+              }
+              displayLine = truncated + '...';
+            }
+            
+            // Highlight only the text (not the whole cell) with light orange
+            const finalTextWidth = pdf.getTextWidth(displayLine);
+            const highlightHeight = lineHeight * 1; // Height of highlight (60% of line height)
+            const highlightY = statusStartY + (idx * lineHeight) - highlightHeight * 0.7; // Position highlight slightly below text baseline
+            
+            pdf.setFillColor(255, 251, 223); // Light orange color (peach/salmon)
+            pdf.roundedRect(productionStatusX, highlightY, finalTextWidth, highlightHeight, 1, 1, 'F');
+            
+            // Draw text on top of highlight
+            pdf.text(displayLine, productionStatusX, statusStartY + (idx * lineHeight));
+          });
+        }
+        
+        // Quantity - conditional styling based on minimum stock
+        const quantity = item.quantity || 0;
+        const minimumStock = item.minimum_stock || 0;
+        
+        if (quantity > 0) {
+          // Determine background color based on quantity vs minimum stock
+          let bgColor: [number, number, number];
+          if (quantity > minimumStock) {
+            // Green background for quantity > minimum stock
+            bgColor = [213, 255, 182]; // Light green
+          } else {
+            // Yellow-orange background for quantity <= minimum stock but > 0
+            bgColor = [255, 238, 182]; // Yellow-orange
+          }
+          
+          // Draw rounded rectangle background (use content height, not including bottom padding)
+          pdf.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
+          pdf.roundedRect(quantityX, yPosition, quantityWidth, contentHeight, 2, 2, 'F');
+          
+          // Get unit text with proper pluralization (default to "pcs" if not specified)
+          const baseUnit = item.unit || 'pcs';
+          const unit = pluralizeUnit(quantity, baseUnit);
+          
+          // Draw quantity text - font size 10.5pt, light weight
+          pdf.setFontSize(10.5);
+          pdf.setFont(fontFamily, 'normal'); // 'normal' is lighter than 'bold'
+          pdf.setTextColor(0, 0, 0); // Black text
+          const quantityText = quantity.toString();
+          const quantityTextWidth = pdf.getTextWidth(quantityText);
+          const quantityTextX = quantityX + (quantityWidth - quantityTextWidth) / 2;
+          
+          // Draw unit text below quantity - font size 6.3pt, light weight
+          pdf.setFontSize(6.3);
+          pdf.setFont(fontFamily, 'normal');
+          const unitTextWidth = pdf.getTextWidth(unit);
+          const unitTextX = quantityX + (quantityWidth - unitTextWidth) / 2;
+          
+          // Calculate vertical positions: quantity above center, unit below center
+          const lineSpacing = 2; // Space between quantity and unit
+          const quantityTextY = textCenterY - lineSpacing / 2;
+          const unitTextY = textCenterY + lineSpacing / 2 + 2; // Slight offset for better visual balance
+          
+          // Draw quantity value
+          pdf.setFontSize(10.5);
+          pdf.setFont(fontFamily, 'normal');
+          pdf.text(quantityText, quantityTextX, quantityTextY);
+          
+          // Draw unit below quantity
+          pdf.setFontSize(6.3);
+          pdf.setFont(fontFamily, 'normal');
+          pdf.text(unit, unitTextX, unitTextY);
+        }
+        // If quantity === 0, don't render anything (cell stays empty)
         
         yPosition += rowHeight;
         itemCount++;
       }
+      
+      // Add footer to the last page
+      addFooter(currentPage);
       
       // Save PDF
       const fileName = `Stock_Report_${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}_${formatDateForInput(new Date())}.pdf`;

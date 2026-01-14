@@ -1862,7 +1862,7 @@ ${cssVariables}
                   <NumericInput
                     value={newInvoice.packing}
                     onChange={(val) => setNewInvoice({
-                      ...newInvoice,
+                  ...newInvoice,
                       packing: val
                     })}
                     min={1}
@@ -1874,7 +1874,7 @@ ${cssVariables}
                   <NumericInput
                     value={newInvoice.taraWeight}
                     onChange={(val) => setNewInvoice({
-                      ...newInvoice,
+                  ...newInvoice,
                       taraWeight: val
                     })}
                     min={0}
