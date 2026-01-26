@@ -241,11 +241,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
         }
       } else if (field === 'quantity') {
         (item as any)[field] = value;
-        // Recalculate weight when quantity changes
-        const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
-        if (inventoryItem) {
-          item.weight = (inventoryItem.weight ?? 0) * value;
-        }
+        // Weight per piece remains constant, recalcTotals will multiply by quantity
       } else {
         (item as any)[field] = value;
       }
@@ -362,7 +358,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
       // Insert items
       const itemsData = formData.items.map(item => {
         const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
-        const itemWeight = inventoryItem?.weight ? (inventoryItem.weight * item.quantity) : (item.weight || 0);
+        const itemWeight = inventoryItem?.weight || item.weight || 0;
         return {
         order_confirmation_id: orderConfirmationId,
         inventory_id: item.inventoryId || null,
@@ -537,7 +533,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
             </div>
 
             {/* Headers */}
-            <div className="grid grid-cols-[1fr_80px_96px_96px_auto] gap-2 mb-2">
+            <div className="grid grid-cols-[280px_minmax(80px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_40px] gap-3 mb-2">
               <Label className="text-sm font-medium">Product</Label>
               <Label className="text-sm font-medium">Qty</Label>
               <Label className="text-sm font-medium">Unit Price</Label>
@@ -550,7 +546,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
               {formData.items.map((item, index) => {
                 const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
                 return (
-                  <div key={index} className="grid grid-cols-[1fr_80px_96px_96px_auto] gap-2 items-center">
+                  <div key={index} className="grid grid-cols-[280px_minmax(80px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_40px] gap-3 items-start">
                     <Popover
                       open={productSearchOpen[index] || false}
                       onOpenChange={(open) => setProductSearchOpen(prev => ({ ...prev, [index]: open }))}
@@ -559,10 +555,10 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
                         <Button
                           variant="outline"
                           role="combobox"
-                          className="w-full justify-between text-left font-normal"
+                          className="w-full justify-between text-left font-normal h-auto min-h-[40px] py-2 whitespace-normal"
                         >
                           {inventoryItem ? (
-                            <span>
+                            <span className="flex-1 break-words pr-2">
                               {inventoryItem.name || inventoryItem.part_name}
                               {inventoryItem.part_number && (
                                 <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
@@ -601,15 +597,16 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
                                       setProductSearchOpen(prev => ({ ...prev, [index]: false }));
                                       setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
                                     }}
+                                    className="items-start py-2"
                                   >
                                     <Check
                                       className={cn(
-                                        "mr-2 h-4 w-4",
+                                        "mr-2 h-4 w-4 mt-1 shrink-0",
                                         item.inventoryId === inv.id ? "opacity-100" : "opacity-0"
                                       )}
                                     />
-                                    <div className="flex flex-col">
-                                      <span>{inv.name || inv.part_name}</span>
+                                    <div className="flex flex-col flex-1 min-w-0">
+                                      <span className="break-words">{inv.name || inv.part_name}</span>
                                       {inv.part_number && (
                                         <span className="text-xs text-muted-foreground">Part #: {inv.part_number}</span>
                                       )}
@@ -622,24 +619,19 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
                       </PopoverContent>
                     </Popover>
 
-                    <div className="w-40">
-                      <NumericInput
+                    <NumericInput
                       value={item.quantity}
-                        onChange={(val) => updateItem(index, 'quantity', val)}
-                        min={1}
+                      onChange={(val) => updateItem(index, 'quantity', val)}
+                      min={1}
                     />
-                  </div>
 
-                    <div className="w-40">
-                      <NumericInput
+                    <NumericInput
                       value={item.unitPrice}
-                        onChange={(val) => updateItem(index, 'unitPrice', val)}
-                        min={0}
-                        step={0.01}
+                      onChange={(val) => updateItem(index, 'unitPrice', val)}
+                      min={0}
+                      step={0.01}
                     />
-                  </div>
 
-                  <div className="w-24">
                     <Input
                       type="number"
                       step="0.01"
@@ -647,15 +639,14 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
                       readOnly
                       className="bg-muted"
                     />
-                  </div>
 
                   <Button
                     type="button"
-                    variant="outline"
-                    size="sm"
+                    variant="ghost"
+                    size="icon"
                     onClick={() => removeItem(index)}
                     disabled={formData.items.length === 1}
-                      className="h-10"
+                    className="h-10 w-10 text-red-500 hover:text-red-600 hover:bg-red-50"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

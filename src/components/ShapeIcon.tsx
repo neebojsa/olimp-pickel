@@ -6,315 +6,298 @@ interface ShapeIconProps {
   className?: string
 }
 
-export function ShapeIcon({
-  shape,
-  size = 72,
-  className = "",
-}: ShapeIconProps) {
-  // Center the 100x100 graphic in the 120x120 viewbox
+/**
+ * 6-layer icons with simple "perspective":
+ * - each layer is translated + scaled slightly
+ * - back layers are fainter
+ * - front layer can be filled (for "solid" shapes)
+ *
+ * Color controlled via CSS (currentColor).
+ */
+export function ShapeIcon({ shape, size = 72, className = "" }: ShapeIconProps) {
+  const s = shape.toLowerCase()
+
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 120 120"
+      viewBox="0 0 100 100"
       className={className}
-      fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      aria-label={shape}
+      role="img"
     >
-      <g transform="translate(10, 10)">
-        {renderShape(shape.toLowerCase())}
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {renderShape(s)}
       </g>
     </svg>
   )
 }
 
-function renderShape(s: string) {
-  if (s.includes("round bar")) return roundBar()
-  if (s.includes("round tube")) return roundTube()
+/* ──────────────────────────────
+   GLOBAL LAYER SETTINGS
+────────────────────────────── */
 
-  if (s.includes("square bar")) return squareBar()
-  if (s.includes("square tube")) return squareTube()
+const LAYERS = 4
 
-  if (s.includes("rectangular bar")) return rectBar()
-  if (s.includes("rectangular tube")) return rectTube()
+// BEFORE
+// const DX = -2
+// const DY = 2
 
-  if (s.includes("hex")) return hexBar()
+// AFTER – doubled layer spacing
+const DX = -4
+const DY = 4
 
-  if (s.includes("sheet") || s.includes("plate")) return sheet()
+// keep this as-is
+const SCALE_STEP = 0.03
 
-  if (s.includes("angle")) return angle()
+function layerTransform(depth: number) {
+  const s = 1 - depth * SCALE_STEP
+  const tx = depth * DX
+  const ty = depth * DY
 
-  if (s.includes("upn") || s.includes("channel")) return channel()
+  // scale around center (50,50) + translate
+  return `translate(${tx} ${ty}) translate(50 50) scale(${s}) translate(-50 -50)`
+}
 
-  if (
-    s.includes("beam") ||
-    s.includes("hea") ||
-    s.includes("heb") ||
-    s.includes("ipe")
-  ) {
-    return beam()
+function layerStrokeOpacity(depth: number) {
+  // depth 0 = front (1.0), depth max = back (~0.25)
+  const max = LAYERS - 1
+  const t = max === 0 ? 0 : depth / max
+  return 1 - t * 0.75
+}
+
+function Layers({
+  children,
+}: {
+  children: (opts: { depth: number; isFront: boolean; opacity: number; transform: string }) => React.ReactNode
+}) {
+  // Draw back -> front so front is on top
+  const items: React.ReactNode[] = []
+  for (let depth = LAYERS - 1; depth >= 0; depth--) {
+    const isFront = depth === 0
+    const opacity = layerStrokeOpacity(depth)
+    const transform = layerTransform(depth)
+    items.push(children({ depth, isFront, opacity, transform }))
   }
-
-  // Fallback to square bar if unknown
-  return squareBar()
+  return <>{items}</>
 }
 
 /* ──────────────────────────────
-   COLOR PALETTES (Based on Image)
+   SHAPE ROUTER
 ────────────────────────────── */
 
-const PALETTE_TEAL = { top: "#70CDE3", front: "#25A8C8", side: "#0081A1", inner: "#006F8A" } // Channel
-const PALETTE_GREY = { top: "#E0E4E5", front: "#B0B8B9", side: "#909899", inner: "#757D7E" } // Angle
-const PALETTE_BLUE = { top: "#CDE8F5", front: "#8ACDF0", side: "#5FAED6", inner: "#4889AB" } // Sq Tube / Rect Tube
-const PALETTE_BEIGE= { top: "#EBE3DE", front: "#CBB6AE", side: "#A8928A", inner: "#8F7A72" } // Sq Bar / Rect Bar
-const PALETTE_RED  = { top: "#E8A6B6", front: "#CC7A8E", side: "#A85366", inner: "#8C4050" } // Beam
-const PALETTE_ORNG = { top: "#F9D6AC", front: "#F4B575", side: "#D99352", inner: "#BF7A3F" } // Round Bar
-const PALETTE_CYAN_GRY = { top: "#CFE3EA", front: "#9BC5D4", side: "#729BAD", inner: "#567A8C" } // Round Tube
-const PALETTE_GREEN= { top: "#C6DDB8", front: "#9CC484", side: "#7AA362", inner: "#60854B" } // Hex
-const PALETTE_BROWN= { top: "#8D786B", front: "#756054", side: "#5E4B41" } // Sheet
+function renderShape(s: string) {
+  if (s.includes("round bar")) return <RoundBar />
+  if (s.includes("round tube")) return <RoundTube />
+
+  if (s.includes("square bar")) return <SquareBar />
+  if (s.includes("square tube")) return <SquareTube />
+
+  if (s.includes("rectangular bar")) return <RectangularBar />
+  if (s.includes("rectangular tube")) return <RectangularTube />
+
+  if (s.includes("hex")) return <HexBar />
+
+  if (s.includes("sheet") || s.includes("plate")) return <Sheet />
+
+  if (s.includes("angle")) return <Angle />
+
+  if (s.includes("upn") || s.includes("channel")) return <Channel />
+
+  if (s.includes("beam") || s.includes("hea") || s.includes("heb") || s.includes("ipe")) return <Beam />
+
+  return <SquareBar />
+}
 
 /* ──────────────────────────────
-   SHAPE RENDERERS
-   (Isometric: Extruding Front-Left to Back-Right)
+   ICONS (now all 6-layer)
 ────────────────────────────── */
 
-function squareBar() {
-  const c = PALETTE_BEIGE
+function RoundBar() {
   return (
-    <>
-      {/* Front Face */}
-      <path d="M10 40 L40 40 L40 85 L10 85 Z" fill={c.front} />
-      {/* Top Face */}
-      <path d="M10 40 L40 40 L90 10 L60 10 Z" fill={c.top} />
-      {/* Side Face */}
-      <path d="M40 40 L90 10 L90 55 L40 85 Z" fill={c.side} />
-    </>
+    <Layers>
+      {({ isFront, opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <circle
+            cx="44"
+            cy="56"
+            r="16"
+            fill={isFront ? "currentColor" : "none"}
+            stroke="currentColor"
+          />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function squareTube() {
-  const c = PALETTE_BLUE
+function RoundTube() {
   return (
-    <>
-      {/* Inner Bottom/Side visible through hole */}
-      <path d="M20 80 L35 72 L75 48 L20 48 Z" fill={c.inner} /> 
-      
-      {/* Front Face (Hollow Frame) */}
-      <path 
-        d="M10 40 L50 40 L50 80 L10 80 L10 40 Z M20 50 L20 70 L40 70 L40 50 L20 50 Z" 
-        fill={c.front} 
-        fillRule="evenodd"
-      />
-      {/* Top Face */}
-      <path d="M10 40 L50 40 L90 10 L50 10 Z" fill={c.top} />
-      {/* Side Face */}
-      <path d="M50 40 L90 10 L90 50 L50 80 Z" fill={c.side} />
-    </>
+    <Layers>
+      {({ opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <circle cx="44" cy="56" r="16" />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function rectBar() {
-  const c = PALETTE_BEIGE
+function SquareBar() {
   return (
-    <>
-      <path d="M10 50 L30 50 L30 90 L10 90 Z" fill={c.front} />
-      <path d="M10 50 L30 50 L90 15 L70 15 Z" fill={c.top} />
-      <path d="M30 50 L90 15 L90 55 L30 90 Z" fill={c.side} />
-    </>
+    <Layers>
+      {({ isFront, opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <rect
+            x="26"
+            y="40"
+            width="32"
+            height="32"
+            rx="6"
+            fill={isFront ? "currentColor" : "none"}
+            stroke="currentColor"
+          />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function rectTube() {
-  const c = PALETTE_BLUE
+function SquareTube() {
   return (
-    <>
-      {/* Inner */}
-      <path d="M18 80 L25 75 L75 45 L18 45 Z" fill={c.inner} />
-      
-      {/* Front Frame */}
-      <path 
-        d="M10 45 L40 45 L40 90 L10 90 L10 45 Z M18 53 L18 82 L32 82 L32 53 L18 53 Z" 
-        fill={c.front} 
-        fillRule="evenodd" 
-      />
-      {/* Top */}
-      <path d="M10 45 L40 45 L90 15 L60 15 Z" fill={c.top} />
-      {/* Side */}
-      <path d="M40 45 L90 15 L90 60 L40 90 Z" fill={c.side} />
-    </>
+    <Layers>
+      {({ opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <rect x="26" y="40" width="32" height="32" rx="6" />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function roundBar() {
-  const c = PALETTE_ORNG
+function RectangularTube() {
   return (
-    <>
-      {/* Cylinder Body */}
-      <path d="M42 22 L82 22 L82 72 L42 72 Z" transform="rotate(-30 62 47)" fill={c.top} />
-      {/* This is a visual trick for iso cylinder side */}
-      <path d="M22 68 Q 35 88 58 78 L 98 44 Q 85 24 62 34 Z" fill={c.side} /> 
-      
-      {/* Front Face (Circle) */}
-      <ellipse cx="40" cy="70" rx="20" ry="12" transform="rotate(-30 40 70)" fill={c.front} />
-      {/* Top Cap (Circle) */}
-      <ellipse cx="80" cy="36" rx="20" ry="12" transform="rotate(-30 80 36)" fill={c.top} />
-    </>
+    <Layers>
+      {({ opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <rect x="22" y="40" width="60" height="30" rx="6" />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function roundTube() {
-  const c = PALETTE_CYAN_GRY
+function RectangularBar() {
   return (
-    <>
-      {/* Outer Body */}
-      <path d="M22 68 Q 35 88 58 78 L 98 44 Q 85 24 62 34 Z" fill={c.side} />
-      {/* Top Cap (Outer) */}
-      <ellipse cx="80" cy="36" rx="20" ry="12" transform="rotate(-30 80 36)" fill={c.top} />
-      
-      {/* Front Face (Ring) */}
-      <path 
-        d="M40 70 L40 70" 
-        stroke={c.front} 
-        strokeWidth="15" // Thick stroke to simulate ring thickness
-        strokeLinecap="round"
-      />
-      <ellipse cx="40" cy="70" rx="20" ry="12" transform="rotate(-30 40 70)" fill={c.front} />
-      
-      {/* Inner Hole */}
-      <ellipse cx="40" cy="70" rx="10" ry="6" transform="rotate(-30 40 70)" fill={c.inner} />
-    </>
+    <Layers>
+      {({ isFront, opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <rect
+            x="22"
+            y="40"
+            width="60"
+            height="30"
+            rx="6"
+            fill={isFront ? "currentColor" : "none"}
+            stroke="currentColor"
+          />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function hexBar() {
-  const c = PALETTE_GREEN
+function HexBar() {
+  const pts = "42 38 58 48 58 68 42 78 26 68 26 48"
   return (
-    <>
-      {/* Body Faces */}
-      {/* Top Right */}
-      <path d="M45 35 L75 35 L105 15 L75 15 Z" fill={c.top} />
-      {/* Side Right */}
-      <path d="M75 35 L105 15 L105 50 L75 70 Z" fill={c.side} />
-      {/* Bottom Right */}
-      <path d="M45 90 L75 70 L105 50 L75 70 Z" fill={c.inner} />
-
-      {/* Front Hexagon */}
-      <path 
-        d="M15 62 L15 42 L30 32 L45 42 L45 62 L30 72 Z" 
-        transform="translate(0, 5) scale(1.3)"
-        fill={c.front} 
-      />
-      
-      {/* Connecting Extrusions manually to fit the front hex scale */}
-      <path d="M39 46 L75 15 L95 15 L58 46 Z" fill={c.top} />
-      <path d="M58 46 L95 15 L95 45 L58 72 Z" fill={c.side} />
-      
-    </>
+    <Layers>
+      {({ isFront, opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <polygon
+            points={pts}
+            fill={isFront ? "currentColor" : "none"}
+            stroke="currentColor"
+          />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function sheet() {
-  const c = PALETTE_BROWN
-  // Stack of 3 sheets
+function Sheet() {
+  // Keep your "thin plates" feel but make it 6 layers with perspective
   return (
-    <>
-      {/* Sheet 3 (Bottom) */}
-      <g transform="translate(10, 10)">
-        <path d="M10 70 L60 70 L90 55 L40 55 Z" fill={c.top} />
-        <path d="M10 70 L60 70 L60 72 L10 72 Z" fill={c.front} />
-        <path d="M60 70 L90 55 L90 57 L60 72 Z" fill={c.side} />
-      </g>
-      {/* Sheet 2 (Middle) */}
-      <g transform="translate(5, 5)">
-        <path d="M10 70 L60 70 L90 55 L40 55 Z" fill={c.top} opacity="0.9"/>
-        <path d="M10 70 L60 70 L60 72 L10 72 Z" fill={c.front} />
-        <path d="M60 70 L90 55 L90 57 L60 72 Z" fill={c.side} />
-      </g>
-      {/* Sheet 1 (Top) */}
-      <g>
-        <path d="M10 70 L60 70 L90 55 L40 55 Z" fill="#A4877C" />
-        <path d="M10 70 L60 70 L60 72 L10 72 Z" fill="#8D6E63" />
-        <path d="M60 70 L90 55 L90 57 L60 72 Z" fill="#5D4037" />
-      </g>
-    </>
+    <Layers>
+      {({ opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <rect x="14" y="52" width="58" height="22" rx="6" />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function angle() {
-  const c = PALETTE_GREY
+function Angle() {
+  // Two-line uppercase "L" shape, now layered with perspective
+  const d = "M30 42 V78 H54"
   return (
-    <>
-      {/* Inner Side (The inside of the L) */}
-      <path d="M25 55 L25 80 L75 50 L75 25 Z" fill={c.inner} />
-      <path d="M25 55 L55 55 L95 30 L75 25 Z" fill={c.inner} />
-
-      {/* Top Face */}
-      <path d="M10 40 L25 40 L75 10 L60 10 Z" fill={c.top} />
-      
-      {/* Front Face (L Shape) */}
-      <path d="M10 40 L25 40 L25 85 L55 85 L55 100 L10 100 Z" fill={c.front} />
-      
-      {/* Side Face (Bottom leg side) */}
-      <path d="M55 85 L95 55 L95 70 L55 100 Z" fill={c.side} />
-      {/* Side Face (Top leg back) */}
-      <path d="M25 40 L75 10 L75 25 L25 55 Z" fill={c.side} opacity="0.6" />
-    </>
+    <Layers>
+      {({ opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <path d={d} />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function channel() {
-  const c = PALETTE_TEAL
-  return (
-    <>
-      {/* UPN Geometry */}
-      
-      {/* Inner Bottom */}
-      <path d="M25 80 L45 80 L95 50 L75 50 Z" fill={c.inner} />
-      {/* Inner Left Wall */}
-      <path d="M25 45 L25 80 L75 50 L75 15 Z" fill={c.side} />
+function Channel() {
+  // base:sides = 2:1 (same geometry you approved), now layered
+  const side = "M28 42 V66"
+  const right = "M76 66 V42"
+  const base = "M28 66 H76"
 
-      {/* Top Left Leg */}
-      <path d="M10 45 L25 45 L75 15 L60 15 Z" fill={c.top} />
-      {/* Top Right Leg */}
-      <path d="M45 45 L60 45 L110 15 L95 15 Z" fill={c.top} />
-      
-      {/* Front Face (U Shape) */}
-      <path d="M10 45 L25 45 L25 80 L45 80 L45 45 L60 45 L60 95 L10 95 Z" fill={c.front} />
-      
-      {/* Side Face (Right Outer) */}
-      <path d="M60 45 L110 15 L110 65 L60 95 Z" fill={c.side} />
-    </>
+  return (
+    <Layers>
+      {({ opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          <path d={side} />
+          <path d={right} />
+          <path d={base} />
+        </g>
+      )}
+    </Layers>
   )
 }
 
-function beam() {
-  const c = PALETTE_RED
+function Beam() {
+  // Slimmer beam front (filled), with lighter outline layers behind
+  const outlineD = "M30 34 H70 M50 34 V74 M30 74 H70"
+
   return (
-    <>
-      {/* HEA/IPE Geometry */}
-      
-      {/* Top Flange Surface */}
-      <path d="M10 40 L50 40 L100 10 L60 10 Z" fill={c.top} />
-      
-      {/* Web Side (Right side of the web) */}
-      <path d="M35 50 L40 50 L90 20 L85 20 Z" fill={c.inner} />
-      
-      {/* Bottom Flange Top Surface (Visible part) */}
-      <path d="M10 80 L25 80 L75 50 L60 50 Z" fill={c.inner} />
-      <path d="M35 80 L50 80 L100 50 L85 50 Z" fill={c.inner} />
-      
-      {/* Front Face (I Shape) */}
-      <path 
-        d="M10 40 L50 40 L50 50 L35 50 L35 80 L50 80 L50 90 L10 90 L10 80 L25 80 L25 50 L10 50 Z" 
-        fill={c.front} 
-      />
-      
-      {/* Side Face (Right edges) */}
-      <path d="M50 40 L100 10 L100 20 L50 50 Z" fill={c.side} />
-      <path d="M50 80 L100 50 L100 60 L50 90 Z" fill={c.side} />
-      
-      {/* Web Side (Extruded) */}
-      <path d="M35 50 L85 20 L85 50 L35 80 Z" fill={c.side} opacity="0.8"/>
-    </>
+    <Layers>
+      {({ isFront, opacity, transform }) => (
+        <g transform={transform} strokeOpacity={opacity}>
+          {!isFront ? (
+            // Back layers: simple outline (lighter)
+            <path d={outlineD} />
+          ) : (
+            // Front layer: slim filled beam
+            <g fill="currentColor" stroke="currentColor">
+              <rect x="24" y="44" width="40" height="6" rx="2" />
+              <rect x="47" y="50" width="4" height="20" rx="2" />
+              <rect x="24" y="70" width="40" height="6" rx="2" />
+            </g>
+          )}
+        </g>
+      )}
+    </Layers>
   )
 }

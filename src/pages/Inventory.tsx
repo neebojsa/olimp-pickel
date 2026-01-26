@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle, Minus } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle, Minus, ShoppingCart } from "lucide-react";
+import { ShapeIcon } from "@/components/ShapeIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,10 +26,15 @@ import { ToolManagementDialog } from "@/components/ToolManagementDialog";
 import { ToolCategorySelector } from "@/components/ToolCategorySelector";
 import { MaterialManagementDialog } from "@/components/MaterialManagementDialog";
 import { NumericInput } from "@/components/NumericInput";
+import { DragDropImageUpload } from "@/components/DragDropImageUpload";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { MaterialAdjustmentDialog } from "@/components/MaterialAdjustmentDialog";
+import { MaterialHistoryDialog } from "@/components/MaterialHistoryDialog";
+import { MaterialReorderDialog } from "@/components/MaterialReorderDialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 export default function Inventory() {
   const {
     toast
@@ -91,15 +97,27 @@ export default function Inventory() {
   const [toolsList, setToolsList] = useState<any[]>([]);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedViewItem, setSelectedViewItem] = useState<any>(null);
+  const [materialViewAdditions, setMaterialViewAdditions] = useState<any[]>([]);
+  const [editingLocationForAddition, setEditingLocationForAddition] = useState<string | null>(null);
+  const [newLocationValue, setNewLocationValue] = useState<string>('');
+  const [materialProfile, setMaterialProfile] = useState<any>(null);
   const [materialData, setMaterialData] = useState<MaterialData | null>(null);
   const [isProductionStatusDialogOpen, setIsProductionStatusDialogOpen] = useState(false);
   const [selectedItemForProductionStatus, setSelectedItemForProductionStatus] = useState<any>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isToolManagementDialogOpen, setIsToolManagementDialogOpen] = useState(false);
   const [isMaterialManagementDialogOpen, setIsMaterialManagementDialogOpen] = useState(false);
+  const [isMaterialAdjustmentDialogOpen, setIsMaterialAdjustmentDialogOpen] = useState(false);
+  const [selectedMaterialForAdjustment, setSelectedMaterialForAdjustment] = useState<any>(null);
+  const [isMaterialHistoryDialogOpen, setIsMaterialHistoryDialogOpen] = useState(false);
+  const [selectedMaterialForHistory, setSelectedMaterialForHistory] = useState<any>(null);
+  const [isMaterialReorderDialogOpen, setIsMaterialReorderDialogOpen] = useState(false);
+  const [selectedMaterialForReorder, setSelectedMaterialForReorder] = useState<any>(null);
+  const [materialReorders, setMaterialReorders] = useState<{ [key: string]: any }>({});
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("");
   const [showOnlyWithProductionStatus, setShowOnlyWithProductionStatus] = useState(false);
+  const [materialStockQuantities, setMaterialStockQuantities] = useState<{ [key: string]: number }>({});
   const [toolCategorySelection, setToolCategorySelection] = useState<{
     categoryPath: string[];
     categoryId: string;
@@ -114,6 +132,56 @@ export default function Inventory() {
     fetchStaff();
     fetchMaterialsAndTools();
   }, []);
+  const fetchMaterialStockQuantities = async () => {
+    // Fetch all material adjustments
+    const { data: adjustments } = await supabase
+      .from('material_adjustments' as any)
+      .select('inventory_id, adjustment_type, length_mm, quantity_pieces');
+    
+    if (adjustments) {
+      // Calculate total stock for each material
+      const stockByMaterial: { [key: string]: number } = {};
+      
+      (adjustments as any[]).forEach((adj: any) => {
+        const totalMm = adj.length_mm * adj.quantity_pieces;
+        if (!stockByMaterial[adj.inventory_id]) {
+          stockByMaterial[adj.inventory_id] = 0;
+        }
+        
+        if (adj.adjustment_type === 'add') {
+          stockByMaterial[adj.inventory_id] += totalMm;
+        } else if (adj.adjustment_type === 'subtract') {
+          stockByMaterial[adj.inventory_id] -= totalMm;
+        }
+      });
+      
+      setMaterialStockQuantities(stockByMaterial);
+    }
+  };
+
+  const fetchMaterialReorders = async () => {
+    // Fetch all pending reorders
+    const { data: reorders } = await supabase
+      .from('material_reorders' as any)
+      .select('id, inventory_id, length_mm, notes, status')
+      .eq('status', 'pending');
+    
+    if (reorders) {
+      const reordersByMaterial: { [key: string]: any } = {};
+      (reorders as any[]).forEach((reorder: any) => {
+        reordersByMaterial[reorder.inventory_id] = reorder;
+      });
+      setMaterialReorders(reordersByMaterial);
+    }
+  };
+
+  // Fetch material additions when view dialog opens for a material
+  useEffect(() => {
+    if (isViewDialogOpen && selectedViewItem?.category === "Materials" && selectedViewItem?.id) {
+      fetchMaterialViewAdditions(selectedViewItem.id);
+    }
+  }, [isViewDialogOpen, selectedViewItem?.id]);
+
   const fetchInventoryItems = async () => {
     const {
       data
@@ -130,6 +198,11 @@ export default function Inventory() {
         image: item.photo_url || null
       }));
       setInventoryItems(formattedItems);
+      
+      // Fetch material stock quantities for materials
+      await fetchMaterialStockQuantities();
+      // Fetch material reorders
+      await fetchMaterialReorders();
     }
   };
   const fetchSuppliers = async () => {
@@ -280,7 +353,7 @@ export default function Inventory() {
   const handleSaveItem = async () => {
     // For materials, validate material data instead of name
     if (currentCategory === "Materials") {
-      if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material || !formData.quantity || !formData.unit_price) {
+      if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material) {
         toast({
           title: "Validation Error",
           description: "Please fill in all required material fields.",
@@ -329,8 +402,8 @@ export default function Inventory() {
       part_number: formData.part_number,
       name: itemName,
       description: formData.description || null,
-      quantity: parseInt(formData.quantity),
-      unit_price: parseFloat(formData.unit_price),
+      quantity: currentCategory === "Materials" ? 0 : parseInt(formData.quantity),
+      unit_price: currentCategory === "Materials" ? 0 : parseFloat(formData.unit_price),
       currency: formData.currency,
       unit: formData.unit,
       weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : 0,
@@ -457,6 +530,7 @@ export default function Inventory() {
     // For materials, parse the structured data from materials_used
     if (item?.category === "Materials" && item.materials_used) {
       const materialInfo = item.materials_used;
+      // Don't set generatedName - let MaterialForm regenerate it with new format
       setMaterialData({
         surfaceFinish: materialInfo.surfaceFinish || "",
         shape: materialInfo.shape || "",
@@ -466,7 +540,7 @@ export default function Inventory() {
         dimensions: materialInfo.dimensions || {},
         profileId: materialInfo.profileId,
         profileDesignation: materialInfo.profileDesignation,
-        generatedName: item.name,
+        generatedName: "", // Will be regenerated by MaterialForm
         priceUnit: materialInfo.priceUnit || "per_meter",
         supplier: materialInfo.supplier,
         supplierId: materialInfo.supplierId,
@@ -721,15 +795,7 @@ export default function Inventory() {
     };
     return colors[material] || 'hsl(var(--muted-foreground))';
   };
-  const getMaterialShapeIcon = (shape: string) => {
-    if (shape?.includes("Round")) return Circle;
-    if (shape?.includes("Square")) return Square;
-    if (shape?.includes("Hex")) return Hexagon;
-    if (shape?.includes("Rectangular")) return Square;
-    if (shape?.includes("tube")) return Cylinder;
-    if (shape?.includes("Sheet")) return Square;
-    return Circle;
-  };
+  // Removed getMaterialShapeIcon - now using ShapeIcon component directly
   const calculateMaterialWeight = (materialInfo: any) => {
     if (!materialInfo?.material || !materialInfo?.dimensions) return 0;
 
@@ -952,6 +1018,295 @@ export default function Inventory() {
       });
     }
   };
+
+  const handleCancelReorder = async (inventoryId: string) => {
+    try {
+      const { error } = await supabase
+        .from('material_reorders' as any)
+        .update({ 
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString()
+        })
+        .eq('inventory_id', inventoryId)
+        .eq('status', 'pending');
+        
+      if (error) throw error;
+      
+      // Update local state
+      const updatedReorders = { ...materialReorders };
+      delete updatedReorders[inventoryId];
+      setMaterialReorders(updatedReorders);
+      
+      toast({
+        title: "Reorder Cancelled",
+        description: "Reorder has been cancelled successfully."
+      });
+    } catch (error) {
+      console.error('Error cancelling reorder:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel reorder.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const formatMaterialNameWithUnit = (name: string): string => {
+    // Extract dimension numbers and add "mm" unit
+    // Pattern: "C45 - 80 - Round bar - Cold Drawn" -> "C45 - 80 mm - Round bar - Cold Drawn"
+    // Or: "C45 - 80x3000L - Round bar - Cold Drawn" -> "C45 - 80mmx3000L - Round bar - Cold Drawn"
+    // Split by " - " to get parts
+    const parts = name.split(' - ');
+    if (parts.length < 2) return name; // If format is unexpected, return as is
+    
+    // The dimension part is usually the second part (index 1)
+    let dimensionPart = parts[1];
+    
+    // If already contains 'mm', return as is
+    if (dimensionPart.includes('mm')) {
+      return name;
+    }
+    
+    // Replace numbers with "number mm" or "numbermm" if followed by 'x' or 'L'
+    // Match numbers that are standalone (not part of a larger number)
+    dimensionPart = dimensionPart.replace(/(\d+)(?=\s*-|\s*$|(?=\s*x)|(?=\s*L))/g, (match, num, offset, string) => {
+      const afterMatch = string.substring(offset + match.length);
+      // If followed by 'x' or 'L', add 'mm' without space
+      if (afterMatch.trim().startsWith('x') || afterMatch.trim().startsWith('L')) {
+        return `${match}mm`;
+      }
+      // Otherwise add ' mm' with space
+      return `${match} mm`;
+    });
+    
+    parts[1] = dimensionPart;
+    return parts.join(' - ');
+  };
+
+  const calculateKgPerMeter = (materialInfo: any): number => {
+    if (!materialInfo) return 0;
+    
+    // For profile-based shapes, check if kg_per_meter is stored in dimensions
+    if (materialInfo.calculationType === 'profile_table') {
+      if (materialInfo.dimensions?.kg_per_meter) {
+        return parseFloat(materialInfo.dimensions.kg_per_meter) || 0;
+      }
+      // If not in dimensions, we'll fetch from profile table separately
+      return 0;
+    }
+    
+    // For simple formula shapes, calculate using geometric formulas + density
+    // Material densities (kg/m³)
+    const densities: { [key: string]: number } = {
+      's355': 7850,
+      's235': 7850,
+      'C45': 7850,
+      'C60': 7850,
+      '42CrMo4': 7850,
+      '16MnCr5': 7850,
+      // Tool steel
+      '1.4305': 8000,
+      '1.4301': 8000 // Stainless steel
+    };
+    
+    const materialGrade = (materialInfo.material || '').toString().toLowerCase();
+    const density = densities[materialGrade] || 7850;
+    const dims = materialInfo.dimensions || {};
+    let crossSectionalArea = 0; // in m²
+    
+    // Convert mm to m and calculate cross-sectional area (for 1 meter length)
+    const toMeters = (mm: any) => (parseFloat(mm) || 0) / 1000;
+    
+    switch (materialInfo.shape) {
+      case "Round bar":
+        if (dims.diameter) {
+          const r = toMeters(dims.diameter) / 2;
+          crossSectionalArea = Math.PI * r * r;
+        }
+        break;
+      case "Square bar":
+        if (dims.side) {
+          const side = toMeters(dims.side);
+          crossSectionalArea = side * side;
+        }
+        break;
+      case "Rectangular bar":
+        if (dims.width && dims.height) {
+          crossSectionalArea = toMeters(dims.width) * toMeters(dims.height);
+        }
+        break;
+      case "Hex bar":
+        if (dims.diameter) {
+          // Hex bar: area = (3 * sqrt(3) / 2) * a² where a is across flats / 2
+          const a = toMeters(dims.diameter) / 2;
+          crossSectionalArea = (3 * Math.sqrt(3) / 2) * a * a;
+        }
+        break;
+      case "Round tube":
+        if (dims.outerDiameter && dims.wallThickness) {
+          const outerR = toMeters(dims.outerDiameter) / 2;
+          const innerR = outerR - toMeters(dims.wallThickness);
+          crossSectionalArea = Math.PI * (outerR * outerR - innerR * innerR);
+        }
+        break;
+      case "Square tube":
+        if (dims.side && dims.wallThickness) {
+          const outer = toMeters(dims.side);
+          const inner = outer - 2 * toMeters(dims.wallThickness);
+          crossSectionalArea = outer * outer - inner * inner;
+        }
+        break;
+      case "Rectangular tube":
+        if (dims.width && dims.height && dims.wallThickness) {
+          const outerW = toMeters(dims.width);
+          const outerH = toMeters(dims.height);
+          const innerW = outerW - 2 * toMeters(dims.wallThickness);
+          const innerH = outerH - 2 * toMeters(dims.wallThickness);
+          crossSectionalArea = outerW * outerH - innerW * innerH;
+        }
+        break;
+    }
+    
+    // kg_per_meter = cross-sectional area (m²) × density (kg/m³) × 1 meter
+    return crossSectionalArea * density;
+  };
+
+  const fetchMaterialViewAdditions = async (inventoryId: string) => {
+    try {
+      // Fetch full material data including materials_used for weight calculation
+      const { data: materialData, error: materialError } = await supabase
+        .from('inventory')
+        .select('materials_used')
+        .eq('id', inventoryId)
+        .single() as any;
+      
+      if (!materialError && materialData) {
+        let kgPerMeter = 0;
+        
+        // First, try to calculate from materials_used (works for both profile and simple formula)
+        if (materialData.materials_used) {
+          kgPerMeter = calculateKgPerMeter(materialData.materials_used);
+        }
+        
+        // If calculation returned 0 and materials_used has profileId, fetch from database
+        const materialsUsed = materialData.materials_used as any;
+        if (kgPerMeter === 0 && materialsUsed?.profileId) {
+          const { data: profile, error: profileError } = await supabase
+            .from('standardized_profiles' as any)
+            .select('kg_per_meter')
+            .eq('id', materialsUsed.profileId)
+            .single() as any;
+          
+          if (!profileError && profile?.kg_per_meter) {
+            kgPerMeter = profile.kg_per_meter;
+          }
+        }
+        
+        // Set the profile if we have a valid kg_per_meter
+        if (kgPerMeter > 0) {
+          setMaterialProfile({ kg_per_meter: kgPerMeter });
+        }
+      }
+
+      // Fetch all additions
+      const { data: additions, error: additionsError } = await supabase
+        .from('material_adjustments' as any)
+        .select('*')
+        .eq('inventory_id', inventoryId)
+        .eq('adjustment_type', 'add')
+        .order('created_at', { ascending: true });
+
+      if (additionsError) throw additionsError;
+
+      // Fetch all subtractions
+      const { data: subtractions, error: subtractionsError } = await supabase
+        .from('material_adjustments' as any)
+        .select('*')
+        .eq('inventory_id', inventoryId)
+        .eq('adjustment_type', 'subtract')
+        .order('created_at', { ascending: true });
+
+      if (subtractionsError) throw subtractionsError;
+
+      // Calculate remaining quantity for each addition using FIFO
+      const additionsWithRemaining = (additions || []).map((add: any) => {
+        const addTotalMm = add.length_mm * add.quantity_pieces;
+        return {
+          ...add,
+          originalTotalMm: addTotalMm,
+          remainingMm: addTotalMm
+        };
+      });
+
+      // Apply FIFO logic: subtract from oldest additions first
+      const sortedSubtractions = [...(subtractions || [])].sort((a: any, b: any) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      
+      let remainingToSubtract = sortedSubtractions.reduce((sum: number, sub: any) => 
+        sum + (sub.length_mm * sub.quantity_pieces), 0
+      );
+      
+      // Subtract from additions in FIFO order (oldest first)
+      for (const add of additionsWithRemaining) {
+        if (remainingToSubtract <= 0) break;
+        
+        const addTotal = add.originalTotalMm;
+        if (remainingToSubtract >= addTotal) {
+          // This addition is completely consumed
+          add.remainingMm = 0;
+          remainingToSubtract -= addTotal;
+        } else {
+          // Partial consumption
+          add.remainingMm = addTotal - remainingToSubtract;
+          remainingToSubtract = 0;
+        }
+      }
+
+      // Filter out additions with no remaining quantity
+      const available = additionsWithRemaining.filter((add: any) => add.remainingMm > 0);
+      setMaterialViewAdditions(available);
+    } catch (error) {
+      console.error('Error fetching material view additions:', error);
+      setMaterialViewAdditions([]);
+    }
+  };
+
+  const handleUpdateAdditionLocation = async (additionId: string, newLocation: string) => {
+    try {
+      const { error } = await supabase
+        .from('material_adjustments' as any)
+        .update({ location: newLocation || null })
+        .eq('id', additionId);
+
+      if (error) throw error;
+
+      // Update local state
+      setMaterialViewAdditions(prev => 
+        prev.map(add => 
+          add.id === additionId 
+            ? { ...add, location: newLocation || null }
+            : add
+        )
+      );
+
+      setEditingLocationForAddition(null);
+      setNewLocationValue('');
+
+      toast({
+        title: "Success",
+        description: "Location updated successfully"
+      });
+    } catch (error: any) {
+      console.error('Error updating addition location:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update location",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -1101,6 +1456,8 @@ export default function Inventory() {
             // Add null check for the entire item
             <Card key={item.id} className={`h-32 hover:shadow-md transition-shadow cursor-pointer ${
               item.quantity <= (item.minimum_stock || 0) ? 'border-destructive bg-destructive/5' : ''
+            } ${
+              item.category === "Materials" && materialReorders[item.id] ? 'bg-blue-50 border-blue-200' : ''
             }`} onClick={() => {
               // Check if item still exists in the list (not deleted)
               const itemExists = inventoryItems.some(i => i.id === item.id);
@@ -1114,10 +1471,10 @@ export default function Inventory() {
                            {/* Material Shape Icon or Regular Image */}
                              {item?.category === "Materials" ? (() => {
                     const materialInfo = item.materials_used || {};
-                    const ShapeIcon = getMaterialShapeIcon(materialInfo?.shape);
+                    const shape = materialInfo?.shape || "";
                     const color = getMaterialColor(materialInfo?.material);
                     return <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-                                    <ShapeIcon className="w-10 h-10" style={{
+                                    <ShapeIcon shape={shape} size={40} className="w-10 h-10" style={{
                         color
                       }} />
                   </div>;
@@ -1147,45 +1504,94 @@ export default function Inventory() {
                                   </div>
                                  <AlertDialog>
                                    <div className="flex gap-1 ml-2">
-                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                              e.stopPropagation();
-                              // Check if item still exists in the list (not deleted)
-                              const itemExists = inventoryItems.some(i => i.id === item.id);
-                              if (itemExists) {
-                                setSelectedViewItem(item);
-                                setIsViewDialogOpen(true);
-                              }
-                            }} title="View Details">
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                               e.stopPropagation();
-                               handleViewHistory(item);
-                             }} title="View History">
-                                         <History className="h-4 w-4" />
-                                       </Button>
-                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                               e.stopPropagation();
-                               setSelectedItemForProductionStatus(item);
-                               setIsProductionStatusDialogOpen(true);
-                             }} title="Production Status">
-                                         <PlayCircle className="h-4 w-4" />
-                                       </Button>
-                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                              e.stopPropagation();
-                              setSelectedItemForWorkOrder(item);
-                              setTools([{
-                                name: "",
-                                quantity: ""
-                              }]);
-                              setOperatorsAndMachines([{
-                                name: "",
-                                type: "operator"
-                              }]);
-                              setIsWorkOrderDialogOpen(true);
-                            }} title="Create Work Order">
-                                        <ClipboardList className="h-4 w-4" />
-                                      </Button>
+                                      {item.category !== "Materials" && (
+                                        <>
+                                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                                  e.stopPropagation();
+                                  // Check if item still exists in the list (not deleted)
+                                  const itemExists = inventoryItems.some(i => i.id === item.id);
+                                  if (itemExists) {
+                                    setSelectedViewItem(item);
+                                    setIsViewDialogOpen(true);
+                                  }
+                                }} title="View Details">
+                                            <Eye className="h-4 w-4" />
+                                          </Button>
+                                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                                   e.stopPropagation();
+                                   handleViewHistory(item);
+                                 }} title="View History">
+                                             <History className="h-4 w-4" />
+                                          </Button>
+                                        </>
+                                      )}
+                                       {item.category === "Materials" && (
+                                         <>
+                                           <Button variant="outline" size="icon" className="h-8 w-8 text-green-600" onClick={e => {
+                                             e.stopPropagation();
+                                             setSelectedMaterialForAdjustment(item);
+                                             setIsMaterialAdjustmentDialogOpen(true);
+                                           }} title="Adjust Quantity">
+                                             <Plus className="h-4 w-4" />
+                                           </Button>
+                                           <Button variant="outline" size="icon" className="h-8 w-8 text-red-600" onClick={e => {
+                                             e.stopPropagation();
+                                             setSelectedMaterialForAdjustment(item);
+                                             setIsMaterialAdjustmentDialogOpen(true);
+                                           }} title="Subtract Quantity">
+                                             <Minus className="h-4 w-4" />
+                                           </Button>
+                                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                                             e.stopPropagation();
+                                             setSelectedMaterialForHistory(item);
+                                             setIsMaterialHistoryDialogOpen(true);
+                                           }} title="View Material History">
+                                             <Clock className="h-4 w-4" />
+                                           </Button>
+                                           {!materialReorders[item.id] ? (
+                                             <Button variant="outline" size="icon" className="h-8 w-8 text-blue-600" onClick={e => {
+                                               e.stopPropagation();
+                                               setSelectedMaterialForReorder(item);
+                                               setIsMaterialReorderDialogOpen(true);
+                                             }} title="Mark for Reorder">
+                                               <ShoppingCart className="h-4 w-4" />
+                                             </Button>
+                                           ) : (
+                                             <Button variant="outline" size="icon" className="h-8 w-8 text-orange-600" onClick={e => {
+                                               e.stopPropagation();
+                                               handleCancelReorder(item.id);
+                                             }} title="Cancel Reorder">
+                                               <X className="h-4 w-4" />
+                                             </Button>
+                                           )}
+                                         </>
+                                       )}
+                                       {item.category !== "Materials" && (
+                                         <>
+                                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                                 e.stopPropagation();
+                                 setSelectedItemForProductionStatus(item);
+                                 setIsProductionStatusDialogOpen(true);
+                               }} title="Production Status">
+                                             <PlayCircle className="h-4 w-4" />
+                                           </Button>
+                                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                                 e.stopPropagation();
+                                 setSelectedItemForWorkOrder(item);
+                                 setTools([{
+                                   name: "",
+                                   quantity: ""
+                                 }]);
+                                 setOperatorsAndMachines([{
+                                   name: "",
+                                   type: "operator"
+                                 }]);
+                                 setIsWorkOrderDialogOpen(true);
+                               }} title="Create Work Order">
+                                           <ClipboardList className="h-4 w-4" />
+                                         </Button>
+                                         </>
+                                       )}
                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                               e.stopPropagation();
                               handleOpenEditDialog(item);
@@ -1238,14 +1644,21 @@ export default function Inventory() {
                             totalValue = totalMeters * item.unit_price;
                           }
                           
+                          const stockQuantityMm = materialStockQuantities[item.id] || 0;
+                          const reorder = materialReorders[item.id];
+                          
                           return <>
                                           {totalWeight > 0 && <span className="text-sm text-muted-foreground">
                                               {totalWeight.toFixed(1)} kg
                                             </span>}
-                                            <span className="font-semibold text-lg">{formatCurrencyWithUnit(item.unit_price, item.currency || 'EUR', priceUnit)}</span>
-                                             <span className="text-sm text-muted-foreground ml-2">
-                                               (Total: {formatCurrency(totalValue, item.currency || 'EUR')})
-                                             </span>
+                                            <span className="font-semibold text-lg">
+                                              Stock: {stockQuantityMm.toFixed(0)} mm
+                                            </span>
+                                            {reorder && (
+                                              <div className="mt-1 text-xs text-blue-600 font-medium">
+                                                Reorder: {reorder.length_mm}mm {reorder.notes && `- ${reorder.notes}`}
+                                              </div>
+                                            )}
                                         </>;
                          })() : <>
                                      {(item.category === "Parts" || item.category === "Machines") && item.weight > 0 && (
@@ -1275,17 +1688,13 @@ export default function Inventory() {
                           </div>
                           
                           {/* Quantity Badge - Last Column */}
-                          <div className="flex items-center justify-center flex-shrink-0">
-                            {item?.category === "Materials" ? (() => {
-                              const materialInfo = item.materials_used || {};
-                              const quantity = formatMaterialQuantity(materialInfo, item.quantity);
-                              return <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"} className="text-[10px] px-1 py-0.5">
-                                {quantity}
-                              </Badge>;
-                            })() : <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"} className="text-[10px] px-1 py-0.5">
-                              {item.quantity} {item.unit || "pcs"}
-                            </Badge>}
-                          </div>
+                          {item?.category !== "Materials" && (
+                            <div className="flex items-center justify-center flex-shrink-0">
+                              <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"} className="text-[10px] px-1 py-0.5">
+                                {item.quantity} {item.unit || "pcs"}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                      </Card>) : <div className="text-center py-12">
@@ -1332,7 +1741,7 @@ export default function Inventory() {
                     <Select value={formData.customer_id} onValueChange={value => {
                       // Find the selected customer and auto-set currency
                       const selectedCustomer = customers.find(c => c.id === value);
-                      const currency = selectedCustomer?.country ? getCurrencyForCountry(selectedCustomer.country) : 'EUR';
+                      const currency = selectedCustomer?.currency || (selectedCustomer?.country ? getCurrencyForCountry(selectedCustomer.country) : 'EUR');
                       
                       setFormData(prev => ({
                         ...prev,
@@ -1396,6 +1805,7 @@ export default function Inventory() {
                   }))} placeholder="Enter item name" />
                 </div>
               )}
+            {currentCategory !== "Materials" && (
             <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="quantity">Quantity *</Label>
@@ -1436,11 +1846,6 @@ export default function Inventory() {
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <span className="text-sm font-medium">
                       {formData.unit_price || "0.00"}
-                      {currentCategory === "Materials" && materialData?.currency && materialData?.priceUnit && (
-                        <span className="text-muted-foreground ml-1">
-                          {getCurrencySymbol(materialData.currency)}{materialData.priceUnit}
-                        </span>
-                      )}
                     </span>
               </div>
                   <Button
@@ -1503,6 +1908,7 @@ export default function Inventory() {
               </div>
               )}
             </div>
+            )}
             {(currentCategory === "Parts" || currentCategory === "Machines") && (
               <div className="grid gap-2">
                 <Label htmlFor="weight">Weight (kg)</Label>
@@ -1567,24 +1973,34 @@ export default function Inventory() {
             }))} placeholder="Enter item description" />
             </div>
             {formData.category !== "Materials" && <div className="grid gap-2">
-                <Label htmlFor="photo">Photo</Label>
-                <div className="space-y-2">
-                  {photoPreview ? <div className="relative w-[170px] h-32">
-                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover rounded-lg border" />
-                      <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={handleRemovePhoto}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div> : <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
-                      <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground mb-2">Click to upload photo</p>
-                      <Input id="photo" type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
-                      <Label htmlFor="photo" className="cursor-pointer">
-                        <Button type="button" variant="outline" size="sm" asChild>
-                          <span>Choose File</span>
-                        </Button>
-                      </Label>
-                    </div>}
-                </div>
+                <DragDropImageUpload
+                  value={formData.photo}
+                  onChange={async (file) => {
+                    if (file) {
+                      try {
+                        const resizedFile = await resizeImageFile(file, 400, 400);
+                        setFormData(prev => ({
+                          ...prev,
+                          photo: resizedFile
+                        }));
+                      } catch (error) {
+                        toast({
+                          title: "Error",
+                          description: "Failed to process image. Please try again.",
+                          variant: "destructive"
+                        });
+                      }
+                    } else {
+                      setFormData(prev => ({
+                        ...prev,
+                        photo: null
+                      }));
+                      setPhotoPreview(null);
+                    }
+                  }}
+                  maxSizeMB={10}
+                  label="Photo"
+                />
               </div>}
           </div>
           <div className="flex justify-end space-x-2">
@@ -1632,7 +2048,7 @@ export default function Inventory() {
                     <Select value={formData.customer_id} onValueChange={value => {
                       // Find the selected customer and auto-set currency
                       const selectedCustomer = customers.find(c => c.id === value);
-                      const currency = selectedCustomer?.country ? getCurrencyForCountry(selectedCustomer.country) : 'EUR';
+                      const currency = selectedCustomer?.currency || (selectedCustomer?.country ? getCurrencyForCountry(selectedCustomer.country) : 'EUR');
                       
                       setFormData(prev => ({
                         ...prev,
@@ -1696,6 +2112,7 @@ export default function Inventory() {
                   }))} placeholder="Enter item name" />
                 </div>
               )}
+            {editingItem?.category !== "Materials" && (
             <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit_quantity">Quantity *</Label>
@@ -1762,6 +2179,7 @@ export default function Inventory() {
               </div>
               )}
             </div>
+            )}
             {(editingItem?.category === "Parts" || editingItem?.category === "Machines") && (
               <div className="grid gap-2">
                 <Label htmlFor="edit_weight">Weight (kg)</Label>
@@ -1826,24 +2244,35 @@ export default function Inventory() {
             }))} placeholder="Enter description" rows={3} />
             </div>
             {formData.category !== "Materials" && <div className="grid gap-2">
-                <Label htmlFor="edit_photo">Photo</Label>
-                <div className="space-y-2">
-                  {photoPreview ? <div className="relative w-[170px] h-32">
-                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover rounded-lg border" />
-                      <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={handleRemovePhoto}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div> : <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
-                      <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground mb-2">Click to upload photo</p>
-                      <Input id="edit_photo" type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
-                      <Label htmlFor="edit_photo" className="cursor-pointer">
-                        <Button type="button" variant="outline" size="sm" asChild>
-                          <span>Choose File</span>
-                        </Button>
-                      </Label>
-                    </div>}
-                </div>
+                <DragDropImageUpload
+                  value={photoPreview || formData.photo}
+                  onChange={async (file) => {
+                    if (file) {
+                      try {
+                        const resizedFile = await resizeImageFile(file, 400, 400);
+                        setFormData(prev => ({
+                          ...prev,
+                          photo: resizedFile
+                        }));
+                        setPhotoPreview(URL.createObjectURL(resizedFile));
+                      } catch (error) {
+                        toast({
+                          title: "Error",
+                          description: "Failed to process image. Please try again.",
+                          variant: "destructive"
+                        });
+                      }
+                    } else {
+                      setFormData(prev => ({
+                        ...prev,
+                        photo: null
+                      }));
+                      setPhotoPreview(null);
+                    }
+                  }}
+                  maxSizeMB={10}
+                  label="Photo"
+                />
               </div>}
             
             {editingItem?.category === "Parts" && <>
@@ -2351,7 +2780,14 @@ export default function Inventory() {
       </Dialog>
 
       {/* View Details Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+      <Dialog open={isViewDialogOpen} onOpenChange={(open) => {
+        setIsViewDialogOpen(open);
+        if (!open) {
+          setMaterialViewAdditions([]);
+          setEditingLocationForAddition(null);
+          setNewLocationValue('');
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -2368,28 +2804,72 @@ export default function Inventory() {
                       {selectedViewItem.photo_url ? <img src={selectedViewItem.photo_url} alt={selectedViewItem.name} className="w-full h-full object-cover" /> : <Package className="w-16 h-16 text-muted-foreground" />}
                   </div>}
                 <div className="flex-1 space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">
-                      {selectedViewItem.category === "Tools" ? "Tool Name" : "Part Name"}
-                    </Label>
-                    <p className="text-xl font-semibold">
-                      {selectedViewItem.category === "Tools" 
-                        ? formatToolName(selectedViewItem.materials_used, selectedViewItem.name)
-                        : selectedViewItem.name
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <Label className="text-sm font-medium text-muted-foreground">
+                        {selectedViewItem.category === "Tools" ? "Tool Name" : 
+                         selectedViewItem.category === "Materials" ? "Material Name" : 
+                         "Part Name"}
+                      </Label>
+                      <p className="text-xl font-semibold">
+                        {selectedViewItem.category === "Tools" 
+                          ? formatToolName(selectedViewItem.materials_used, selectedViewItem.name)
+                          : selectedViewItem.category === "Materials"
+                          ? formatMaterialNameWithUnit(selectedViewItem.name)
+                          : selectedViewItem.name
+                        }
+                      </p>
+                    </div>
+                    {/* Totals for Materials */}
+                    {selectedViewItem?.category === "Materials" && materialViewAdditions.length > 0 && (() => {
+                      const totalRemainingMm = materialViewAdditions.reduce((sum, add) => sum + add.remainingMm, 0);
+                      const totalRemainingMeters = totalRemainingMm / 1000;
+                      let totalKg = 0;
+                      let totalValue = 0;
+                      
+                      if (materialProfile?.kg_per_meter) {
+                        totalKg = totalRemainingMeters * materialProfile.kg_per_meter;
                       }
-                    </p>
+                      
+                      materialViewAdditions.forEach((add: any) => {
+                        if (add.price_unit === 'per_meter' && add.unit_price) {
+                          totalValue += (add.remainingMm / 1000) * add.unit_price;
+                        } else if (add.price_unit === 'per_kg' && add.unit_price && materialProfile?.kg_per_meter) {
+                          const addMeters = add.remainingMm / 1000;
+                          const addKg = addMeters * materialProfile.kg_per_meter;
+                          totalValue += addKg * add.unit_price;
+                        }
+                      });
+                      
+                      const firstAddition = materialViewAdditions[0];
+                      const firstSupplier = suppliers.find(s => s.id === firstAddition?.supplier_id);
+                      const currency = firstSupplier?.currency || 'EUR';
+                      
+                      return (
+                        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-right">
+                          <div className="font-bold text-lg text-blue-900 dark:text-blue-100">
+                            {totalKg > 0 ? `${totalKg.toFixed(2)} kg` : 'N/A'}
+                          </div>
+                          <div className="font-bold text-lg text-blue-900 dark:text-blue-100">
+                            {totalValue > 0 ? `${getCurrencySymbol(currency)}${totalValue.toFixed(2)}` : 'N/A'}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   {selectedViewItem.part_number && <div>
                       <Label className="text-sm font-medium text-muted-foreground">Part Number</Label>
                       <p className="text-lg font-medium">{selectedViewItem.part_number}</p>
                     </div>}
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Location</Label>
-                    <p className="flex items-center gap-2 text-base">
-                      <MapPin className="w-4 h-4" />
-                      {selectedViewItem.location || "Not specified"}
-                    </p>
-                  </div>
+                  {selectedViewItem?.category !== "Materials" && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Location</Label>
+                      <p className="flex items-center gap-2 text-base">
+                        <MapPin className="w-4 h-4" />
+                        {selectedViewItem.location || "Not specified"}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2404,6 +2884,146 @@ export default function Inventory() {
                   <Label className="text-sm font-medium text-muted-foreground">Description</Label>
                   <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedViewItem.description}</p>
                 </div>}
+
+              {/* Material Additions List */}
+              {selectedViewItem?.category === "Materials" && (
+                <div>
+                  <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
+                    <Package className="w-4 h-4" />
+                    Stock Additions
+                  </Label>
+                  {materialViewAdditions.length === 0 ? (
+                    <div className="p-4 bg-muted rounded-md text-center">
+                      <p className="text-sm text-muted-foreground">No available stock additions</p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[400px] border rounded-md p-4">
+                      <div className="space-y-3">
+                        {materialViewAdditions.map((add: any) => {
+                          const supplierName = suppliers.find(s => s.id === add.supplier_id)?.name || 'N/A';
+                          const isEditingLocation = editingLocationForAddition === add.id;
+                          const remainingMeters = add.remainingMm / 1000;
+                          let addKg = 0;
+                          let addValue = 0;
+                          
+                          if (materialProfile?.kg_per_meter) {
+                            addKg = remainingMeters * materialProfile.kg_per_meter;
+                          }
+                          
+                          if (add.price_unit === 'per_meter' && add.unit_price) {
+                            addValue = remainingMeters * add.unit_price;
+                          } else if (add.price_unit === 'per_kg' && add.unit_price && addKg > 0) {
+                            addValue = addKg * add.unit_price;
+                          }
+                          
+                          const supplier = suppliers.find(s => s.id === add.supplier_id);
+                          const currency = supplier?.currency || 'EUR';
+                          
+                          return (
+                            <div
+                              key={add.id}
+                              className="p-3 border rounded-md"
+                            >
+                              <div className="grid grid-cols-3 gap-4">
+                                {/* Column 1: Basic Info */}
+                                <div className="space-y-1">
+                                  <div className="font-medium text-sm">
+                                    {add.quantity_pieces} piece{add.quantity_pieces > 1 ? 's' : ''} × {add.length_mm}mm
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Total: {add.originalTotalMm.toFixed(0)}mm
+                                  </div>
+                                  <div className="text-sm font-medium text-green-600">
+                                    Remaining: {add.remainingMm.toFixed(0)}mm
+                                  </div>
+                                  <div className="text-xs font-semibold text-blue-600">
+                                    {addKg > 0 ? `${addKg.toFixed(2)} kg` : 'N/A'}
+                                  </div>
+                                  <div className="text-xs font-semibold text-blue-600">
+                                    {addValue > 0 ? `${getCurrencySymbol(currency)}${addValue.toFixed(2)}` : 'N/A'}
+                                  </div>
+                                </div>
+                                
+                                {/* Column 2: Details */}
+                                <div className="space-y-1 text-xs text-muted-foreground">
+                                  {supplierName !== 'N/A' && <div>Supplier: {supplierName}</div>}
+                                  <div className="flex items-center gap-2">
+                                    <span>Location:</span>
+                                    {isEditingLocation ? (
+                                      <div className="flex items-center gap-1">
+                                        <Select
+                                          value={newLocationValue}
+                                          onValueChange={setNewLocationValue}
+                                        >
+                                          <SelectTrigger className="h-6 w-32 text-xs">
+                                            <SelectValue placeholder="Select" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {stockLocations.map((loc) => (
+                                              <SelectItem key={loc.id} value={loc.name}>
+                                                {loc.name}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                        <Button
+                                          size="sm"
+                                          variant="default"
+                                          className="h-6 px-2 text-xs"
+                                          onClick={() => handleUpdateAdditionLocation(add.id, newLocationValue)}
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-6 px-2 text-xs"
+                                          onClick={() => {
+                                            setEditingLocationForAddition(null);
+                                            setNewLocationValue('');
+                                          }}
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1">
+                                        <span>{add.location || 'Not specified'}</span>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-5 px-1 text-xs"
+                                          onClick={() => {
+                                            setEditingLocationForAddition(add.id);
+                                            setNewLocationValue(add.location || '');
+                                          }}
+                                        >
+                                          <Edit className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {add.unit_price && (
+                                    <div>
+                                      Price: {add.unit_price.toFixed(2)} /{add.price_unit === 'per_kg' ? 'kg' : 'm'}
+                                    </div>
+                                  )}
+                                  <div>Added: {format(new Date(add.created_at), "MMM d, yyyy")}</div>
+                                </div>
+                                
+                                {/* Column 3: Notes */}
+                                <div className="text-xs text-muted-foreground">
+                                  {add.notes && <div className="italic">Notes: {add.notes}</div>}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
+              )}
 
               {/* Materials Used */}
               {selectedViewItem.materials_used && selectedViewItem.materials_used.length > 0 && <div>
@@ -2493,6 +3113,35 @@ export default function Inventory() {
       <MaterialManagementDialog 
         open={isMaterialManagementDialogOpen}
         onOpenChange={setIsMaterialManagementDialogOpen}
+      />
+
+      {/* Material Adjustment Dialog */}
+      <MaterialAdjustmentDialog
+        isOpen={isMaterialAdjustmentDialogOpen}
+        onClose={() => setIsMaterialAdjustmentDialogOpen(false)}
+        material={selectedMaterialForAdjustment}
+        onSuccess={() => {
+          // Refresh inventory items
+          fetchInventoryItems();
+        }}
+      />
+
+      {/* Material History Dialog */}
+      <MaterialHistoryDialog
+        isOpen={isMaterialHistoryDialogOpen}
+        onClose={() => setIsMaterialHistoryDialogOpen(false)}
+        material={selectedMaterialForHistory}
+      />
+
+      {/* Material Reorder Dialog */}
+      <MaterialReorderDialog
+        isOpen={isMaterialReorderDialogOpen}
+        onClose={() => setIsMaterialReorderDialogOpen(false)}
+        material={selectedMaterialForReorder}
+        onSuccess={() => {
+          // Refresh inventory items and reorders
+          fetchInventoryItems();
+        }}
       />
     </div>
   );

@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/currencyUtils";
 const ITEM_IMAGE_SIZE = 60; // px - same as Delivery Notes
 const ITEM_HEIGHT_PX = 70; // px
 const MAX_ITEMS_PER_PAGE = 10;
+const MAX_ITEMS_LAST_PAGE = 7; // Maximum items on last page to fit summary and footer
 const AVAILABLE_SPACE_PX = 710;
 const NOTES_TITLE_HEIGHT_PX = 28;
 const NOTES_LINE_HEIGHT_PX = 20;
@@ -35,11 +36,11 @@ const paginateOrderConfirmationItems = (items: any[], notes?: string | null) => 
   if (!items || items.length === 0) return [];
 
   const noteLines = calculateNoteLines(notes);
-  let maxItemsPerLastPage = MAX_ITEMS_PER_PAGE;
+  let maxItemsPerLastPage = MAX_ITEMS_LAST_PAGE;
   if (noteLines > 0) {
     const notesHeight = NOTES_TITLE_HEIGHT_PX + noteLines * NOTES_LINE_HEIGHT_PX;
     const availableForItems = AVAILABLE_SPACE_PX - notesHeight;
-    maxItemsPerLastPage = Math.max(1, Math.floor(availableForItems / ITEM_HEIGHT_PX));
+    maxItemsPerLastPage = Math.min(MAX_ITEMS_LAST_PAGE, Math.max(1, Math.floor(availableForItems / ITEM_HEIGHT_PX)));
   }
 
   const pages: any[][] = [];
@@ -127,7 +128,7 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
       if (ocData?.customer_id) {
         const { data: customerData } = await supabase
           .from("customers")
-          .select("id, name, address, city, country, phone, vat_rate")
+          .select("id, name, address, city, country, phone, vat_rate, dap_address")
           .eq("id", ocData.customer_id)
           .single();
         customer = customerData;
@@ -195,9 +196,65 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
     }
   };
 
+  // Helper function to resize image to 320x240px
+  const resizeImage = (src: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = 240;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, 320, 240);
+        try {
+          const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(resizedDataUrl);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = src;
+    });
+  };
+
   const preparePagesForRender = async (pages: NodeListOf<Element>) => {
     const preparedPages: string[] = [];
-      for (let i = 0; i < pages.length; i++) {
+    
+    // Pre-resize all images before processing pages
+    const allOriginalImages = containerRef.current?.querySelectorAll('.order-confirmation-items-table img') || [];
+    const imageResizeMap = new Map<string, string>();
+    
+    // Resize all images first - use both src attribute and loaded src for mapping
+    for (const img of Array.from(allOriginalImages)) {
+      const imgElement = img as HTMLImageElement;
+      const srcAttr = imgElement.getAttribute('src') || '';
+      const loadedSrc = imgElement.src || '';
+      
+      // Try to resize using the src attribute first, then fallback to loaded src
+      const srcToUse = srcAttr && !srcAttr.startsWith('data:') ? srcAttr : 
+                       (loadedSrc && !loadedSrc.startsWith('data:') ? loadedSrc : null);
+      
+      if (srcToUse && !imageResizeMap.has(srcToUse)) {
+        try {
+          const resizedDataUrl = await resizeImage(srcToUse);
+          imageResizeMap.set(srcToUse, resizedDataUrl);
+          // Also map the loaded src if different
+          if (loadedSrc && loadedSrc !== srcToUse && !loadedSrc.startsWith('data:')) {
+            imageResizeMap.set(loadedSrc, resizedDataUrl);
+          }
+        } catch (error) {
+          console.warn('Failed to resize image:', error);
+        }
+      }
+    }
+    
+    for (let i = 0; i < pages.length; i++) {
         const page = pages[i] as HTMLElement;
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'absolute';
@@ -205,7 +262,23 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
       tempContainer.style.width = '210mm';
       tempContainer.style.backgroundColor = 'white';
       tempContainer.style.fontSize = '16px';
-        tempContainer.appendChild(page.cloneNode(true));
+        const clonedPage = page.cloneNode(true) as HTMLElement;
+        
+        // Replace image sources in cloned page with resized versions
+        const clonedImages = clonedPage.querySelectorAll('.order-confirmation-items-table img');
+        clonedImages.forEach((img) => {
+          const imgElement = img as HTMLImageElement;
+          const srcAttr = imgElement.getAttribute('src') || '';
+          const loadedSrc = imgElement.src || '';
+          
+          // Check both src attribute and loaded src
+          const resizedSrc = imageResizeMap.get(srcAttr) || imageResizeMap.get(loadedSrc);
+          if (resizedSrc) {
+            imgElement.src = resizedSrc;
+          }
+        });
+        
+        tempContainer.appendChild(clonedPage);
         document.body.appendChild(tempContainer);
         const mmToPixels = (mm: number) => (mm * 96) / 25.4;
         const baseWidthPx = mmToPixels(210);
@@ -637,9 +710,9 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
                         <span className="font-medium">Purchase order:</span> {orderConfirmation.order_number}
                       </p>
                     )}
-                    {orderConfirmation.shipping_address && (
+                    {customer?.dap_address && (
                       <p className="print-text-sm">
-                        <span className="font-medium">Shipping address:</span> {orderConfirmation.shipping_address}
+                        <span className="font-medium">Shipping address:</span> {customer.dap_address}
                       </p>
                     )}
                   </div>
@@ -684,9 +757,10 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
                                   height: `${ITEM_IMAGE_SIZE}px`,
                                   width: "auto",
                                   objectFit: "contain",
-                                  maxWidth: "100%",
+                                  maxWidth: "105%",
                                   margin: "0 auto",
                                   display: "block",
+                                  borderRadius: "8px",
                                 }}
                                 onError={(e) => {
                                   // Hide image if it fails to load
@@ -738,8 +812,6 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
                       <div className="space-y-1 text-sm print:space-y-2 print-text-sm">
                         <p><span className="font-medium">Total quantity:</span> {orderConfirmation.total_quantity || 0} pieces</p>
                         <p><span className="font-medium">Net weight:</span> {(orderConfirmation.net_weight || 0).toFixed(2)} kg</p>
-                        <p><span className="font-medium">Total weight:</span> {(orderConfirmation.total_weight || 0).toFixed(2)} kg</p>
-                        <p><span className="font-medium">Packing:</span> {orderConfirmation.packing || 0} {orderConfirmation.packing === 1 ? 'package' : 'packages'}</p>
                       </div>
                     </div>
                     

@@ -5,8 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { DragDropImageUpload } from "@/components/DragDropImageUpload";
 interface ToolSpecField {
   id: string;
   title: string;
@@ -37,6 +39,7 @@ export function ToolManagementDialog({
   const [newCategoryTitle, setNewCategoryTitle] = useState("");
   const [editingSpecFields, setEditingSpecFields] = useState<string | null>(null);
   const [newFieldTitle, setNewFieldTitle] = useState("");
+  const [uploadingCategoryId, setUploadingCategoryId] = useState<string | null>(null);
 
   // Fetch categories from database
   const fetchCategories = async () => {
@@ -164,11 +167,11 @@ export function ToolManagementDialog({
       setLoading(false);
     }
   };
-  const handleImageUpload = async (categoryId: string, event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleImageUpload = async (categoryId: string, file: File | null) => {
     if (!file) return;
     try {
       setLoading(true);
+      setUploadingCategoryId(categoryId);
 
       // Upload image to Supabase Storage
       const fileExt = file.name.split('.').pop();
@@ -193,12 +196,14 @@ export function ToolManagementDialog({
       }).eq('id', categoryId);
       if (updateError) throw updateError;
       await fetchCategories();
+      setUploadingCategoryId(null);
       toast({
         title: "Success",
         description: "Image uploaded successfully"
       });
     } catch (error) {
       console.error('Error uploading image:', error);
+      setUploadingCategoryId(null);
       toast({
         title: "Error",
         description: "Failed to upload image",
@@ -334,10 +339,27 @@ export function ToolManagementDialog({
               </div>
 
               <div className="flex items-center gap-1">
-                <input type="file" accept="image/*" onChange={e => handleImageUpload(category.id, e)} className="hidden" id={`image-${category.id}`} />
-                <Button variant="ghost" size="sm" onClick={() => document.getElementById(`image-${category.id}`)?.click()} className="h-8 w-8 p-0">
-                  <Upload className="h-3 w-3" />
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={loading}>
+                      <Upload className="h-3 w-3" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" align="end">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Upload Category Image</Label>
+                      <DragDropImageUpload
+                        value={category.picture}
+                        onChange={(file) => {
+                          if (file) {
+                            handleImageUpload(category.id, file);
+                          }
+                        }}
+                        maxSizeMB={10}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 
                 <Button variant="ghost" size="sm" onClick={() => setEditingCategory(category.id)} className="h-8 w-8 p-0">
                   <Plus className="h-3 w-3" />

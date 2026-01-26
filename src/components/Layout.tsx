@@ -14,9 +14,12 @@ import {
   Truck,
   FolderOpen,
   MapPin,
-  Receipt
+  Receipt,
+  Search,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,23 +72,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return hasPagePermission(page);
   });
 
-  const NavContent = () => (
-    <div className="flex flex-col h-full">
-      <div className="flex flex-col items-center justify-center h-20 px-4 border-b space-y-2">
-        {companyInfo?.logo_url ? (
-          <img 
-            src={companyInfo.logo_url} 
-            alt="Company Logo" 
-            className="max-w-full max-h-12 h-auto object-contain"
-          />
-        ) : (
-          <h1 className="text-xl font-bold">{companyInfo?.company_name || "CNC Manager"}</h1>
-        )}
-        <p className="text-xs text-muted-foreground">
-          {staff?.name || "Staff"}{staff?.position ? `, ${staff.position}` : ""}
-        </p>
-      </div>
-      <nav className="flex-1 px-4 py-6 space-y-2">
+  const NavContent = () => {
+    const [searchTerm, setSearchTerm] = useState("");
+
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex flex-col items-center justify-center px-4 pt-6 pb-4 space-y-4">
+          <Link to="/inventory" className="flex items-center justify-center">
+            {companyInfo?.logo_url ? (
+              <img 
+                src={companyInfo.logo_url} 
+                alt="Company Logo" 
+                className="max-w-full max-h-12 h-auto object-contain cursor-pointer"
+              />
+            ) : (
+              <h1 className="text-xl font-bold cursor-pointer">{companyInfo?.company_name || "CNC Manager"}</h1>
+            )}
+          </Link>
+          <div className="w-full relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 w-full"
+            />
+          </div>
+        </div>
+        <nav className="flex-1 px-4 py-6 space-y-2">
         {filteredNavigation.map((item) => {
           const isActive = location.pathname.startsWith(item.href);
           return (
@@ -105,7 +120,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
-      <div className="px-4 py-4 border-t space-y-2 mt-auto">
+      <div className="px-4 py-4 space-y-2 mt-auto">
+        <div className="flex items-center px-3 py-2 text-sm text-muted-foreground mb-2">
+          <User className="w-4 h-4 mr-2" />
+          <span>{staff?.name || "Staff"}{staff?.position ? `, ${staff.position}` : ""}</span>
+        </div>
         <Link
           to="/settings"
           className={cn(
@@ -129,13 +148,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </Button>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <>
       <div className="flex h-screen bg-background">
         {/* Desktop Sidebar */}
-        <div className="hidden md:flex md:w-64 md:min-w-64 md:flex-col md:border-r flex-shrink-0">
+        <div className="hidden md:flex md:w-64 md:min-w-64 md:flex-col flex-shrink-0">
           <NavContent />
         </div>
 
@@ -156,7 +176,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     className="max-h-8 h-auto object-contain"
                   />
                 ) : null}
-                <h1 className="text-lg font-semibold">{companyInfo?.company_name || "CNC Manager"}</h1>
               </div>
             </div>
             <main className="flex-1 overflow-auto">

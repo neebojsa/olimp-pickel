@@ -67,43 +67,36 @@ const getSizeFields = (shape: string) => {
   switch (shape) {
     case "Round bar":
       return [
-        { key: "diameter", label: "Diameter (mm)", placeholder: "e.g. 20" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: "diameter", label: "Diameter (mm)", placeholder: "e.g. 20" }
       ];
     case "Rectangular bar":
       return [
         { key: "width", label: "Width (mm)", placeholder: "e.g. 40" },
-        { key: "height", label: "Height (mm)", placeholder: "e.g. 20" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: "height", label: "Height (mm)", placeholder: "e.g. 20" }
       ];
     case "Square bar":
       return [
-        { key: "side", label: "Side (mm)", placeholder: "e.g. 25" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: "side", label: "Side (mm)", placeholder: "e.g. 25" }
       ];
     case "Hex bar":
       return [
-        { key: "diameter", label: "Across Flats (mm)", placeholder: "e.g. 19" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: "diameter", label: "Across Flats (mm)", placeholder: "e.g. 19" }
       ];
     case "Round tube":
       return [
         { key: "outerDiameter", label: "Outer Ø (mm)", placeholder: "e.g. 25" },
-        { key: "wallThickness", label: "Wall Thickness (mm)", placeholder: "e.g. 2" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: "wallThickness", label: "Wall Thickness (mm)", placeholder: "e.g. 2" }
       ];
     case "Rectangular tube":
       return [
         { key: "width", label: "Width (mm)", placeholder: "e.g. 40" },
         { key: "height", label: "Height (mm)", placeholder: "e.g. 20" },
-        { key: "wallThickness", label: "Wall Thickness (mm)", placeholder: "e.g. 2" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: "wallThickness", label: "Wall Thickness (mm)", placeholder: "e.g. 2" }
       ];
     case "Square tube":
       return [
         { key: "side", label: "Side (mm)", placeholder: "e.g. 25" },
-        { key: "wallThickness", label: "Wall Thickness (mm)", placeholder: "e.g. 2" },
-        { key: "length", label: "Length (mm)", placeholder: "e.g. 3000" }
+        { key: "wallThickness", label: "Wall Thickness (mm)", placeholder: "e.g. 2" }
       ];
     case "Sheet":
       return [
@@ -123,33 +116,106 @@ const generateMaterialName = (
   dimensions: { [key: string]: string },
   profileDesignation?: string
 ) => {
-  const parts = [material];
+  // Format surface finish: capitalize first letter of each word, lowercase the rest
+  const formatSurfaceFinish = (finish: string): string => {
+    if (!finish) return '';
+    return finish
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
   
-  if (profileDesignation) {
-    parts.push(profileDesignation);
-  } else {
-    parts.push(shape);
+  // Convert shape to lowercase
+  const shapeLower = shape.toLowerCase();
+  
+  // Format dimensions based on shape
+  const formatDimensions = (): string => {
+    const dims = dimensions || {};
+    
+    switch (shape) {
+      case "Round bar":
+        if (dims.diameter) {
+          return `Ø${dims.diameter} mm`;
+        }
+        break;
+      case "Square bar":
+        if (dims.side) {
+          return `${dims.side} × ${dims.side} mm`;
+        }
+        break;
+      case "Rectangular bar":
+        if (dims.width && dims.height) {
+          return `${dims.width} × ${dims.height} mm`;
+        }
+        break;
+      case "Round tube":
+        if (dims.outerDiameter && dims.wallThickness) {
+          return `Ø${dims.outerDiameter} × ${dims.wallThickness} mm`;
+        }
+        break;
+      case "Square tube":
+        if (dims.side && dims.wallThickness) {
+          return `${dims.side} × ${dims.side} × ${dims.wallThickness} mm`;
+        }
+        break;
+      case "Rectangular tube":
+        if (dims.width && dims.height && dims.wallThickness) {
+          return `${dims.width} × ${dims.height} × ${dims.wallThickness} mm`;
+        }
+        break;
+      case "Hex bar":
+        if (dims.diameter) {
+          return `${dims.diameter} mm`;
+        }
+        break;
+      case "Sheet":
+        if (dims.thickness) {
+          return `${dims.thickness} mm`;
+        }
+        break;
+      default:
+        // For profile-based shapes, use profile designation if available
+        if (profileDesignation) {
+          return profileDesignation;
+        }
+        // Fallback: try to format any available dimensions
+        const sizeFields = getSizeFields(shape);
+        const sizeParts = sizeFields
+          .filter(field => dims[field.key])
+          .map(field => dims[field.key])
+          .slice(0, 3);
+        if (sizeParts.length > 0) {
+          return sizeParts.join(' × ') + ' mm';
+        }
+        break;
+    }
+    
+    return '';
+  };
+  
+  const dimsStr = formatDimensions();
+  const surfaceFinishFormatted = formatSurfaceFinish(surfaceFinish);
+  
+  // Build name: {surfaceFinish} {shape} {dimensions} – {material}
+  const parts: string[] = [];
+  
+  if (surfaceFinishFormatted) {
+    parts.push(surfaceFinishFormatted);
   }
   
-  parts.push(surfaceFinish);
-  
-  if (!profileDesignation) {
-  const sizeFields = getSizeFields(shape);
-  const sizeParts = sizeFields
-    .filter(field => dimensions[field.key])
-    .map(field => `${dimensions[field.key]}${field.key === 'length' ? 'L' : ''}`)
-      .slice(0, 2);
-  
-  if (sizeParts.length > 0) {
-    parts.splice(1, 0, sizeParts.join('x'));
-    }
-  } else {
-    if (dimensions.length) {
-      parts.splice(2, 0, `${dimensions.length}L`);
-    }
+  if (shapeLower) {
+    parts.push(shapeLower);
   }
   
-  return parts.filter(Boolean).join(' - ');
+  if (dimsStr) {
+    parts.push(dimsStr);
+  }
+  
+  if (material) {
+    parts.push(`– ${material}`);
+  }
+  
+  return parts.filter(Boolean).join(' ');
 };
 
 export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProps) {
@@ -292,6 +358,27 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
     fetchStockLocations();
     fetchFrequentlyUsedGrades();
   }, []);
+
+  // Regenerate name when component mounts with initialData (for editing existing materials)
+  // This ensures edited materials get regenerated with the new format
+  useEffect(() => {
+    if (initialData && surfaceFinish && shape && material) {
+      // Regenerate name with new format on mount
+      const regeneratedName = generateMaterialName(
+        surfaceFinish === "custom" ? customSurfaceFinish : surfaceFinish,
+        shape === "custom" ? customShape : shape,
+        material === "custom" ? customMaterial : material,
+        dimensions,
+        profileDesignation
+      );
+      
+      // Only update if the name would be different (to avoid unnecessary updates)
+      if (regeneratedName && regeneratedName !== initialData.generatedName) {
+        updateMaterialData({});
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Fetch profiles when a profile-based shape is selected
   useEffect(() => {
@@ -767,104 +854,9 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
           </Card>
         </div>
           )
-        ) : calculationType === 'profile_table' ? (
-          <div className="grid gap-2">
-            <Label className="flex items-center gap-2">
-              Length (meters) *
-            </Label>
-            <NumericInput
-              value={dimensions.length || 0}
-              onChange={(val) => handleDimensionChange('length', val.toString())}
-              min={0}
-              step={0.01}
-              placeholder="e.g., 6.0"
-            />
-            {selectedProfile && (
-              <div className="text-xs text-muted-foreground mt-1">
-                Weight per meter: {selectedProfile.kg_per_meter} kg/m
-                {dimensions.length && parseFloat(dimensions.length) > 0 && (
-                  <span className="ml-2 font-medium">
-                    Total weight: {(selectedProfile.kg_per_meter * parseFloat(dimensions.length)).toFixed(2)} kg
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
         ) : null
       )}
 
-      {/* Supplier, Price Per Unit, Location in three columns */}
-      {currentStep === 'summary' && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="grid gap-2">
-              <Label htmlFor="supplier">Supplier</Label>
-              <Select 
-                value={supplierId} 
-                onValueChange={(value) => {
-                  const selectedSupplier = suppliers.find(s => s.id === value);
-                  const supplierCurrency = selectedSupplier?.currency || 
-                    (selectedSupplier?.country ? getCurrencyForCountry(selectedSupplier.country) : currency);
-                  setSupplierId(value);
-                  setCurrency(supplierCurrency);
-                  updateMaterialData({ supplierId: value, currency: supplierCurrency });
-                }}
-              >
-                <SelectTrigger id="supplier">
-                  <SelectValue placeholder="Select supplier" />
-          </SelectTrigger>
-          <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="price_unit">Price Per Unit *</Label>
-              <Button
-                type="button"
-                variant="outline"
-                id="price_unit"
-                onClick={() => {
-                  const newPriceUnit = priceUnit === "/kg" ? "/m" : "/kg";
-                  setPriceUnit(newPriceUnit);
-                  updateMaterialData({ priceUnit: newPriceUnit });
-                }}
-                className="w-full justify-center font-medium"
-              >
-                {priceUnit === "/kg" ? "/kg" : "/m"}
-              </Button>
-            </div>
-
-        <div className="grid gap-2">
-              <Label htmlFor="location">Location</Label>
-              <Select 
-                value={location} 
-                onValueChange={(value) => {
-                  setLocation(value);
-                  updateMaterialData({ location: value });
-                }}
-              >
-                <SelectTrigger id="location">
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stockLocations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.name}>
-                      {loc.name} {loc.description && `- ${loc.description}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-          </div>
-        </div>
-
-        </>
-      )}
     </div>
   );
 }

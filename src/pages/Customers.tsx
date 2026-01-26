@@ -870,13 +870,32 @@ export default function Customers() {
               </div>
               <div>
                 <Label>Currency</Label>
-                <Input 
-                  placeholder="Currency" 
-                  value={newCustomer.currency}
-                  onChange={(e) => setNewCustomer({...newCustomer, currency: e.target.value})}
-                  className="bg-muted/50"
-                  readOnly
-                />
+                <Select value={newCustomer.currency} onValueChange={(value) => setNewCustomer({...newCustomer, currency: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
+                    <SelectItem value="JPY">JPY (¥)</SelectItem>
+                    <SelectItem value="CHF">CHF (₣)</SelectItem>
+                    <SelectItem value="CAD">CAD (C$)</SelectItem>
+                    <SelectItem value="AUD">AUD (A$)</SelectItem>
+                    <SelectItem value="CNY">CNY (¥)</SelectItem>
+                    <SelectItem value="INR">INR (₹)</SelectItem>
+                    <SelectItem value="BAM">KM (BAM)</SelectItem>
+                    <SelectItem value="RSD">RSD (РСД)</SelectItem>
+                    <SelectItem value="PLN">PLN (zł)</SelectItem>
+                    <SelectItem value="CZK">CZK (Kč)</SelectItem>
+                    <SelectItem value="SEK">SEK (kr)</SelectItem>
+                    <SelectItem value="NOK">NOK (kr)</SelectItem>
+                    <SelectItem value="DKK">DKK (kr)</SelectItem>
+                    <SelectItem value="HUF">HUF (Ft)</SelectItem>
+                    <SelectItem value="RON">RON (lei)</SelectItem>
+                    <SelectItem value="BGN">BGN (лв)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Industry</Label>
@@ -987,6 +1006,8 @@ export default function Customers() {
           <CardTitle>Customer Directory</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Desktop Table */}
+          <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1161,6 +1182,109 @@ export default function Customers() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {paginatedCustomers.map((customer) => (
+              <Card
+                key={customer.id}
+                className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => handleCustomerClick(customer)}
+              >
+                <div className="space-y-3">
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Name</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCustomerClick(customer);
+                      }}
+                      className="text-sm font-medium text-primary hover:underline text-left"
+                    >
+                      {customer.name}
+                    </button>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact Person</span>
+                    <div className="text-sm font-medium">{customer.contactPerson}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</span>
+                    <div className="text-sm font-medium">{customer.country}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency</span>
+                    <div className="text-sm font-medium">{customer.currency || 'EUR'}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Industry</span>
+                    <div className="text-sm font-medium">{customer.industry}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</span>
+                    <a href={`mailto:${customer.email}`} className="text-sm font-medium hover:underline break-all" onClick={(e) => e.stopPropagation()}>
+                      {customer.email}
+                    </a>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</span>
+                    <div className="text-sm font-medium">{customer.phone}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
+                    <Badge
+                      variant="outline"
+                      className={getStatusColor(customer.status)}
+                    >
+                      {customer.status}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Orders</span>
+                    <div className="text-sm font-medium">{customer.totalOrders}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Value</span>
+                    <div className="text-sm font-medium">${customer.totalValue.toLocaleString()}</div>
+                  </div>
+                  <div className="pt-2 border-t flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => generateStockReport(customer)}
+                      className="flex-1"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Report
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="flex-1">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{customer.name}"? This action cannot be undone and will remove all associated data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteCustomer(customer.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
           
           {/* Pagination Controls */}
           {totalPages > 1 && (
@@ -1448,14 +1572,32 @@ export default function Customers() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-currency">Currency</Label>
-              <Input
-                id="edit-currency"
-                value={newCustomer.currency}
-                onChange={(e) => setNewCustomer(prev => ({ ...prev, currency: e.target.value }))}
-                placeholder="Currency"
-                className="bg-muted/50"
-                readOnly
-              />
+              <Select value={newCustomer.currency} onValueChange={(value) => setNewCustomer(prev => ({ ...prev, currency: value }))}>
+                <SelectTrigger id="edit-currency">
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="GBP">GBP (£)</SelectItem>
+                  <SelectItem value="JPY">JPY (¥)</SelectItem>
+                  <SelectItem value="CHF">CHF (₣)</SelectItem>
+                  <SelectItem value="CAD">CAD (C$)</SelectItem>
+                  <SelectItem value="AUD">AUD (A$)</SelectItem>
+                  <SelectItem value="CNY">CNY (¥)</SelectItem>
+                  <SelectItem value="INR">INR (₹)</SelectItem>
+                  <SelectItem value="BAM">KM (BAM)</SelectItem>
+                  <SelectItem value="RSD">RSD (РСД)</SelectItem>
+                  <SelectItem value="PLN">PLN (zł)</SelectItem>
+                  <SelectItem value="CZK">CZK (Kč)</SelectItem>
+                  <SelectItem value="SEK">SEK (kr)</SelectItem>
+                  <SelectItem value="NOK">NOK (kr)</SelectItem>
+                  <SelectItem value="DKK">DKK (kr)</SelectItem>
+                  <SelectItem value="HUF">HUF (Ft)</SelectItem>
+                  <SelectItem value="RON">RON (lei)</SelectItem>
+                  <SelectItem value="BGN">BGN (лв)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-webpage">Website</Label>

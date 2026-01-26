@@ -550,6 +550,8 @@ export default function Accounting() {
               <CardTitle>Transaction History</CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Desktop Table */}
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -808,6 +810,76 @@ export default function Accounting() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {filteredTransactions.map((transaction) => (
+                  <Card key={transaction.id} className="p-4 border">
+                    <div className="space-y-3">
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date</span>
+                        <div className="text-sm font-medium">{transaction.date}</div>
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</span>
+                        <div className="text-sm font-medium break-words">{transaction.description}</div>
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</span>
+                        <Badge
+                          variant="outline"
+                          className={getTransactionTypeColor(transaction.type)}
+                        >
+                          {transaction.type}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Category</span>
+                        <div className="text-sm font-medium">{transaction.category}</div>
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Account</span>
+                        <div className="text-sm font-medium">{transaction.account}</div>
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount</span>
+                        <div className={`text-sm font-medium ${transaction.type?.toLowerCase() === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                          {transaction.type?.toLowerCase() === 'income' ? '+' : '-'}{transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM
+                        </div>
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reference</span>
+                        <div className="text-sm font-medium">{transaction.reference}</div>
+                      </div>
+                      <div className="pt-2 border-t" onClick={(e) => e.stopPropagation()}>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="w-full">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this transaction? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteTransaction(transaction.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

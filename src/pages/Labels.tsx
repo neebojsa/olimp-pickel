@@ -1269,46 +1269,112 @@ export default function Labels() {
           <CardTitle>Invoices</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice Number</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Issue Date</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Total Amount</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.map((invoice) => (
-                <TableRow 
-                  key={invoice.id} 
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleInvoiceClick(invoice)}
-                >
-                  <TableCell className="font-medium">
-                    <button className="text-primary hover:underline text-left">
+          {/* Desktop Table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice Number</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Issue Date</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Total Amount</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoices.map((invoice) => (
+                  <TableRow 
+                    key={invoice.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleInvoiceClick(invoice)}
+                  >
+                    <TableCell className="font-medium">
+                      <button className="text-primary hover:underline text-left">
+                        {invoice.invoice_number}
+                      </button>
+                    </TableCell>
+                    <TableCell>{invoice.customers.name}</TableCell>
+                    <TableCell>{formatDate(invoice.issue_date)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {invoice.invoice_items.length} items
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(
+                        invoice.invoice_items.reduce((sum, item) => sum + item.total, 0),
+                        'EUR'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleInvoiceClick(invoice);
+                        }}
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Generate Labels
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {invoices.map((invoice) => (
+              <Card
+                key={invoice.id}
+                className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => handleInvoiceClick(invoice)}
+              >
+                <div className="space-y-3">
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Invoice Number</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleInvoiceClick(invoice);
+                      }}
+                      className="text-sm font-medium text-primary hover:underline text-left"
+                    >
                       {invoice.invoice_number}
                     </button>
-                  </TableCell>
-                  <TableCell>{invoice.customers.name}</TableCell>
-                  <TableCell>{formatDate(invoice.issue_date)}</TableCell>
-                  <TableCell>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer</span>
+                    <div className="text-sm font-medium">{invoice.customers.name}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Issue Date</span>
+                    <div className="text-sm font-medium">{formatDate(invoice.issue_date)}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Items</span>
                     <Badge variant="outline">
                       {invoice.invoice_items.length} items
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {formatCurrency(
-                      invoice.invoice_items.reduce((sum, item) => sum + item.total, 0),
-                      'EUR'
-                    )}
-                  </TableCell>
-                  <TableCell>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Amount</span>
+                    <div className="text-sm font-medium">
+                      {formatCurrency(
+                        invoice.invoice_items.reduce((sum, item) => sum + item.total, 0),
+                        'EUR'
+                      )}
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t" onClick={(e) => e.stopPropagation()}>
                     <Button 
                       variant="ghost" 
                       size="sm"
+                      className="w-full"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleInvoiceClick(invoice);
@@ -1317,11 +1383,11 @@ export default function Labels() {
                       <FileText className="w-4 h-4 mr-2" />
                       Generate Labels
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
         </CardContent>
       </Card>
 

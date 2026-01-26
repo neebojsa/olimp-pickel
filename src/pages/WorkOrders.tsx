@@ -607,177 +607,285 @@ export default function WorkOrders() {
           <CardTitle>Active Work Orders</CardTitle>
         </CardHeader>
         <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Work Order Number
-                    <Popover open={isWorkOrderNumberFilterOpen} onOpenChange={setIsWorkOrderNumberFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${workOrderNumberFilter.search || workOrderNumberFilter.from || workOrderNumberFilter.to ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="start">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Work Order Number</Label>
-                            {(workOrderNumberFilter.search || workOrderNumberFilter.from || workOrderNumberFilter.to) && (
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                setWorkOrderNumberFilter({ search: "", from: "", to: "" });
-                              }}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                          <div>
-                            <Label>Search</Label>
-                            <Input
-                              placeholder="Search work order number..."
-                              value={workOrderNumberFilter.search}
-                              onChange={(e) => setWorkOrderNumberFilter({ ...workOrderNumberFilter, search: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label>From</Label>
-                              <Input
-                                placeholder="e.g., WO-001"
-                                value={workOrderNumberFilter.from}
-                                onChange={(e) => setWorkOrderNumberFilter({ ...workOrderNumberFilter, from: e.target.value })}
-                              />
+            {/* Desktop Table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                  <TableHead>
+                    <div className="flex items-center gap-2">
+                      Work Order Number
+                      <Popover open={isWorkOrderNumberFilterOpen} onOpenChange={setIsWorkOrderNumberFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${workOrderNumberFilter.search || workOrderNumberFilter.from || workOrderNumberFilter.to ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" align="start">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Label>Filter by Work Order Number</Label>
+                              {(workOrderNumberFilter.search || workOrderNumberFilter.from || workOrderNumberFilter.to) && (
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setWorkOrderNumberFilter({ search: "", from: "", to: "" });
+                                }}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
                             </div>
                             <div>
-                              <Label>To</Label>
+                              <Label>Search</Label>
                               <Input
-                                placeholder="e.g., WO-100"
-                                value={workOrderNumberFilter.to}
-                                onChange={(e) => setWorkOrderNumberFilter({ ...workOrderNumberFilter, to: e.target.value })}
+                                placeholder="Search work order number..."
+                                value={workOrderNumberFilter.search}
+                                onChange={(e) => setWorkOrderNumberFilter({ ...workOrderNumberFilter, search: e.target.value })}
                               />
                             </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label>From</Label>
+                                <Input
+                                  placeholder="e.g., WO-001"
+                                  value={workOrderNumberFilter.from}
+                                  onChange={(e) => setWorkOrderNumberFilter({ ...workOrderNumberFilter, from: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <Label>To</Label>
+                                <Input
+                                  placeholder="e.g., WO-100"
+                                  value={workOrderNumberFilter.to}
+                                  onChange={(e) => setWorkOrderNumberFilter({ ...workOrderNumberFilter, to: e.target.value })}
+                                />
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                  <TableHead>Part Name</TableHead>
-                  <TableHead>Part Number</TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Status
-                    <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-48" align="start">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Status</Label>
-                            {statusFilter !== "all" && (
-                              <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                    <TableHead>Part Name</TableHead>
+                    <TableHead>Part Number</TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-2">
+                      Status
+                      <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48" align="start">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label>Filter by Status</Label>
+                              {statusFilter !== "all" && (
+                                <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <Select value={statusFilter} onValueChange={(value) => {
+                              setStatusFilter(value);
+                              setIsStatusFilterOpen(false);
+                            }}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="Not Started">Not Started</SelectItem>
+                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                <SelectItem value="On Hold">On Hold</SelectItem>
+                                <SelectItem value="Completed">Completed</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
-                          <Select value={statusFilter} onValueChange={(value) => {
-                            setStatusFilter(value);
-                            setIsStatusFilterOpen(false);
-                          }}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Status</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="Not Started">Not Started</SelectItem>
-                              <SelectItem value="In Progress">In Progress</SelectItem>
-                              <SelectItem value="On Hold">On Hold</SelectItem>
-                              <SelectItem value="Completed">Completed</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Completion</TableHead>
+                    <TableHead>Production Time</TableHead>
+                    <TableHead className="w-20">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedWorkOrders.map((workOrder) => (
+                    <TableRow key={workOrder.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleWorkOrderClick(workOrder)}>
+                      <TableCell className="font-medium">
+                        <button className="text-primary hover:underline font-medium">
+                          {workOrder.workOrderNumber}
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <button 
+                          onClick={() => handlePartNameClick(workOrder.partNumber)}
+                          className="text-primary hover:underline font-medium text-left"
+                        >
+                          {workOrder.partName}
+                        </button>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {workOrder.partNumber}
+                      </TableCell>
+                      <TableCell>
+                        <Select 
+                          value={workOrder.status} 
+                          onValueChange={(value) => handleStatusChange(workOrder.id, value)}
+                        >
+                          <SelectTrigger 
+                            className={`w-32 ${getStatusColor(workOrder.status)}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="Not Started">Not Started</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="On Hold">On Hold</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={getPriorityColor(workOrder.priority)}
+                        >
+                          {workOrder.priority}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Progress 
+                            value={workOrder.percentageCompletion} 
+                            className="w-20"
+                          />
+                          <span className="text-sm text-muted-foreground min-w-[3rem]">
+                            {workOrder.percentageCompletion}%
+                          </span>
                         </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Completion</TableHead>
-                  <TableHead>Production Time</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedWorkOrders.map((workOrder) => (
-                  <TableRow key={workOrder.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleWorkOrderClick(workOrder)}>
-                    <TableCell className="font-medium">
-                      <button className="text-primary hover:underline font-medium">
+                      </TableCell>
+                      <TableCell>{workOrder.productionTime}</TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Work Order</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete work order "{workOrder.workOrderNumber}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteWorkOrder(workOrder.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {paginatedWorkOrders.map((workOrder) => (
+                <Card
+                  key={workOrder.id}
+                  className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => handleWorkOrderClick(workOrder)}
+                >
+                  <div className="space-y-3">
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Work Order Number</span>
+                      <button className="text-sm font-medium text-primary hover:underline text-left">
                         {workOrder.workOrderNumber}
                       </button>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Part Name</span>
                       <button 
-                        onClick={() => handlePartNameClick(workOrder.partNumber)}
-                        className="text-primary hover:underline font-medium text-left"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePartNameClick(workOrder.partNumber);
+                        }}
+                        className="text-sm font-medium text-primary hover:underline text-left"
                       >
                         {workOrder.partName}
                       </button>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {workOrder.partNumber}
-                    </TableCell>
-                    <TableCell>
-                      <Select 
-                        value={workOrder.status} 
-                        onValueChange={(value) => handleStatusChange(workOrder.id, value)}
-                      >
-                        <SelectTrigger 
-                          className={`w-32 ${getStatusColor(workOrder.status)}`}
-                          onClick={(e) => e.stopPropagation()}
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Part Number</span>
+                      <div className="text-sm font-medium font-mono">{workOrder.partNumber}</div>
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Select 
+                          value={workOrder.status} 
+                          onValueChange={(value) => handleStatusChange(workOrder.id, value)}
                         >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="Not Started">Not Started</SelectItem>
-                          <SelectItem value="In Progress">In Progress</SelectItem>
-                          <SelectItem value="On Hold">On Hold</SelectItem>
-                          <SelectItem value="Completed">Completed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
+                          <SelectTrigger className={`w-full ${getStatusColor(workOrder.status)}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="Not Started">Not Started</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="On Hold">On Hold</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Priority</span>
                       <Badge
                         variant="outline"
                         className={getPriorityColor(workOrder.priority)}
                       >
                         {workOrder.priority}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Completion</span>
                       <div className="flex items-center space-x-2">
                         <Progress 
                           value={workOrder.percentageCompletion} 
-                          className="w-20"
+                          className="flex-1"
                         />
                         <span className="text-sm text-muted-foreground min-w-[3rem]">
                           {workOrder.percentageCompletion}%
                         </span>
                       </div>
-                    </TableCell>
-                    <TableCell>{workOrder.productionTime}</TableCell>
-                    <TableCell>
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Production Time</span>
+                      <div className="text-sm font-medium">{workOrder.productionTime}</div>
+                    </div>
+                    <div className="pt-2 border-t" onClick={(e) => e.stopPropagation()}>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Trash2 className="h-4 w-4" />
+                          <Button variant="ghost" size="sm" className="w-full">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -795,11 +903,11 @@ export default function WorkOrders() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           
           {/* Pagination Controls */}
           {totalPages > 1 && (
@@ -1358,7 +1466,7 @@ export default function WorkOrders() {
 
       {/* Add Work Order Dialog */}
       <Dialog open={isAddWorkOrderOpen} onOpenChange={setIsAddWorkOrderOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto thin-scrollbar">
           <DialogHeader>
             <DialogTitle>Create New Work Order</DialogTitle>
           </DialogHeader>

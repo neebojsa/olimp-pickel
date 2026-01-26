@@ -200,6 +200,8 @@ export default function Invoicing() {
   }]);
   const [productSearchOpen, setProductSearchOpen] = useState<Record<number, boolean>>({});
   const [productSearchTerms, setProductSearchTerms] = useState<Record<number, string>>({});
+  const [orderConfirmations, setOrderConfirmations] = useState<any[]>([]);
+  const [selectedOrderConfirmationId, setSelectedOrderConfirmationId] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [invoiceSettings, setInvoiceSettings] = useState({
     primaryColor: '#000000',
@@ -223,6 +225,7 @@ export default function Invoicing() {
     fetchInventoryItems();
     fetchCompanyInfo();
     fetchInvoiceSettings();
+    fetchOrderConfirmations();
     // Load PDF settings from localStorage
     const savedSettings = localStorage.getItem('pdfSettings');
     if (savedSettings) {
@@ -284,6 +287,12 @@ export default function Invoicing() {
       data
     } = await supabase.from('inventory').select('*').eq('category', 'Parts');
     if (data) setInventoryItems(data);
+  };
+  const fetchOrderConfirmations = async () => {
+    const {
+      data
+    } = await supabase.from('order_confirmations').select('*, order_confirmation_items(*)').order('created_at', { ascending: false });
+    if (data) setOrderConfirmations(data);
   };
   const fetchCompanyInfo = async () => {
     const {
@@ -457,7 +466,7 @@ export default function Invoicing() {
     const vatRate = customer?.country === 'Bosnia and Herzegovina' ? 17 : 0;
     const vatAmount = subtotal * (vatRate / 100);
     const total = subtotal + vatAmount;
-    const currency = customer?.country === 'Bosnia and Herzegovina' ? 'BAM' : 'EUR';
+    const currency = customer?.currency || (customer?.country === 'Bosnia and Herzegovina' ? 'BAM' : 'EUR');
     return {
       totalQuantity,
       netWeight,
@@ -727,13 +736,15 @@ export default function Invoicing() {
       packing: 1,
       taraWeight: 0,
       notes: '',
-      dueDate: ''
+      dueDate: '',
+      contactPersonReference: ''
     });
     setInvoiceItems([{
       inventoryId: '',
       quantity: 1,
       unitPrice: 0
     }]);
+    setSelectedOrderConfirmationId('');
     setIsEditMode(false);
   };
   const handleDeleteInvoice = async () => {
@@ -815,6 +826,41 @@ export default function Invoicing() {
       }
     }
     setInvoiceItems(updated);
+  };
+  const applyOrderConfirmationItems = () => {
+    if (!selectedOrderConfirmationId) {
+      toast({
+        title: "Error",
+        description: "Please select an order confirmation first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const orderConfirmation = orderConfirmations.find(oc => oc.id === selectedOrderConfirmationId);
+    if (!orderConfirmation || !orderConfirmation.order_confirmation_items) {
+      toast({
+        title: "Error",
+        description: "Order confirmation not found or has no items",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Map order confirmation items to invoice items
+    const newInvoiceItems = orderConfirmation.order_confirmation_items.map((item: any) => ({
+      inventoryId: item.inventory_id || '',
+      quantity: item.quantity || 1,
+      unitPrice: item.unit_price || 0
+    }));
+
+    setInvoiceItems(newInvoiceItems);
+    setSelectedOrderConfirmationId(''); // Reset selection after applying
+    
+    toast({
+      title: "Success",
+      description: `Applied ${newInvoiceItems.length} items from order confirmation`,
+    });
   };
   // Function to estimate lines an item will take based on description length
   const estimateItemLines = (item: any) => {
@@ -1885,8 +1931,39 @@ ${cssVariables}
 
               {/* Invoice Items */}
               <div>
-                <div className="mb-4">
-                  <Label className="text-lg font-semibold">Invoice Items</Label>
+                <div className="mb-4 flex items-end justify-between gap-4">
+                  <div className="flex-1">
+                    <Label className="text-lg font-semibold">Invoice Items</Label>
+                  </div>
+                  <div className="flex items-end gap-2 flex-1">
+                    <div className="flex-1">
+                      <Label className="text-sm">Quick Fill from Order Confirmation</Label>
+                      <Select value={selectedOrderConfirmationId} onValueChange={setSelectedOrderConfirmationId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select order confirmation..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {orderConfirmations.map(oc => {
+                            const customer = customers.find(c => c.id === oc.customer_id);
+                            return (
+                              <SelectItem key={oc.id} value={oc.id}>
+                                {oc.order_confirmation_number} - {customer?.name || 'Unknown'} ({oc.order_confirmation_items?.length || 0} items)
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="secondary" 
+                      size="sm"
+                      onClick={applyOrderConfirmationItems}
+                      disabled={!selectedOrderConfirmationId}
+                    >
+                      Apply
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -2258,358 +2335,489 @@ ${cssVariables}
           </Button>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Invoice Number
-                    <Popover open={isInvoiceNumberFilterOpen} onOpenChange={setIsInvoiceNumberFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${invoiceNumberFilter.search || invoiceNumberFilter.from || invoiceNumberFilter.to ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="start">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Invoice Number</Label>
-                            {(invoiceNumberFilter.search || invoiceNumberFilter.from || invoiceNumberFilter.to) && (
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                setInvoiceNumberFilter({ search: "", from: "", to: "" });
-                              }}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
-        </div>
-                          <div>
-                            <Label>Search</Label>
-                            <Input
-                              placeholder="Search invoice number..."
-                              value={invoiceNumberFilter.search}
-                              onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, search: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label>From</Label>
-                              <Input
-                                placeholder="e.g., 001"
-                                value={invoiceNumberFilter.from}
-                                onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, from: e.target.value })}
-                              />
+          {/* Desktop Table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <div className="flex items-center gap-2">
+                      Invoice Number
+                      <Popover open={isInvoiceNumberFilterOpen} onOpenChange={setIsInvoiceNumberFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${invoiceNumberFilter.search || invoiceNumberFilter.from || invoiceNumberFilter.to ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" align="start">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Label>Filter by Invoice Number</Label>
+                              {(invoiceNumberFilter.search || invoiceNumberFilter.from || invoiceNumberFilter.to) && (
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setInvoiceNumberFilter({ search: "", from: "", to: "" });
+                                }}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
                             </div>
                             <div>
-                              <Label>To</Label>
+                              <Label>Search</Label>
                               <Input
-                                placeholder="e.g., 100"
-                                value={invoiceNumberFilter.to}
-                                onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, to: e.target.value })}
+                                placeholder="Search invoice number..."
+                                value={invoiceNumberFilter.search}
+                                onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, search: e.target.value })}
                               />
                             </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label>From</Label>
+                                <Input
+                                  placeholder="e.g., 001"
+                                  value={invoiceNumberFilter.from}
+                                  onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, from: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <Label>To</Label>
+                                <Input
+                                  placeholder="e.g., 100"
+                                  value={invoiceNumberFilter.to}
+                                  onChange={(e) => setInvoiceNumberFilter({ ...invoiceNumberFilter, to: e.target.value })}
+                                />
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Issue Date
-                    <Popover open={isIssueDateFilterOpen} onOpenChange={setIsIssueDateFilterOpen}>
-          <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${issueDateFilter.from || issueDateFilter.to ? 'text-primary' : ''}`} />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="range"
-                          selected={{ from: issueDateFilter.from, to: issueDateFilter.to }}
-              onSelect={(range) => {
-                            setIssueDateFilter({
-                  from: range?.from,
-                  to: range?.to
-                });
-                if (range?.from && range?.to) {
-                              setIsIssueDateFilterOpen(false);
-                }
-              }}
-              numberOfMonths={2}
-              className="rounded-md border"
-            />
-          </PopoverContent>
-        </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Due Date
-                    <Popover open={isDueDateFilterOpen} onOpenChange={setIsDueDateFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${dueDateFilter.from || dueDateFilter.to ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="range"
-                          selected={{ from: dueDateFilter.from, to: dueDateFilter.to }}
-                          onSelect={(range) => {
-                            setDueDateFilter({
-                              from: range?.from,
-                              to: range?.to
-                            });
-                            if (range?.from && range?.to) {
-                              setIsDueDateFilterOpen(false);
-                            }
-                          }}
-                          numberOfMonths={2}
-                          className="rounded-md border"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Customer
-                    <Popover open={isCustomerFilterOpen} onOpenChange={setIsCustomerFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${customerFilter.selectedId !== "all" ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="start">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Customer</Label>
-                            {customerFilter.selectedId !== "all" && (
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                setCustomerFilter({ search: "", selectedId: "all" });
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-2">
+                      Issue Date
+                      <Popover open={isIssueDateFilterOpen} onOpenChange={setIsIssueDateFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${issueDateFilter.from || issueDateFilter.to ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="range"
+                            selected={{ from: issueDateFilter.from, to: issueDateFilter.to }}
+                            onSelect={(range) => {
+                              setIssueDateFilter({
+                                from: range?.from,
+                                to: range?.to
+                              });
+                              if (range?.from && range?.to) {
+                                setIsIssueDateFilterOpen(false);
+                              }
+                            }}
+                            numberOfMonths={2}
+                            className="rounded-md border"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-2">
+                      Due Date
+                      <Popover open={isDueDateFilterOpen} onOpenChange={setIsDueDateFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${dueDateFilter.from || dueDateFilter.to ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="range"
+                            selected={{ from: dueDateFilter.from, to: dueDateFilter.to }}
+                            onSelect={(range) => {
+                              setDueDateFilter({
+                                from: range?.from,
+                                to: range?.to
+                              });
+                              if (range?.from && range?.to) {
+                                setIsDueDateFilterOpen(false);
+                              }
+                            }}
+                            numberOfMonths={2}
+                            className="rounded-md border"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-2">
+                      Customer
+                      <Popover open={isCustomerFilterOpen} onOpenChange={setIsCustomerFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${customerFilter.selectedId !== "all" ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" align="start">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Label>Filter by Customer</Label>
+                              {customerFilter.selectedId !== "all" && (
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setCustomerFilter({ search: "", selectedId: "all" });
+                                }}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <div>
+                              <Label>Search</Label>
+                              <Input
+                                placeholder="Search customers..."
+                                value={customerFilter.search}
+                                onChange={(e) => setCustomerFilter({ ...customerFilter, search: e.target.value })}
+                              />
+                            </div>
+                            <div className="max-h-60 overflow-y-auto">
+                              <Select value={customerFilter.selectedId} onValueChange={(value) => {
+                                setCustomerFilter({ ...customerFilter, selectedId: value });
+                                setIsCustomerFilterOpen(false);
                               }}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select customer" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Customers</SelectItem>
+                                  {customers
+                                    .filter(c => !customerFilter.search || c.name.toLowerCase().includes(customerFilter.search.toLowerCase()))
+                                    .map(customer => (
+                                      <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
-                          <div>
-                            <Label>Search</Label>
-                            <Input
-                              placeholder="Search customers..."
-                              value={customerFilter.search}
-                              onChange={(e) => setCustomerFilter({ ...customerFilter, search: e.target.value })}
-                            />
-                          </div>
-                          <div className="max-h-60 overflow-y-auto">
-                            <Select value={customerFilter.selectedId} onValueChange={(value) => {
-                              setCustomerFilter({ ...customerFilter, selectedId: value });
-                              setIsCustomerFilterOpen(false);
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-2">
+                      Status
+                      <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48" align="start">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label>Filter by Status</Label>
+                              {statusFilter !== "all" && (
+                                <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <Select value={statusFilter} onValueChange={(value) => {
+                              setStatusFilter(value);
+                              setIsStatusFilterOpen(false);
                             }}>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select customer" />
+                                <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="all">All Customers</SelectItem>
-                                {customers
-                                  .filter(c => !customerFilter.search || c.name.toLowerCase().includes(customerFilter.search.toLowerCase()))
-                                  .map(customer => (
-                                    <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                                  ))}
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="paid">Paid</SelectItem>
+                                <SelectItem value="overdue">Overdue</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Status
-                    <Popover open={isStatusFilterOpen} onOpenChange={setIsStatusFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${statusFilter !== "all" ? 'text-primary' : ''}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-48" align="start">
-          <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Status</Label>
-                            {statusFilter !== "all" && (
-                              <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
-                  </div>
-                          <Select value={statusFilter} onValueChange={(value) => {
-                            setStatusFilter(value);
-                            setIsStatusFilterOpen(false);
-                          }}>
-                            <SelectTrigger>
-                              <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="overdue">Overdue</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Total
-                    <Popover open={isAmountFilterOpen} onOpenChange={setIsAmountFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter className={`h-3 w-3 ${amountFilter.from || amountFilter.to ? 'text-primary' : ''}`} />
-          </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="start">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Label>Filter by Amount</Label>
-                            {(amountFilter.from || amountFilter.to) && (
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                setAmountFilter({ from: "", to: "" });
-                              }}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
-                  </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label>From</Label>
-                              <NumericInput
-                                value={amountFilter.from ? parseFloat(amountFilter.from) : 0}
-                                onChange={(val) => setAmountFilter({ ...amountFilter, from: val.toString() })}
-                                min={0}
-                                placeholder="Min amount"
-                              />
-                  </div>
-                            <div>
-                              <Label>To</Label>
-                              <NumericInput
-                                value={amountFilter.to ? parseFloat(amountFilter.to) : 0}
-                                onChange={(val) => setAmountFilter({ ...amountFilter, to: val.toString() })}
-                                min={0}
-                                placeholder="Max amount"
-                              />
-                  </div>
-                  </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
-                <TableHead className="w-32">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInvoices.map(invoice => (
-                <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
-                  <TableCell className="font-medium">
-                    <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline text-left">
-                      {invoice.invoice_number}
-                    </button>
-                  </TableCell>
-                  <TableCell>{formatDate(invoice.issue_date)}</TableCell>
-                  <TableCell>{invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</TableCell>
-                  <TableCell>{invoice.customers?.name}</TableCell>
-                  <TableCell>
-                    <InvoiceStatusBadge invoice={invoice} onStatusChange={async (newStatus) => {
-                      const oldStatus = invoice.status;
-                      const { error } = await supabase
-                        .from('invoices')
-                        .update({ status: newStatus })
-                        .eq('id', invoice.id);
-                      
-                      if (error) {
-                        toast({
-                          title: "Error",
-                          description: "Failed to update invoice status",
-                          variant: "destructive"
-                        });
-                      } else {
-                        // If status changed to "paid" and it wasn't "paid" before, create accounting entry
-                        if (newStatus === "paid" && oldStatus !== "paid") {
-                          // Check if accounting entry already exists for this invoice
-                          const { data: existingEntry } = await supabase
-                            .from('accounting_entries')
-                            .select('id')
-                            .eq('reference', invoice.invoice_number)
-                            .eq('type', 'income')
-                            .maybeSingle();
-                          
-                          if (!existingEntry) {
-                            // Convert amount to BAM if currency is EUR (1 EUR = 1.955 BAM)
-                            const invoiceAmount = invoice.amount || 0;
-                            const invoiceCurrency = invoice.currency || 'BAM';
-                            const amountInBAM = invoiceCurrency.toUpperCase() === 'EUR' 
-                              ? invoiceAmount * 1.955 
-                              : invoiceAmount;
-                            
-                            // Create accounting entry as income
-                            const { error: accountingError } = await supabase
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-2">
+                      Total
+                      <Popover open={isAmountFilterOpen} onOpenChange={setIsAmountFilterOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Filter className={`h-3 w-3 ${amountFilter.from || amountFilter.to ? 'text-primary' : ''}`} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" align="start">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Label>Filter by Amount</Label>
+                              {(amountFilter.from || amountFilter.to) && (
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setAmountFilter({ from: "", to: "" });
+                                }}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label>From</Label>
+                                <NumericInput
+                                  value={amountFilter.from ? parseFloat(amountFilter.from) : 0}
+                                  onChange={(val) => setAmountFilter({ ...amountFilter, from: val.toString() })}
+                                  min={0}
+                                  placeholder="Min amount"
+                                />
+                              </div>
+                              <div>
+                                <Label>To</Label>
+                                <NumericInput
+                                  value={amountFilter.to ? parseFloat(amountFilter.to) : 0}
+                                  onChange={(val) => setAmountFilter({ ...amountFilter, to: val.toString() })}
+                                  min={0}
+                                  placeholder="Max amount"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-32">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredInvoices.map(invoice => (
+                  <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline text-left">
+                        {invoice.invoice_number}
+                      </button>
+                    </TableCell>
+                    <TableCell>{formatDate(invoice.issue_date)}</TableCell>
+                    <TableCell>{invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</TableCell>
+                    <TableCell>{invoice.customers?.name}</TableCell>
+                    <TableCell>
+                      <InvoiceStatusBadge invoice={invoice} onStatusChange={async (newStatus) => {
+                        const oldStatus = invoice.status;
+                        const { error } = await supabase
+                          .from('invoices')
+                          .update({ status: newStatus })
+                          .eq('id', invoice.id);
+                        
+                        if (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to update invoice status",
+                            variant: "destructive"
+                          });
+                        } else {
+                          // If status changed to "paid" and it wasn't "paid" before, create accounting entry
+                          if (newStatus === "paid" && oldStatus !== "paid") {
+                            // Check if accounting entry already exists for this invoice
+                            const { data: existingEntry } = await supabase
                               .from('accounting_entries')
-                              .insert([{
-                                type: 'income',
-                                category: 'invoice',
-                                amount: amountInBAM,
-                                description: `Invoice Payment - ${invoice.invoice_number}${invoice.customers?.name ? ` (${invoice.customers.name})` : ''}`,
-                                date: new Date().toISOString().split('T')[0],
-                                reference: invoice.invoice_number
-                              }]);
+                              .select('id')
+                              .eq('reference', invoice.invoice_number)
+                              .eq('type', 'income')
+                              .maybeSingle();
                             
-                            if (accountingError) {
-                              console.error('Error creating accounting entry:', accountingError);
-                              toast({
-                                title: "Warning",
-                                description: "Invoice status updated, but failed to create accounting entry",
-                                variant: "destructive"
-                              });
+                            if (!existingEntry) {
+                              // Convert amount to BAM if currency is EUR (1 EUR = 1.955 BAM)
+                              const invoiceAmount = invoice.amount || 0;
+                              const invoiceCurrency = invoice.currency || 'BAM';
+                              const amountInBAM = invoiceCurrency.toUpperCase() === 'EUR' 
+                                ? invoiceAmount * 1.955 
+                                : invoiceAmount;
+                              
+                              // Create accounting entry as income
+                              const { error: accountingError } = await supabase
+                                .from('accounting_entries')
+                                .insert([{
+                                  type: 'income',
+                                  category: 'invoice',
+                                  amount: amountInBAM,
+                                  description: `Invoice Payment - ${invoice.invoice_number}${invoice.customers?.name ? ` (${invoice.customers.name})` : ''}`,
+                                  date: new Date().toISOString().split('T')[0],
+                                  reference: invoice.invoice_number
+                                }]);
+                              
+                              if (accountingError) {
+                                console.error('Error creating accounting entry:', accountingError);
+                                toast({
+                                  title: "Warning",
+                                  description: "Invoice status updated, but failed to create accounting entry",
+                                  variant: "destructive"
+                                });
+                              }
                             }
                           }
+                          
+                          await fetchInvoices();
+                          toast({
+                            title: "Status Updated",
+                            description: `Invoice status changed to ${newStatus}${newStatus === "paid" && oldStatus !== "paid" ? " - Added to accounting as income" : ""}`
+                          });
                         }
+                      }} />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(invoice.amount || 0, invoice.currency)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditInvoice(invoice)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeletingInvoice(invoice)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {filteredInvoices.map(invoice => (
+              <Card
+                key={invoice.id}
+                className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => handleViewInvoice(invoice)}
+              >
+                <div className="space-y-3">
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Invoice Number</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewInvoice(invoice);
+                      }}
+                      className="text-sm font-medium text-primary hover:underline text-left"
+                    >
+                      {invoice.invoice_number}
+                    </button>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Issue Date</span>
+                    <div className="text-sm font-medium">{formatDate(invoice.issue_date)}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Due Date</span>
+                    <div className="text-sm font-medium">{invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer</span>
+                    <div className="text-sm font-medium">{invoice.customers?.name}</div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <InvoiceStatusBadge invoice={invoice} onStatusChange={async (newStatus) => {
+                        const oldStatus = invoice.status;
+                        const { error } = await supabase
+                          .from('invoices')
+                          .update({ status: newStatus })
+                          .eq('id', invoice.id);
                         
-                        await fetchInvoices();
-                        toast({
-                          title: "Status Updated",
-                          description: `Invoice status changed to ${newStatus}${newStatus === "paid" && oldStatus !== "paid" ? " - Added to accounting as income" : ""}`
-                        });
-                      }
-                    }} />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {formatCurrency(invoice.amount || 0, invoice.currency)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditInvoice(invoice)}
-                      >
-                        Edit
-                  </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDeletingInvoice(invoice)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                  </Button>
+                        if (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to update invoice status",
+                            variant: "destructive"
+                          });
+                        } else {
+                          // If status changed to "paid" and it wasn't "paid" before, create accounting entry
+                          if (newStatus === "paid" && oldStatus !== "paid") {
+                            // Check if accounting entry already exists for this invoice
+                            const { data: existingEntry } = await supabase
+                              .from('accounting_entries')
+                              .select('id')
+                              .eq('reference', invoice.invoice_number)
+                              .eq('type', 'income')
+                              .maybeSingle();
+                            
+                            if (!existingEntry) {
+                              // Convert amount to BAM if currency is EUR (1 EUR = 1.955 BAM)
+                              const invoiceAmount = invoice.amount || 0;
+                              const invoiceCurrency = invoice.currency || 'BAM';
+                              const amountInBAM = invoiceCurrency.toUpperCase() === 'EUR' 
+                                ? invoiceAmount * 1.955 
+                                : invoiceAmount;
+                              
+                              // Create accounting entry as income
+                              const { error: accountingError } = await supabase
+                                .from('accounting_entries')
+                                .insert([{
+                                  type: 'income',
+                                  category: 'invoice',
+                                  amount: amountInBAM,
+                                  description: `Invoice Payment - ${invoice.invoice_number}${invoice.customers?.name ? ` (${invoice.customers.name})` : ''}`,
+                                  date: new Date().toISOString().split('T')[0],
+                                  reference: invoice.invoice_number
+                                }]);
+                              
+                              if (accountingError) {
+                                console.error('Error creating accounting entry:', accountingError);
+                                toast({
+                                  title: "Warning",
+                                  description: "Invoice status updated, but failed to create accounting entry",
+                                  variant: "destructive"
+                                });
+                              }
+                            }
+                          }
+                          
+                          await fetchInvoices();
+                          toast({
+                            title: "Status Updated",
+                            description: `Invoice status changed to ${newStatus}${newStatus === "paid" && oldStatus !== "paid" ? " - Added to accounting as income" : ""}`
+                          });
+                        }
+                      }} />
+                    </div>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</span>
+                    <div className="text-sm font-medium">{formatCurrency(invoice.amount || 0, invoice.currency)}</div>
+                  </div>
+                  <div className="pt-2 border-t flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditInvoice(invoice)}
+                      className="flex-1"
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletingInvoice(invoice)}
+                      className="flex-1"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </Card>
+            ))}
+          </div>
         </CardContent>
       </Card>
 

@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
 import { CountryAutocomplete } from "@/components/CountryAutocomplete";
+import { DragDropImageUpload } from "@/components/DragDropImageUpload";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -388,26 +389,24 @@ export default function Settings() {
                   <AvatarImage src={profileData.avatar_url || "/placeholder.svg"} />
                   <AvatarFallback>{profileData.first_name?.[0]}{profileData.last_name?.[0]}</AvatarFallback>
                 </Avatar>
-                <div className="space-y-2">
-                  <Button variant="outline" size="sm" onClick={() => document.getElementById('avatar-upload')?.click()}>Change Avatar</Button>
-                  <input
-                    id="avatar-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+                <div className="space-y-2 flex-1 max-w-xs">
+                  <DragDropImageUpload
+                    value={avatarFile || profileData.avatar_url}
+                    onChange={async (file) => {
                       if (file) {
                         setAvatarFile(file);
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                          setProfileData(prev => ({ ...prev, avatar_url: e.target?.result as string }));
-                        };
-                        reader.readAsDataURL(file);
+                        const base64String = await handleAvatarUpload(file);
+                        if (base64String) {
+                          setProfileData(prev => ({ ...prev, avatar_url: base64String }));
+                        }
+                      } else {
+                        setAvatarFile(null);
+                        setProfileData(prev => ({ ...prev, avatar_url: "" }));
                       }
                     }}
+                    maxSizeMB={10}
+                    label="Avatar"
                   />
-                  <p className="text-sm text-muted-foreground">JPG, GIF or PNG. Max size 1MB.</p>
                 </div>
               </div>
               
@@ -484,28 +483,24 @@ export default function Settings() {
                   <AvatarImage src={companyData.logo_url || "/placeholder.svg"} />
                   <AvatarFallback>LOGO</AvatarFallback>
                 </Avatar>
-                <div className="space-y-2">
-                  <Button variant="outline" size="sm" onClick={() => document.getElementById('logo-upload')?.click()}>
-                    Change Logo
-                  </Button>
-                  <input
-                    id="logo-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+                <div className="space-y-2 flex-1 max-w-xs">
+                  <DragDropImageUpload
+                    value={logoFile || companyData.logo_url}
+                    onChange={async (file) => {
                       if (file) {
                         setLogoFile(file);
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                          setCompanyData(prev => ({ ...prev, logo_url: e.target?.result as string }));
-                        };
-                        reader.readAsDataURL(file);
+                        const base64String = await handleLogoUpload(file);
+                        if (base64String) {
+                          setCompanyData(prev => ({ ...prev, logo_url: base64String }));
+                        }
+                      } else {
+                        setLogoFile(null);
+                        setCompanyData(prev => ({ ...prev, logo_url: "" }));
                       }
                     }}
+                    maxSizeMB={10}
+                    label="Company Logo"
                   />
-                  <p className="text-sm text-muted-foreground">PNG or JPG. Max size 2MB.</p>
                 </div>
               </div>
               
