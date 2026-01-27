@@ -232,12 +232,28 @@ function HexBar() {
 }
 
 function Sheet() {
-  // Keep your "thin plates" feel but make it 6 layers with perspective
+  // Top-facing "solid bar" (parallelogram), not hollow.
+  // Front layer is filled like RectangularBar; back layers are outlines.
+  const pts = "24 38 76 28 88 50 36 60" // solid top plate silhouette
+
   return (
     <Layers>
-      {({ opacity, transform }) => (
+      {({ isFront, opacity, transform }) => (
         <g transform={transform} strokeOpacity={opacity}>
-          <rect x="14" y="52" width="58" height="22" rx="6" />
+          <polygon
+            points={pts}
+            fill={isFront ? "currentColor" : "none"}
+            stroke="currentColor"
+          />
+
+          {/* subtle edge hint only on the front layer (reads as thickness/face) */}
+          {isFront && (
+            <path
+              d="M36 60 L88 50"
+              stroke="currentColor"
+              strokeOpacity={0.35}
+            />
+          )}
         </g>
       )}
     </Layers>

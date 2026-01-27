@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle, Minus, ShoppingCart } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle, Minus, ShoppingCart, Calculator } from "lucide-react";
 import { ShapeIcon } from "@/components/ShapeIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,11 +34,15 @@ import { cn } from "@/lib/utils";
 import { MaterialAdjustmentDialog } from "@/components/MaterialAdjustmentDialog";
 import { MaterialHistoryDialog } from "@/components/MaterialHistoryDialog";
 import { MaterialReorderDialog } from "@/components/MaterialReorderDialog";
+import { MaterialReorderSummaryDialog } from "@/components/MaterialReorderSummaryDialog";
+import { PriceCalculatorDialog } from "@/components/PriceCalculatorDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/hooks/useAuth";
 export default function Inventory() {
   const {
     toast
   } = useToast();
+  const { canSeePrices } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -113,6 +117,9 @@ export default function Inventory() {
   const [selectedMaterialForHistory, setSelectedMaterialForHistory] = useState<any>(null);
   const [isMaterialReorderDialogOpen, setIsMaterialReorderDialogOpen] = useState(false);
   const [selectedMaterialForReorder, setSelectedMaterialForReorder] = useState<any>(null);
+  const [isMaterialReorderSummaryDialogOpen, setIsMaterialReorderSummaryDialogOpen] = useState(false);
+  const [isPriceCalculatorDialogOpen, setIsPriceCalculatorDialogOpen] = useState(false);
+  const [selectedPartForPriceCalculator, setSelectedPartForPriceCalculator] = useState<any>(null);
   const [materialReorders, setMaterialReorders] = useState<{ [key: string]: any }>({});
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("");
@@ -362,7 +369,7 @@ export default function Inventory() {
         return;
       }
     } else if (currentCategory === "Tools") {
-      if (!toolCategorySelection || !formData.quantity || !formData.unit_price) {
+      if (!toolCategorySelection || !formData.quantity || (canSeePrices() && !formData.unit_price)) {
         toast({
           title: "Validation Error", 
           description: "Please select a tool category and fill in all required fields.",
@@ -370,7 +377,7 @@ export default function Inventory() {
         });
         return;
       }
-    } else if (!formData.name || !formData.quantity || !formData.unit_price) {
+    } else if (!formData.name || !formData.quantity || (canSeePrices() && !formData.unit_price)) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields.",
@@ -401,9 +408,9 @@ export default function Inventory() {
     } = await supabase.from('inventory').insert({
       part_number: formData.part_number,
       name: itemName,
-      description: formData.description || null,
+      description: currentCategory === "Materials" && materialData ? (materialData.description || null) : (formData.description || null),
       quantity: currentCategory === "Materials" ? 0 : parseInt(formData.quantity),
-      unit_price: currentCategory === "Materials" ? 0 : parseFloat(formData.unit_price),
+      unit_price: currentCategory === "Materials" ? 0 : (canSeePrices() ? parseFloat(formData.unit_price) : 0),
       currency: formData.currency,
       unit: formData.unit,
       weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : 0,
@@ -537,6 +544,7 @@ export default function Inventory() {
         shapeId: materialInfo.shapeId,
         calculationType: materialInfo.calculationType,
         material: materialInfo.material || "",
+        materialNumber: materialInfo.materialNumber || "",
         dimensions: materialInfo.dimensions || {},
         profileId: materialInfo.profileId,
         profileDesignation: materialInfo.profileDesignation,
@@ -545,7 +553,8 @@ export default function Inventory() {
         supplier: materialInfo.supplier,
         supplierId: materialInfo.supplierId,
         currency: materialInfo.currency,
-        location: materialInfo.location
+        location: materialInfo.location,
+        description: item.description || ""
       });
     } else {
       // Reset material data for non-materials
@@ -640,9 +649,9 @@ export default function Inventory() {
       } = await supabase.from('inventory').update({
         part_number: formData.part_number,
         name: itemName,
-        description: editingItem?.category === "Materials" ? formData.description || null : formData.description,
+        description: editingItem?.category === "Materials" && materialData ? (materialData.description || null) : formData.description,
         quantity: parseInt(formData.quantity) || 0,
-        unit_price: parseFloat(formData.unit_price) || 0,
+        unit_price: canSeePrices() ? (parseFloat(formData.unit_price) || 0) : (editingItem?.unit_price || 0),
         currency: formData.currency,
         unit: formData.unit,
         weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : editingItem.weight || 0,
@@ -658,6 +667,7 @@ export default function Inventory() {
           shapeId: materialData.shapeId,
           calculationType: materialData.calculationType,
           material: materialData.material,
+          materialNumber: materialData.materialNumber,
           dimensions: materialData.dimensions,
           profileId: materialData.profileId,
           profileDesignation: materialData.profileDesignation,
@@ -1308,14 +1318,13 @@ export default function Inventory() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full min-w-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Inventory Management</h1>
-          
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 w-full min-w-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold break-words">Inventory Management</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {currentCategory === "Parts" && (
             <Button 
               onClick={() => setIsImportDialogOpen(true)}
@@ -1338,55 +1347,9 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Raw Materials</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{inventoryItems.length}</div>
-            <p className="text-xs text-muted-foreground">
-              ${totalValue.toLocaleString()} value
-            </p>
-          </CardContent>
-        </Card>
-
-        
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Alert</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {allLowStockCount}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              items need attention
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalValue, 'EUR')}</div>
-            <p className="text-xs text-muted-foreground">
-              complete inventory
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Main Content */}
-      <Tabs defaultValue="Parts" className="space-y-4" onValueChange={setCurrentCategory}>
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="Parts" className="space-y-4 w-full max-w-full min-w-0" onValueChange={setCurrentCategory}>
+        <TabsList className="grid w-full grid-cols-4 min-w-0">
           <TabsTrigger value="Parts">Parts</TabsTrigger>
           <TabsTrigger value="Materials">Materials</TabsTrigger>
           <TabsTrigger value="Tools">Tools</TabsTrigger>
@@ -1396,20 +1359,20 @@ export default function Inventory() {
         {["Parts", "Materials", "Tools", "Machines"].map(category => {
         const CategoryIcon = getCategoryIcon(category);
         const filteredItems = getFilteredItems(category);
-        return <TabsContent key={category} value={category} className="space-y-4">
+        return <TabsContent key={category} value={category} className="space-y-4 w-full max-w-full min-w-0">
               {/* Search and Add */}
-              <div className="flex items-center justify-between space-x-4">
-                <div className="relative max-w-md">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 w-full">
+                <div className="relative w-full sm:max-w-md sm:flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder={`Search ${category.toLowerCase()}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+                  <Input placeholder={`Search ${category.toLowerCase()}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 w-full" />
                 </div>
                 
                 {/* Customer filter and Production Status filter - only show for Parts */}
                 {category === "Parts" && (
-                  <div className="flex items-center space-x-3">
-                    <div className="w-60">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                    <div className="w-full sm:w-60 min-w-0">
                       <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Filter by customer" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1426,6 +1389,7 @@ export default function Inventory() {
                       variant={showOnlyWithProductionStatus ? "default" : "outline"}
                       onClick={() => setShowOnlyWithProductionStatus(!showOnlyWithProductionStatus)}
                       size="default"
+                      className="w-full sm:w-auto whitespace-nowrap"
                     >
                       <ClipboardList className="w-4 h-4 mr-2" />
                       With Production Status
@@ -1433,25 +1397,35 @@ export default function Inventory() {
                   </div>
                 )}
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {category === "Materials" && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsMaterialManagementDialogOpen(true)}
-                    >
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
+                        className="whitespace-nowrap"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Reorder Summary
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsMaterialManagementDialogOpen(true)}
+                      >
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                      </Button>
+                    </>
                   )}
-                <Button onClick={() => handleOpenAddDialog(category)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add {category.slice(0, -1)}
-                </Button>
+                  <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add {category.slice(0, -1)}
+                  </Button>
                 </div>
               </div>
 
-              {/* Items List */}
-              <div className="space-y-1.5">
+              {/* Items List - Desktop View */}
+              <div className="hidden sm:block space-y-1.5 w-full max-w-full min-w-0">
                 {filteredItems.length > 0 ? filteredItems.map(item => item &&
             // Add null check for the entire item
             <Card key={item.id} className={`h-32 hover:shadow-md transition-shadow cursor-pointer ${
@@ -1466,8 +1440,8 @@ export default function Inventory() {
                 setIsViewDialogOpen(true);
               }
             }}>
-                       <CardContent className="p-4 h-full">
-                         <div className="grid grid-cols-[auto_1fr_auto] gap-4 h-full items-center">
+                       <CardContent className="p-4 h-full min-w-0 overflow-hidden">
+                         <div className="grid grid-cols-[auto_1fr_auto] gap-2 sm:gap-4 h-full items-center min-w-0">
                            {/* Material Shape Icon or Regular Image */}
                              {item?.category === "Materials" ? (() => {
                     const materialInfo = item.materials_used || {};
@@ -1478,7 +1452,7 @@ export default function Inventory() {
                         color
                       }} />
                   </div>;
-                })() : <div className="h-[94px] w-[125px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                })() : <div className="h-[94px] w-[100px] sm:w-[125px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                             {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" /> : <CategoryIcon className="w-12 h-12 text-muted-foreground" />}
                           </div>}
                            
@@ -1592,6 +1566,15 @@ export default function Inventory() {
                                          </Button>
                                          </>
                                        )}
+                                     {item.category === "Parts" && canSeePrices() && (
+                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
+                                         e.stopPropagation();
+                                         setSelectedPartForPriceCalculator(item);
+                                         setIsPriceCalculatorDialogOpen(true);
+                                       }} title="Price Calculator">
+                                         <Calculator className="h-4 w-4" />
+                                       </Button>
+                                     )}
                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                               e.stopPropagation();
                               handleOpenEditDialog(item);
@@ -1666,7 +1649,7 @@ export default function Inventory() {
                                          {item.weight} kg
                                        </span>
                                      )}
-                                     <span className="font-semibold text-lg">{formatCurrency(item.unit_price, item.currency || 'EUR')}</span>
+                                     {canSeePrices() && <span className="font-semibold text-lg">{formatCurrency(item.unit_price, item.currency || 'EUR')}</span>}
                                    </>}
                                </div>
                               
@@ -1705,6 +1688,317 @@ export default function Inventory() {
                       Add First {category.slice(0, -1)}
                     </Button>
                   </div>}
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="sm:hidden space-y-3 w-full max-w-full min-w-0">
+                {filteredItems.length > 0 ? filteredItems.map(item => item && (
+                  <Card 
+                    key={item.id} 
+                    className={`p-4 border cursor-pointer hover:bg-muted/50 transition-colors relative ${
+                      item.quantity <= (item.minimum_stock || 0) ? 'border-destructive bg-destructive/5' : ''
+                    } ${
+                      item.category === "Materials" && materialReorders[item.id] ? 'bg-blue-50 border-blue-200' : ''
+                    }`}
+                    onClick={() => {
+                      const itemExists = inventoryItems.some(i => i.id === item.id);
+                      if (itemExists) {
+                        setSelectedViewItem(item);
+                        setIsViewDialogOpen(true);
+                      }
+                    }}
+                  >
+                    {/* Image/Shape Icon - Mobile Only (top-right) */}
+                    {item.category === "Materials" ? (() => {
+                      const materialInfo = item.materials_used || {};
+                      const shape = materialInfo?.shape || "";
+                      const color = getMaterialColor(materialInfo?.material);
+                      return (
+                        <div className="absolute top-4 right-4 pointer-events-none sm:hidden z-0">
+                          <ShapeIcon shape={shape} size={40} className="w-10 h-10" style={{ color }} />
+                        </div>
+                      );
+                    })() : (
+                      <div className="absolute top-4 right-4 pointer-events-none sm:hidden z-0">
+                        {item.image ? (
+                          <img 
+                            src={item.image} 
+                            alt={item.name} 
+                            className="h-[94px] w-[125px] object-cover rounded-lg"
+                          />
+                        ) : (
+                          <div className="h-[94px] w-[125px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                            <CategoryIcon className="w-12 h-12 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className="space-y-3">
+                      {/* Name/Title */}
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</span>
+                        <div className="text-sm font-semibold break-words">
+                          {item.category === "Tools" ? formatToolName(item.materials_used, item.name) : item.name}
+                        </div>
+                        {item.part_number && item.category !== "Materials" && (
+                          <div className="text-xs text-muted-foreground">Part #: {item.part_number}</div>
+                        )}
+                        {item.production_status && (
+                          <div className="text-xs font-medium text-black">{item.production_status}</div>
+                        )}
+                        {item.description && item.category === "Tools" && (
+                          <div className="text-xs text-muted-foreground mt-1">{item.description}</div>
+                        )}
+                      </div>
+
+                      {/* Category-specific fields */}
+                      {item.category === "Parts" && (
+                        <>
+                          {item.customer_id && (
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer</span>
+                              <div className="text-sm font-medium flex items-center gap-1">
+                                <Users className="h-3 w-3 text-gray-400" />
+                                {customers.find(c => c.id === item.customer_id)?.name}
+                              </div>
+                            </div>
+                          )}
+                          {canSeePrices() && item.unit_price && (
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Unit Price</span>
+                              <div className="text-sm font-medium">{formatCurrency(item.unit_price, item.currency || 'EUR')}</div>
+                            </div>
+                          )}
+                          {item.weight > 0 && (
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight</span>
+                              <div className="text-sm font-medium">{item.weight} kg</div>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {item.category === "Materials" && (() => {
+                        const materialInfo = item.materials_used || {};
+                        const unitWeight = calculateMaterialWeight(materialInfo);
+                        const totalWeight = unitWeight * item.quantity;
+                        const stockQuantityMm = materialStockQuantities[item.id] || 0;
+                        const reorder = materialReorders[item.id];
+                        
+                        return (
+                          <>
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stock</span>
+                              <div className="text-sm font-medium">{stockQuantityMm.toFixed(0)} mm</div>
+                            </div>
+                            {totalWeight > 0 && (
+                              <div className="flex flex-col space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Weight</span>
+                                <div className="text-sm font-medium">{totalWeight.toFixed(1)} kg</div>
+                              </div>
+                            )}
+                            {reorder && (
+                              <div className="flex flex-col space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reorder</span>
+                                <div className="text-xs text-blue-600 font-medium">
+                                  {reorder.length_mm}mm {reorder.notes && `- ${reorder.notes}`}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+
+                      {(item.category === "Tools" || item.category === "Machines") && (
+                        <>
+                          {item.supplier && (
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</span>
+                              <div className="text-sm font-medium flex items-center gap-1">
+                                <Building2 className="h-3 w-3 text-gray-400" />
+                                {item.supplier}
+                              </div>
+                            </div>
+                          )}
+                          {item.category === "Machines" && item.weight > 0 && (
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight</span>
+                              <div className="text-sm font-medium">{item.weight} kg</div>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Common fields */}
+                      {item.location && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Location</span>
+                          <div className="text-sm font-medium flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-gray-400" />
+                            {item.location}
+                          </div>
+                        </div>
+                      )}
+
+                      {item.category !== "Materials" && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantity</span>
+                          <div className="text-sm font-medium">
+                            <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
+                              {item.quantity} {item.unit || "pcs"}
+                            </Badge>
+                            {item.quantity <= (item.minimum_stock || 0) && (
+                              <span className="text-xs text-destructive ml-2">Low Stock</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action Buttons - Bottom of Card */}
+                      <div className="pt-2 border-t flex flex-wrap gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                        {item.category !== "Materials" && (
+                          <>
+                            <Button variant="outline" size="sm" onClick={(e) => {
+                              e.stopPropagation();
+                              const itemExists = inventoryItems.some(i => i.id === item.id);
+                              if (itemExists) {
+                                setSelectedViewItem(item);
+                                setIsViewDialogOpen(true);
+                              }
+                            }}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewHistory(item);
+                            }}>
+                              <History className="h-4 w-4 mr-2" />
+                              History
+                            </Button>
+                          </>
+                        )}
+                        {item.category === "Materials" && (
+                          <>
+                            <Button variant="outline" size="sm" className="text-green-600" onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMaterialForAdjustment(item);
+                              setIsMaterialAdjustmentDialogOpen(true);
+                            }}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-red-600" onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMaterialForAdjustment(item);
+                              setIsMaterialAdjustmentDialogOpen(true);
+                            }}>
+                              <Minus className="h-4 w-4 mr-2" />
+                              Subtract
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMaterialForHistory(item);
+                              setIsMaterialHistoryDialogOpen(true);
+                            }}>
+                              <Clock className="h-4 w-4 mr-2" />
+                              History
+                            </Button>
+                            {!materialReorders[item.id] ? (
+                              <Button variant="outline" size="sm" className="text-blue-600" onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedMaterialForReorder(item);
+                                setIsMaterialReorderDialogOpen(true);
+                              }}>
+                                <ShoppingCart className="h-4 w-4 mr-2" />
+                                Reorder
+                              </Button>
+                            ) : (
+                              <Button variant="outline" size="sm" className="text-orange-600" onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelReorder(item.id);
+                              }}>
+                                <X className="h-4 w-4 mr-2" />
+                                Cancel Reorder
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        {item.category !== "Materials" && (
+                          <>
+                            <Button variant="outline" size="sm" onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedItemForProductionStatus(item);
+                              setIsProductionStatusDialogOpen(true);
+                            }}>
+                              <PlayCircle className="h-4 w-4 mr-2" />
+                              Status
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedItemForWorkOrder(item);
+                              setTools([{ name: "", quantity: "" }]);
+                              setOperatorsAndMachines([{ name: "", type: "operator" }]);
+                              setIsWorkOrderDialogOpen(true);
+                            }}>
+                              <ClipboardList className="h-4 w-4 mr-2" />
+                              Work Order
+                            </Button>
+                          </>
+                        )}
+                        {item.category === "Parts" && canSeePrices() && (
+                          <Button variant="outline" size="sm" onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPartForPriceCalculator(item);
+                            setIsPriceCalculatorDialogOpen(true);
+                          }}>
+                            <Calculator className="h-4 w-4 mr-2" />
+                            Calculator
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditDialog(item);
+                        }}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm" onClick={(e) => e.stopPropagation()}>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </Card>
+                )) : (
+                  <div className="text-center py-12">
+                    <CategoryIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">No {category.toLowerCase()} found</p>
+                    <Button variant="outline" onClick={() => handleOpenAddDialog(category)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add First {category.slice(0, -1)}
+                    </Button>
+                  </div>
+                )}
               </div>
             </TabsContent>;
       })}
@@ -1829,53 +2123,55 @@ export default function Inventory() {
                   />
                 </div>
               )}
-              <div className="grid gap-2">
-                <Label htmlFor="unit_price">Unit Price *</Label>
-                <div className="relative w-40">
-                  <Input
-                    id="unit_price"
-                    type="number"
-                    value={formData.unit_price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, unit_price: e.target.value }))}
-                    min={0}
-                    step={0.01}
-                    placeholder="0.00"
-                    className="text-center rounded-full pl-6 pr-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden text-transparent"
-                    style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="text-sm font-medium">
-                      {formData.unit_price || "0.00"}
-                    </span>
-              </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 border-0 shadow-none hover:bg-muted"
-                    onClick={() => {
-                      const currentVal = parseFloat(formData.unit_price || "0") || 0;
-                      const newVal = Math.max(0, currentVal - 0.01).toFixed(2);
-                      setFormData(prev => ({ ...prev, unit_price: newVal }));
-                    }}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 border-0 shadow-none hover:bg-muted"
-                    onClick={() => {
-                      const currentVal = parseFloat(formData.unit_price || "0") || 0;
-                      const newVal = (currentVal + 0.01).toFixed(2);
-                      setFormData(prev => ({ ...prev, unit_price: newVal }));
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+              {canSeePrices() && (
+                <div className="grid gap-2">
+                  <Label htmlFor="unit_price">Unit Price *</Label>
+                  <div className="relative w-40">
+                    <Input
+                      id="unit_price"
+                      type="number"
+                      value={formData.unit_price}
+                      onChange={(e) => setFormData(prev => ({ ...prev, unit_price: e.target.value }))}
+                      min={0}
+                      step={0.01}
+                      placeholder="0.00"
+                      className="text-center rounded-full pl-6 pr-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden text-transparent"
+                      style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-sm font-medium">
+                        {formData.unit_price || "0.00"}
+                      </span>
                 </div>
-              </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 border-0 shadow-none hover:bg-muted"
+                      onClick={() => {
+                        const currentVal = parseFloat(formData.unit_price || "0") || 0;
+                        const newVal = Math.max(0, currentVal - 0.01).toFixed(2);
+                        setFormData(prev => ({ ...prev, unit_price: newVal }));
+                      }}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 border-0 shadow-none hover:bg-muted"
+                      onClick={() => {
+                        const currentVal = parseFloat(formData.unit_price || "0") || 0;
+                        const newVal = (currentVal + 0.01).toFixed(2);
+                        setFormData(prev => ({ ...prev, unit_price: newVal }));
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
               {currentCategory !== "Parts" && currentCategory !== "Materials" && (
               <div className="grid gap-2">
                 <Label htmlFor="currency">Currency</Label>
@@ -1965,6 +2261,7 @@ export default function Inventory() {
                 </Select>
               </div>
             )}
+            {currentCategory !== "Materials" && (
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" value={formData.description} onChange={e => setFormData(prev => ({
@@ -1972,6 +2269,7 @@ export default function Inventory() {
               description: e.target.value
             }))} placeholder="Enter item description" />
             </div>
+            )}
             {formData.category !== "Materials" && <div className="grid gap-2">
                 <DragDropImageUpload
                   value={formData.photo}
@@ -2136,17 +2434,19 @@ export default function Inventory() {
                   />
                 </div>
               )}
-              <div className="grid gap-2">
-                <Label htmlFor="edit_unit_price">Unit Price *</Label>
-                <NumericInput
-                  id="edit_unit_price"
-                  value={formData.unit_price}
-                  onChange={(val) => setFormData(prev => ({ ...prev, unit_price: val.toString() }))}
-                  min={0}
-                  step={0.01}
-                  placeholder="0.00"
-                />
-              </div>
+              {canSeePrices() && (
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_unit_price">Unit Price *</Label>
+                  <NumericInput
+                    id="edit_unit_price"
+                    value={formData.unit_price}
+                    onChange={(val) => setFormData(prev => ({ ...prev, unit_price: val.toString() }))}
+                    min={0}
+                    step={0.01}
+                    placeholder="0.00"
+                  />
+                </div>
+              )}
               {editingItem?.category !== "Parts" && editingItem?.category !== "Materials" && (
               <div className="grid gap-2">
                 <Label htmlFor="edit_currency">Currency</Label>
@@ -3140,6 +3440,25 @@ export default function Inventory() {
         material={selectedMaterialForReorder}
         onSuccess={() => {
           // Refresh inventory items and reorders
+          fetchInventoryItems();
+        }}
+      />
+
+      {/* Material Reorder Summary Dialog */}
+      <MaterialReorderSummaryDialog
+        isOpen={isMaterialReorderSummaryDialogOpen}
+        onClose={() => setIsMaterialReorderSummaryDialogOpen(false)}
+      />
+
+      {/* Price Calculator Dialog */}
+      <PriceCalculatorDialog
+        isOpen={isPriceCalculatorDialogOpen}
+        onClose={() => {
+          setIsPriceCalculatorDialogOpen(false);
+          setSelectedPartForPriceCalculator(null);
+        }}
+        part={selectedPartForPriceCalculator}
+        onSuccess={() => {
           fetchInventoryItems();
         }}
       />

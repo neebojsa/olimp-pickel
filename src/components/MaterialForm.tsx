@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,7 @@ export interface MaterialData {
   shapeId?: string;
   calculationType?: 'simple_formula' | 'profile_table';
   material: string;
+  materialNumber?: string;
   dimensions: { [key: string]: string };
   profileId?: string;
   profileDesignation?: string;
@@ -32,6 +34,7 @@ export interface MaterialData {
   supplierId?: string;
   currency?: string;
   location?: string;
+  description?: string;
 }
 
 const surfaceFinishOptions = [
@@ -39,7 +42,9 @@ const surfaceFinishOptions = [
   "Hot Rolled", 
   "Polished",
   "Chromed",
-  "Hardened+Chromed"
+  "Hardened+Chromed",
+  "Seamless",
+  "Welded"
 ];
 
 interface Shape {
@@ -114,7 +119,8 @@ const generateMaterialName = (
   shape: string, 
   material: string, 
   dimensions: { [key: string]: string },
-  profileDesignation?: string
+  profileDesignation?: string,
+  materialNumber?: string
 ) => {
   // Format surface finish: capitalize first letter of each word, lowercase the rest
   const formatSurfaceFinish = (finish: string): string => {
@@ -215,6 +221,11 @@ const generateMaterialName = (
     parts.push(`– ${material}`);
   }
   
+  // Add material number in brackets if it exists
+  if (materialNumber && materialNumber.trim() !== "") {
+    parts.push(`(${materialNumber})`);
+  }
+  
   return parts.filter(Boolean).join(' ');
 };
 
@@ -237,6 +248,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
   const [shapeId, setShapeId] = useState(initialData?.shapeId || "");
   const [calculationType, setCalculationType] = useState<'simple_formula' | 'profile_table' | undefined>(initialData?.calculationType);
   const [material, setMaterial] = useState(initialData?.material || "");
+  const [materialNumber, setMaterialNumber] = useState(initialData?.materialNumber || "");
   const [dimensions, setDimensions] = useState(initialData?.dimensions || {});
   const [profileId, setProfileId] = useState(initialData?.profileId || "");
   const [profileDesignation, setProfileDesignation] = useState(initialData?.profileDesignation || "");
@@ -244,6 +256,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
   const [supplierId, setSupplierId] = useState(initialData?.supplierId || "");
   const [currency, setCurrency] = useState(initialData?.currency || "EUR");
   const [location, setLocation] = useState(initialData?.location || "");
+  const [description, setDescription] = useState(initialData?.description || "");
   const [customSurfaceFinish, setCustomSurfaceFinish] = useState("");
   const [customShape, setCustomShape] = useState("");
   const [customMaterial, setCustomMaterial] = useState("");
@@ -369,7 +382,8 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
         shape === "custom" ? customShape : shape,
         material === "custom" ? customMaterial : material,
         dimensions,
-        profileDesignation
+        profileDesignation,
+        materialNumber || initialData.materialNumber
       );
       
       // Only update if the name would be different (to avoid unnecessary updates)
@@ -439,6 +453,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
     const newShapeId = updates.shapeId ?? shapeId;
     const newCalculationType = updates.calculationType ?? calculationType;
     const newMaterial = updates.material ?? material;
+    const newMaterialNumber = updates.materialNumber ?? materialNumber;
     const newDimensions = updates.dimensions ?? dimensions;
     const newProfileId = updates.profileId ?? profileId;
     const newProfileDesignation = updates.profileDesignation ?? profileDesignation;
@@ -446,13 +461,15 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
     const newSupplierId = updates.supplierId ?? supplierId;
     const newCurrency = updates.currency ?? currency;
     const newLocation = updates.location ?? location;
+    const newDescription = updates.description ?? description;
     
     const generatedName = generateMaterialName(
       newSurfaceFinish === "custom" ? customSurfaceFinish : newSurfaceFinish,
       newShape === "custom" ? customShape : newShape,
       newMaterial === "custom" ? customMaterial : newMaterial,
       newDimensions,
-      newProfileDesignation
+      newProfileDesignation,
+      newMaterialNumber
     );
     
     const selectedSupplier = suppliers.find(s => s.id === newSupplierId);
@@ -463,6 +480,7 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
       shapeId: newShapeId,
       calculationType: newCalculationType,
       material: newMaterial === "custom" ? customMaterial : newMaterial,
+      materialNumber: newMaterialNumber,
       dimensions: newDimensions,
       profileId: newProfileId,
       profileDesignation: newProfileDesignation,
@@ -471,7 +489,8 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
       supplierId: newSupplierId,
       supplier: selectedSupplier?.name,
       currency: newCurrency,
-      location: newLocation
+      location: newLocation,
+      description: newDescription
     });
   };
 
@@ -506,9 +525,34 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
     }
   };
 
-  const handleMaterialSelect = (grade: string) => {
+  const handleMaterialSelect = async (grade: string, materialNumber?: string) => {
     setMaterial(grade);
-    updateMaterialData({ material: grade });
+    // Handle material number - check for null/undefined/empty string
+    const finalMaterialNumber = materialNumber && materialNumber.trim() !== "" ? materialNumber : undefined;
+    
+    if (finalMaterialNumber) {
+      setMaterialNumber(finalMaterialNumber);
+      updateMaterialData({ material: grade, materialNumber: finalMaterialNumber });
+    } else {
+      // Try to fetch material_number from materials_library if not provided
+      try {
+        const { data } = await supabase
+          .from('materials_library')
+          .select('material_number')
+          .eq('grade', grade)
+          .maybeSingle();
+        if (data?.material_number && data.material_number.trim() !== "") {
+          setMaterialNumber(data.material_number);
+          updateMaterialData({ material: grade, materialNumber: data.material_number });
+        } else {
+          setMaterialNumber("");
+          updateMaterialData({ material: grade, materialNumber: "" });
+        }
+      } catch (error) {
+        setMaterialNumber("");
+        updateMaterialData({ material: grade, materialNumber: "" });
+      }
+    }
     setCurrentStep('surfaceFinish');
     setMaterialSearchTerm("");
     setMaterialSearchResults([]);
@@ -573,14 +617,14 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
           <div className="animate-in fade-in slide-in-from-right duration-300">
             <div className="mb-4">
               <h3 className="text-lg font-semibold mb-2">Select Material Shape</h3>
-              <p className="text-sm text-muted-foreground">Choose the shape of your material</p>
+              
             </div>
             {availableShapes.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>Loading shapes...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+              <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
               {availableShapes.map((shapeOption) => {
                 // User-friendly display names
                 // Map database names to display names
@@ -596,12 +640,12 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
                     <button
                       key={shapeOption.id}
                       onClick={() => handleShapeSelect(displayName)}
-                      className="group relative flex flex-col items-center justify-center p-4 md:p-6 rounded-lg border-2 border-border hover:border-primary transition-all duration-200 hover:shadow-lg bg-card"
+                      className="group relative flex flex-col items-center justify-center p-3 md:p-5 rounded-lg border-2 border-border hover:border-primary transition-all duration-200 hover:shadow-lg bg-card"
                     >
-                      <div className="w-16 h-16 md:w-20 md:h-20 mb-3 text-primary">
-                        <ShapeIcon shape={shapeOption.name} size={64} />
+                      <div className="w-11 h-11 md:w-14 md:h-14 mb-2 flex items-center justify-center text-primary">
+                        <ShapeIcon shape={shapeOption.name} size={45} />
                       </div>
-                      <span className="text-xs md:text-sm font-medium text-center">{displayName}</span>
+                      <span className="text-xs md:text-sm font-medium text-center leading-tight">{displayName}</span>
                     </button>
                   );
                 })}
@@ -672,12 +716,15 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
                     <Card
                       key={mat.id}
                       className="cursor-pointer hover:bg-muted transition-colors"
-                      onClick={() => handleMaterialSelect(mat.grade)}
+                      onClick={() => handleMaterialSelect(mat.grade, mat.material_number)}
                     >
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-medium">{mat.grade}</div>
+                            {mat.material_number && (
+                              <div className="text-xs text-muted-foreground mt-1">{mat.material_number}</div>
+                            )}
                             {mat.material_type && (
                               <Badge variant="secondary" className="mt-1">
                                 {mat.material_type}
@@ -699,7 +746,8 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
                   variant="outline"
                   onClick={() => {
                     setMaterial(materialSearchTerm);
-                    updateMaterialData({ material: materialSearchTerm });
+                    setMaterialNumber(""); // No material number for manual input
+                    updateMaterialData({ material: materialSearchTerm, materialNumber: "" });
                     setCurrentStep('surfaceFinish');
                   }}
                   className="w-full"
@@ -855,6 +903,22 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
         </div>
           )
         ) : null
+      )}
+
+      {/* Description Field - Only shown in Summary step */}
+      {currentStep === 'summary' && (
+        <div className="grid gap-2">
+          <Label htmlFor="description">Description</Label>
+          <Textarea 
+            id="description" 
+            value={description} 
+            onChange={(e) => {
+              setDescription(e.target.value);
+              updateMaterialData({ description: e.target.value });
+            }} 
+            placeholder="Enter material description" 
+          />
+        </div>
       )}
 
     </div>
