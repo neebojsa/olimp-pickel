@@ -26,6 +26,9 @@ import { supabase } from "@/integrations/supabase/client";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { NumericInput } from "@/components/NumericInput";
+import { SortSelect, SortOption } from "@/components/SortSelect";
+import { useSortPreference } from "@/hooks/useSortPreference";
+import { sortItems } from "@/lib/sortUtils";
 const getStatusColor = (status: string) => {
   switch (status) {
     case "paid":
@@ -148,6 +151,7 @@ export default function Invoicing() {
   const {
     toast
   } = useToast();
+  const sortPreference = useSortPreference("invoicing");
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -986,10 +990,54 @@ export default function Invoicing() {
     return matchesInvoiceNumber && invoiceNumberMatch && matchesIssueDate && matchesDueDate &&
       matchesCustomerFilter && matchesStatusFilter && matchesAmount;
   });
+  
+  // Apply sorting
+  let sortedInvoices = [...filteredInvoices];
+  if (sortPreference.sortPreference) {
+    sortedInvoices = sortItems(sortedInvoices, sortPreference.sortPreference, (item, field) => {
+      switch (field) {
+        case "created_at":
+          return item.created_at ? new Date(item.created_at) : null;
+        case "amount":
+        case "total":
+          return item.amount || 0;
+        case "customer_name":
+          return item.customers?.name || "";
+        default:
+          return null;
+      }
+    });
+  } else {
+    // Default: newest first
+    sortedInvoices = sortedInvoices.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+  }
   const totalRevenue = invoices.reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
   const paidInvoices = invoices.filter(inv => getEffectiveStatus(inv) === "paid");
   const pendingInvoices = invoices.filter(inv => getEffectiveStatus(inv) === "pending");
   const overdueInvoices = invoices.filter(inv => getEffectiveStatus(inv) === "overdue");
+  
+  const sortOptions: SortOption[] = [
+    { id: "created_at:desc", label: "Recently added (Newest → Oldest)", field: "created_at", direction: "desc" },
+    { id: "created_at:asc", label: "Recently added (Oldest → Newest)", field: "created_at", direction: "asc" },
+    { id: "amount:asc", label: "Total (Low → High)", field: "amount", direction: "asc" },
+    { id: "amount:desc", label: "Total (High → Low)", field: "amount", direction: "desc" },
+    { id: "customer_name:asc", label: "Customer (A–Z)", field: "customer_name", direction: "asc" },
+    { id: "customer_name:desc", label: "Customer (Z–A)", field: "customer_name", direction: "desc" },
+  ];
+  
+  const handleSortChange = (value: string) => {
+    const [field, direction] = value.split(":");
+    sortPreference.savePreference({ field, direction: direction as "asc" | "desc" });
+  };
+  
+  const getCurrentSortValue = () => {
+    const pref = sortPreference.sortPreference;
+    return pref ? `${pref.field}:${pref.direction}` : "";
+  };
   const totals = calculateTotals();
   const selectedCustomer = getSelectedCustomer();
 
@@ -2270,6 +2318,19 @@ ${cssVariables}
         </Dialog>
       </div>
 
+      {/* Sort dropdown */}
+      <div className="flex justify-end">
+        <div className="w-full sm:w-auto min-w-[200px]">
+          <SortSelect
+            value={getCurrentSortValue()}
+            onChange={handleSortChange}
+            options={sortOptions}
+            placeholder="Sort"
+            className="w-full"
+          />
+        </div>
+      </div>
+
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
@@ -2590,7 +2651,7 @@ ${cssVariables}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvoices.map(invoice => (
+                {sortedInvoices.map(invoice => (
                   <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
                     <TableCell className="font-medium">
                       <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline text-left">
@@ -2693,7 +2754,7 @@ ${cssVariables}
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            {filteredInvoices.map(invoice => (
+            {sortedInvoices.map(invoice => (
               <Card
                 key={invoice.id}
                 className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors"

@@ -149,12 +149,18 @@ function toast({ ...props }: Toast) {
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
+  // Set duration to 2 seconds (2000ms) for success notifications (non-destructive)
+  // Error/warning notifications (destructive variant) keep their default duration
+  const isSuccessToast = props.variant !== "destructive"
+  const duration = isSuccessToast ? 2000 : undefined
+
   dispatch({
     type: "ADD_TOAST",
     toast: {
       ...props,
       id,
       open: true,
+      duration,
       onOpenChange: (open) => {
         if (!open) dismiss()
       },

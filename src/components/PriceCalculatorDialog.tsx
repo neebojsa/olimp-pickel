@@ -422,6 +422,12 @@ export function PriceCalculatorDialog({ isOpen, onClose, part, onSuccess }: Pric
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="h-5 w-5" />
             Price Calculator - {part?.name || 'Part'}
+            {part?.part_number && (
+              <>
+                <span className="text-gray-500"> | </span>
+                <span className="text-gray-500">{part.part_number}</span>
+              </>
+            )}
           </DialogTitle>
         </DialogHeader>
 

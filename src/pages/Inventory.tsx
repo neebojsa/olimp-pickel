@@ -38,6 +38,10 @@ import { MaterialReorderSummaryDialog } from "@/components/MaterialReorderSummar
 import { PriceCalculatorDialog } from "@/components/PriceCalculatorDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
+import { DuplicateWarningDialog } from "@/components/DuplicateWarningDialog";
+import { SortSelect, SortOption } from "@/components/SortSelect";
+import { useSortPreference } from "@/hooks/useSortPreference";
+import { sortItems } from "@/lib/sortUtils";
 export default function Inventory() {
   const {
     toast
@@ -56,6 +60,12 @@ export default function Inventory() {
   const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
   const [workOrderDueDate, setWorkOrderDueDate] = useState<Date | undefined>(undefined);
   const [currentCategory, setCurrentCategory] = useState("Parts");
+  
+  // Sort preferences for each category
+  const partsSortPreference = useSortPreference("inventory:parts");
+  const materialsSortPreference = useSortPreference("inventory:materials");
+  const toolsSortPreference = useSortPreference("inventory:tools");
+  const machinesSortPreference = useSortPreference("inventory:machines");
   const [formData, setFormData] = useState({
     part_number: "",
     name: "",
@@ -120,6 +130,9 @@ export default function Inventory() {
   const [isMaterialReorderSummaryDialogOpen, setIsMaterialReorderSummaryDialogOpen] = useState(false);
   const [isPriceCalculatorDialogOpen, setIsPriceCalculatorDialogOpen] = useState(false);
   const [selectedPartForPriceCalculator, setSelectedPartForPriceCalculator] = useState<any>(null);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [duplicateItem, setDuplicateItem] = useState<{ id: string; name: string; part_number?: string | null; created_at: string } | null>(null);
+  const [pendingSaveAction, setPendingSaveAction] = useState<(() => Promise<void>) | null>(null);
   const [materialReorders, setMaterialReorders] = useState<{ [key: string]: any }>({});
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("");
@@ -403,6 +416,83 @@ export default function Inventory() {
                      currentCategory === "Tools" && toolCategorySelection ? 
                      toolCategorySelection.categoryPath.join(" - ") :
                      formData.name;
+    
+    // Check for duplicates (only for Parts and Materials)
+    if (currentCategory === "Parts" || currentCategory === "Materials") {
+      const materialsUsedData = currentCategory === "Materials" && materialData ? {
+        surfaceFinish: materialData.surfaceFinish,
+        shape: materialData.shape,
+        shapeId: materialData.shapeId,
+        calculationType: materialData.calculationType,
+        material: materialData.material,
+        materialNumber: materialData.materialNumber,
+        dimensions: materialData.dimensions,
+        profileId: materialData.profileId,
+        profileDesignation: materialData.profileDesignation,
+        priceUnit: materialData.priceUnit,
+        supplier: materialData.supplier,
+        supplierId: materialData.supplierId,
+        currency: materialData.currency,
+        location: materialData.location
+      } : null;
+      
+      const { data: duplicateData, error: duplicateError } = await (supabase as any).rpc('check_inventory_duplicate', {
+        p_category: currentCategory,
+        p_id: null, // New item, no ID to exclude
+        p_name: itemName,
+        p_part_number: currentCategory === "Parts" ? (formData.part_number || null) : null,
+        p_description: currentCategory === "Materials" && materialData ? (materialData.description || null) : (formData.description || null),
+        p_customer_id: currentCategory === "Parts" ? (formData.customer_id || null) : null,
+        p_unit_price: currentCategory === "Parts" ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : 0) : null,
+        p_currency: currentCategory === "Parts" ? formData.currency : null,
+        p_weight: currentCategory === "Parts" ? (parseFloat(formData.weight) || 0) : null,
+        p_location: formData.location || null,
+        p_unit: currentCategory === "Parts" ? formData.unit : null,
+        p_minimum_stock: currentCategory === "Parts" ? (parseInt(formData.minimum_stock) || 0) : null,
+        p_materials_used: currentCategory === "Materials" ? materialsUsedData : null
+      });
+      
+      if (!duplicateError && duplicateData && Array.isArray(duplicateData) && duplicateData.length > 0) {
+        const duplicate = duplicateData[0];
+        setDuplicateItem({
+          id: duplicate.duplicate_id,
+          name: duplicate.duplicate_name,
+          part_number: duplicate.duplicate_part_number,
+          created_at: duplicate.created_at
+        });
+        // Store the save action to execute if user chooses "Save Anyway"
+        setPendingSaveAction(async () => {
+          await performSave();
+        });
+        setIsDuplicateDialogOpen(true);
+        setIsUploading(false);
+        return;
+      }
+    }
+    
+    await performSave();
+  };
+  
+  const performSave = async () => {
+    setIsUploading(true);
+    let photoUrl = null;
+    if (formData.photo) {
+      photoUrl = await uploadPhoto(formData.photo);
+      if (!photoUrl) {
+        toast({
+          title: "Error",
+          description: "Failed to upload photo. Please try again.",
+          variant: "destructive"
+        });
+        setIsUploading(false);
+        return;
+      }
+    }
+    const itemName = currentCategory === "Materials" && materialData ? materialData.generatedName : 
+                     currentCategory === "Tools" && toolCategorySelection ? 
+                     toolCategorySelection.categoryPath.join(" - ") :
+                     formData.name;
+    
     const {
       error
     } = await supabase.from('inventory').insert({
@@ -468,9 +558,17 @@ export default function Inventory() {
         description: "The inventory item has been successfully added."
       });
     } else {
+      // Check if error is a duplicate key violation
+      const isDuplicateError = error.code === '23505' || 
+                                error.message?.includes('duplicate key') ||
+                                error.message?.includes('duplicate') ||
+                                error.message?.includes('unique constraint');
+      
       toast({
         title: "Error",
-        description: "Failed to add item. Please try again.",
+        description: isDuplicateError 
+          ? "An item with the same values has already been added."
+          : "Failed to add item. Please try again.",
         variant: "destructive"
       });
     }
@@ -604,34 +702,7 @@ export default function Inventory() {
     }
     setIsEditDialogOpen(true);
   };
-  const handleUpdateItem = async () => {
-    // For materials, validate material data instead of name
-    if (editingItem?.category === "Materials") {
-      if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material) {
-        toast({
-          title: "Error",
-          description: "Please fill in all required material fields",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else if (editingItem?.category === "Tools") {
-      if (!toolCategorySelection) {
-        toast({
-          title: "Error",
-          description: "Please select a tool category",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else if (!formData.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Item name is required",
-        variant: "destructive"
-      });
-      return;
-    }
+  const performUpdate = async () => {
     setIsUploading(true);
     try {
       let photoUrl = editingItem.photo_url;
@@ -644,6 +715,7 @@ export default function Inventory() {
                        editingItem?.category === "Tools" && toolCategorySelection ? 
                        toolCategorySelection.categoryPath.join(" - ") :
                        formData.name;
+      
       const {
         error
       } = await supabase.from('inventory').update({
@@ -684,7 +756,24 @@ export default function Inventory() {
         tools_used: toolsUsed.filter(t => t.name),
         drawings_files: uploadedFiles
       }).eq('id', editingItem.id);
-      if (error) throw error;
+      if (error) {
+        // Check if error is a duplicate key violation
+        const isDuplicateError = error.code === '23505' || 
+                                  error.message?.includes('duplicate key') ||
+                                  error.message?.includes('duplicate') ||
+                                  error.message?.includes('unique constraint');
+        
+        if (isDuplicateError) {
+          toast({
+            title: "Error",
+            description: "An item with the same values has already been added.",
+            variant: "destructive"
+          });
+          setIsUploading(false);
+          return;
+        }
+        throw error;
+      }
       toast({
         title: "Item Updated",
         description: `${formData.name} has been successfully updated.`
@@ -724,17 +813,115 @@ export default function Inventory() {
       setMaterialData(null);
       setToolCategorySelection(null);
       setIsEditDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating item:', error);
+      // Check if error is a duplicate key violation
+      const isDuplicateError = error?.code === '23505' || 
+                                error?.message?.includes('duplicate key') ||
+                                error?.message?.includes('duplicate') ||
+                                error?.message?.includes('unique constraint');
+      
       toast({
         title: "Error",
-        description: "Failed to update item. Please try again.",
+        description: isDuplicateError 
+          ? "An item with the same values has already been added."
+          : "Failed to update item. Please try again.",
         variant: "destructive"
       });
     } finally {
       setIsUploading(false);
     }
   };
+  
+  const handleUpdateItem = async () => {
+    // For materials, validate material data instead of name
+    if (editingItem?.category === "Materials") {
+      if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required material fields",
+          variant: "destructive"
+        });
+        return;
+      }
+    } else if (editingItem?.category === "Tools") {
+      if (!toolCategorySelection) {
+        toast({
+          title: "Error",
+          description: "Please select a tool category",
+          variant: "destructive"
+        });
+        return;
+      }
+    } else if (!formData.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Item name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const itemName = editingItem?.category === "Materials" && materialData ? materialData.generatedName : 
+                     editingItem?.category === "Tools" && toolCategorySelection ? 
+                     toolCategorySelection.categoryPath.join(" - ") :
+                     formData.name;
+    
+    // Check for duplicates (only for Parts and Materials)
+    if (editingItem?.category === "Parts" || editingItem?.category === "Materials") {
+      const materialsUsedData = editingItem?.category === "Materials" && materialData ? {
+        surfaceFinish: materialData.surfaceFinish,
+        shape: materialData.shape,
+        shapeId: materialData.shapeId,
+        calculationType: materialData.calculationType,
+        material: materialData.material,
+        materialNumber: materialData.materialNumber,
+        dimensions: materialData.dimensions,
+        profileId: materialData.profileId,
+        profileDesignation: materialData.profileDesignation,
+        priceUnit: materialData.priceUnit,
+        supplier: materialData.supplier,
+        supplierId: materialData.supplierId,
+        currency: materialData.currency,
+        location: materialData.location
+      } : null;
+      
+      const { data: duplicateData, error: duplicateError } = await (supabase as any).rpc('check_inventory_duplicate', {
+        p_category: editingItem.category,
+        p_id: editingItem.id, // Exclude current item
+        p_name: itemName,
+        p_part_number: editingItem.category === "Parts" ? (formData.part_number || null) : null,
+        p_description: editingItem?.category === "Materials" && materialData ? (materialData.description || null) : formData.description,
+        p_customer_id: editingItem.category === "Parts" ? (formData.customer_id || null) : null,
+        p_unit_price: editingItem.category === "Parts" ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : (editingItem?.unit_price || 0)) : null,
+        p_currency: editingItem.category === "Parts" ? formData.currency : null,
+        p_weight: editingItem.category === "Parts" ? (parseFloat(formData.weight) || 0) : null,
+        p_location: formData.location || null,
+        p_unit: editingItem.category === "Parts" ? formData.unit : null,
+        p_minimum_stock: editingItem.category === "Parts" ? (parseInt(formData.minimum_stock) || 0) : null,
+        p_materials_used: editingItem?.category === "Materials" ? materialsUsedData : null
+      });
+      
+      if (!duplicateError && duplicateData && Array.isArray(duplicateData) && duplicateData.length > 0) {
+        const duplicate = duplicateData[0];
+        setDuplicateItem({
+          id: duplicate.duplicate_id,
+          name: duplicate.duplicate_name,
+          part_number: duplicate.duplicate_part_number,
+          created_at: duplicate.created_at
+        });
+        // Store the update action to execute if user chooses "Save Anyway"
+        setPendingSaveAction(async () => {
+          await performUpdate();
+        });
+        setIsDuplicateDialogOpen(true);
+        return;
+      }
+    }
+    
+    await performUpdate();
+  };
+  
   const getFilteredItems = (category: string) => {
     let items = inventoryItems.filter(item => {
       if (!item || item?.category !== category || !item.name) return false;
@@ -758,13 +945,57 @@ export default function Inventory() {
       return matchesSearch;
     });
     
-    // Sort parts by part_number
+    // Get sort preference for this category
+    let sortPreference = null;
     if (category === "Parts") {
-      items = items.sort((a, b) => {
-        const partA = a.part_number || "";
-        const partB = b.part_number || "";
-        return partA.localeCompare(partB);
+      sortPreference = partsSortPreference.sortPreference;
+    } else if (category === "Materials") {
+      sortPreference = materialsSortPreference.sortPreference;
+    } else if (category === "Tools") {
+      sortPreference = toolsSortPreference.sortPreference;
+    } else if (category === "Machines") {
+      sortPreference = machinesSortPreference.sortPreference;
+    }
+    
+    // Apply sorting
+    if (sortPreference) {
+      items = sortItems(items, sortPreference, (item, field) => {
+        switch (field) {
+          case "created_at":
+            return item.created_at ? new Date(item.created_at) : null;
+          case "name":
+            return item.name || "";
+          case "part_number":
+            return item.part_number || "";
+          case "unit_price":
+            return item.unit_price || 0;
+          case "total_value":
+            const qty = item.quantity || 0;
+            const price = item.unit_price || 0;
+            return qty * price;
+          case "best_seller":
+            // TODO: Implement best seller calculation based on sales data
+            // For now, return 0 as placeholder
+            return 0;
+          default:
+            return null;
+        }
       });
+    } else {
+      // Default sort: Parts by part_number, others by name
+      if (category === "Parts") {
+        items = items.sort((a, b) => {
+          const partA = a.part_number || "";
+          const partB = b.part_number || "";
+          return partA.localeCompare(partB);
+        });
+      } else {
+        items = items.sort((a, b) => {
+          const nameA = a.name || "";
+          const nameB = b.name || "";
+          return nameA.localeCompare(nameB);
+        });
+      }
     }
     
     return items;
@@ -1359,12 +1590,78 @@ export default function Inventory() {
         {["Parts", "Materials", "Tools", "Machines"].map(category => {
         const CategoryIcon = getCategoryIcon(category);
         const filteredItems = getFilteredItems(category);
+        
+        // Get sort options for this category
+        const getSortOptions = (): SortOption[] => {
+          const baseOptions: SortOption[] = [
+            { id: "created_at:desc", label: "Recently added (Newest → Oldest)", field: "created_at", direction: "desc" },
+            { id: "created_at:asc", label: "Recently added (Oldest → Newest)", field: "created_at", direction: "asc" },
+            { id: "name:asc", label: "A–Z", field: "name", direction: "asc" },
+            { id: "name:desc", label: "Z–A", field: "name", direction: "desc" },
+          ];
+          
+          if (canSeePrices()) {
+            baseOptions.push(
+              { id: "unit_price:asc", label: "Price (Low → High)", field: "unit_price", direction: "asc" },
+              { id: "unit_price:desc", label: "Price (High → Low)", field: "unit_price", direction: "desc" },
+              { id: "total_value:asc", label: "Total Value (Low → High)", field: "total_value", direction: "asc" },
+              { id: "total_value:desc", label: "Total Value (High → Low)", field: "total_value", direction: "desc" }
+            );
+          }
+          
+          baseOptions.push(
+            { id: "best_seller:desc", label: "Best seller", field: "best_seller", direction: "desc" }
+          );
+          
+          return baseOptions;
+        };
+        
+        // Get current sort preference for this category
+        const getCurrentSortPreference = () => {
+          if (category === "Parts") return partsSortPreference.sortPreference;
+          if (category === "Materials") return materialsSortPreference.sortPreference;
+          if (category === "Tools") return toolsSortPreference.sortPreference;
+          if (category === "Machines") return machinesSortPreference.sortPreference;
+          return null;
+        };
+        
+        const getCurrentSortValue = () => {
+          const pref = getCurrentSortPreference();
+          return pref ? `${pref.field}:${pref.direction}` : "";
+        };
+        
+        const handleSortChange = (value: string) => {
+          const [field, direction] = value.split(":");
+          const preference = { field, direction: direction as "asc" | "desc" };
+          
+          if (category === "Parts") {
+            partsSortPreference.savePreference(preference);
+          } else if (category === "Materials") {
+            materialsSortPreference.savePreference(preference);
+          } else if (category === "Tools") {
+            toolsSortPreference.savePreference(preference);
+          } else if (category === "Machines") {
+            machinesSortPreference.savePreference(preference);
+          }
+        };
+        
         return <TabsContent key={category} value={category} className="space-y-4 w-full max-w-full min-w-0">
               {/* Search and Add */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 w-full">
                 <div className="relative w-full sm:max-w-md sm:flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input placeholder={`Search ${category.toLowerCase()}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 w-full" />
+                </div>
+                
+                {/* Sort dropdown */}
+                <div className="w-full sm:w-auto min-w-[150px]">
+                  <SortSelect
+                    value={getCurrentSortValue()}
+                    onChange={handleSortChange}
+                    options={getSortOptions()}
+                    placeholder="Sort"
+                    className="w-full"
+                  />
                 </div>
                 
                 {/* Customer filter and Production Status filter - only show for Parts */}
@@ -1447,10 +1744,8 @@ export default function Inventory() {
                     const materialInfo = item.materials_used || {};
                     const shape = materialInfo?.shape || "";
                     const color = getMaterialColor(materialInfo?.material);
-                    return <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-                                    <ShapeIcon shape={shape} size={40} className="w-10 h-10" style={{
-                        color
-                      }} />
+                    return <div className="w-10 h-10 flex items-center justify-center flex-shrink-0" style={{ color }}>
+                                    <ShapeIcon shape={shape} size={40} className="w-10 h-10" />
                   </div>;
                 })() : <div className="h-[94px] w-[100px] sm:w-[125px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                             {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" /> : <CategoryIcon className="w-12 h-12 text-muted-foreground" />}
@@ -1714,8 +2009,8 @@ export default function Inventory() {
                       const shape = materialInfo?.shape || "";
                       const color = getMaterialColor(materialInfo?.material);
                       return (
-                        <div className="absolute top-4 right-4 pointer-events-none sm:hidden z-0">
-                          <ShapeIcon shape={shape} size={40} className="w-10 h-10" style={{ color }} />
+                        <div className="absolute top-4 right-4 pointer-events-none sm:hidden z-0" style={{ color }}>
+                          <ShapeIcon shape={shape} size={40} className="w-10 h-10" />
                         </div>
                       );
                     })() : (
@@ -3461,6 +3756,20 @@ export default function Inventory() {
         onSuccess={() => {
           fetchInventoryItems();
         }}
+      />
+      
+      {/* Duplicate Warning Dialog */}
+      <DuplicateWarningDialog
+        open={isDuplicateDialogOpen}
+        onOpenChange={setIsDuplicateDialogOpen}
+        duplicateItem={duplicateItem}
+        onSaveAnyway={pendingSaveAction ? async () => {
+          setIsDuplicateDialogOpen(false);
+          if (pendingSaveAction) {
+            await pendingSaveAction();
+            setPendingSaveAction(null);
+          }
+        } : undefined}
       />
     </div>
   );

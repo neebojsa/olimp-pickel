@@ -28,6 +28,9 @@ import { format } from "date-fns";
 import { formatDateForInput } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { NumericInput } from "@/components/NumericInput";
+import { SortSelect, SortOption } from "@/components/SortSelect";
+import { useSortPreference } from "@/hooks/useSortPreference";
+import { sortItems } from "@/lib/sortUtils";
 
 // Predefined tools and machines for suggestions
 const toolsList = [
@@ -368,6 +371,9 @@ export default function WorkOrders() {
   // Date picker popover for form
   const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
   const [workOrderDueDate, setWorkOrderDueDate] = useState<Date | undefined>(undefined);
+  
+  // Sort preference
+  const sortPreference = useSortPreference("workorders");
 
   useEffect(() => {
     fetchWorkOrders();
@@ -592,6 +598,21 @@ export default function WorkOrders() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedWorkOrders = filteredWorkOrders.slice(startIndex, endIndex);
 
+  const sortOptions: SortOption[] = [
+    { id: "created_at:desc", label: "Recently added (Newest → Oldest)", field: "created_at", direction: "desc" },
+    { id: "created_at:asc", label: "Recently added (Oldest → Newest)", field: "created_at", direction: "asc" },
+  ];
+  
+  const handleSortChange = (value: string) => {
+    const [field, direction] = value.split(":");
+    sortPreference.savePreference({ field, direction: direction as "asc" | "desc" });
+  };
+  
+  const getCurrentSortValue = () => {
+    const pref = sortPreference.sortPreference;
+    return pref ? `${pref.field}:${pref.direction}` : "";
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -600,6 +621,19 @@ export default function WorkOrders() {
           <Plus className="w-4 h-4" />
           Add Work Order
         </Button>
+      </div>
+      
+      {/* Sort dropdown */}
+      <div className="flex justify-end">
+        <div className="w-full sm:w-auto min-w-[200px]">
+          <SortSelect
+            value={getCurrentSortValue()}
+            onChange={handleSortChange}
+            options={sortOptions}
+            placeholder="Sort"
+            className="w-full"
+          />
+        </div>
       </div>
 
       <Card>
