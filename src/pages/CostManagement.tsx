@@ -1802,11 +1802,16 @@ export default function CostManagement() {
       </div>
 
       <div className="space-y-4">
-          <Card>
-            <CardHeader>
+          {/* Card wrapper - remove rounded-lg bg-card shadow-sm on mobile, keep on desktop */}
+          <Card className="xl:rounded-lg xl:bg-card xl:text-card-foreground xl:shadow-sm rounded-none bg-transparent shadow-none">
+            <CardHeader className="xl:block hidden">
               <CardTitle>Cost Entries</CardTitle>
             </CardHeader>
-            <CardContent>
+            {/* Mobile header */}
+            <div className="xl:hidden block mb-4 px-0">
+              <h2 className="text-2xl font-semibold leading-none tracking-tight">Cost Entries</h2>
+            </div>
+            <CardContent className="xl:p-6 xl:pt-0 p-0">
               {/* Desktop Table View - Hidden below 1280px */}
               <div className="hidden xl:block">
                 <Table>
