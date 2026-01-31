@@ -46,13 +46,13 @@ export default function Inventory() {
   const {
     toast
   } = useToast();
-  const { canSeePrices } = useAuth();
+  const { canSeePrices, staff } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [stockLocations, setStockLocations] = useState<any[]>([]);
-  const [staff, setStaff] = useState<any[]>([]);
+  const [staffList, setStaffList] = useState<any[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -254,7 +254,7 @@ export default function Inventory() {
       data
     } = await supabase.from('staff').select('id, name, position').eq('is_active', true);
     if (data) {
-      setStaff(data);
+      setStaffList(data);
     }
   };
   const fetchMaterialsAndTools = async () => {
@@ -510,6 +510,7 @@ export default function Inventory() {
       supplier: formData.category !== "Parts" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
       minimum_stock: formData.category === "Machines" ? 0 : (parseInt(formData.minimum_stock) || 0),
       photo_url: photoUrl,
+      created_by_staff_id: staff?.id || null,
       materials_used: currentCategory === "Materials" && materialData ? {
         surfaceFinish: materialData.surfaceFinish,
         shape: materialData.shape,
@@ -581,7 +582,7 @@ export default function Inventory() {
         description: "This may take a few moments"
       });
       
-      const result = await importInventoryFromSpreadsheet(url);
+      const result = await importInventoryFromSpreadsheet(url, staff?.id);
       
       toast({
         title: "Import completed!",
@@ -1148,13 +1149,30 @@ export default function Inventory() {
       // Fetch history data from different sources
       const historyEntries = [];
 
-      // 1. Created in system
+      // 1. Created in system - fetch staff member who created it
+      let createdByStaffName = null;
+      if (item.created_by_staff_id) {
+        const { data: staffData } = await supabase
+          .from('staff')
+          .select('name')
+          .eq('id', item.created_by_staff_id)
+          .single();
+        if (staffData) {
+          createdByStaffName = staffData.name;
+        }
+      }
+      
+      const createdDetails = createdByStaffName 
+        ? `Initial quantity: ${item.quantity} | Added by: ${createdByStaffName}`
+        : `Initial quantity: ${item.quantity}`;
+      
       historyEntries.push({
         date: formatDate(item.created_at),
         time: format(new Date(item.created_at), 'HH:mm'),
         activity: 'Created in system',
-        details: `Initial quantity: ${item.quantity}`,
-        reference: item.id
+        details: createdDetails,
+        reference: item.id,
+        createdBy: createdByStaffName
       });
 
       // 2. Work orders for this part (using inventory_id foreign key)
@@ -3214,7 +3232,7 @@ export default function Inventory() {
                           <SelectValue placeholder={item.type === "operator" ? "Select operator" : "Select machine"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {item.type === "operator" ? staff.map(staffMember => <SelectItem key={staffMember.id} value={staffMember.name}>
+                          {item.type === "operator" ? staffList.map(staffMember => <SelectItem key={staffMember.id} value={staffMember.name}>
                                 {staffMember.name} - {staffMember.position}
                               </SelectItem>) : ["CNC Machine #1", "CNC Machine #2", "CNC Machine #3", "Laser Cutting Machine #1", "CNC Lathe #2", "5-Axis CNC Machine #1", "Horizontal Boring Machine #2"].map(machine => <SelectItem key={machine} value={machine}>
                                 {machine}

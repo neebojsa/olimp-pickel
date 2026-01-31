@@ -25,6 +25,8 @@ interface MaterialAdjustment {
   location: string | null;
   notes: string | null;
   created_at: string;
+  created_by_staff_id: string | null;
+  created_by_staff_name?: string;
 }
 
 export function MaterialHistoryDialog({ isOpen, onClose, material }: MaterialHistoryDialogProps) {
@@ -225,7 +227,25 @@ export function MaterialHistoryDialog({ isOpen, onClose, material }: MaterialHis
 
       if (error) throw error;
 
-      setAdjustments(data || []);
+      // Fetch staff names for adjustments that have created_by_staff_id
+      const adjustmentsWithStaff = await Promise.all(
+        (data || []).map(async (adjustment: any) => {
+          if (adjustment.created_by_staff_id) {
+            const { data: staffData } = await supabase
+              .from('staff')
+              .select('name')
+              .eq('id', adjustment.created_by_staff_id)
+              .single();
+            
+            if (staffData) {
+              return { ...adjustment, created_by_staff_name: staffData.name };
+            }
+          }
+          return adjustment;
+        })
+      );
+
+      setAdjustments(adjustmentsWithStaff);
     } catch (error: any) {
       console.error('Error fetching material history:', error);
       toast({
@@ -472,6 +492,11 @@ export function MaterialHistoryDialog({ isOpen, onClose, material }: MaterialHis
                           <div>
                             {format(new Date(adjustment.created_at), "MMM d, yyyy 'at' HH:mm")}
                           </div>
+                          {adjustment.created_by_staff_name && (
+                            <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
+                              User: {adjustment.created_by_staff_name}
+                            </div>
+                          )}
                         </div>
                         
                         {/* Column 3: Notes */}

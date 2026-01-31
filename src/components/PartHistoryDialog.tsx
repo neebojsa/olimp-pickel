@@ -93,6 +93,11 @@ export default function PartHistoryDialog({ isOpen, onClose, item, historyData }
                         {entry.reference && (
                           <p className="text-xs text-muted-foreground">Ref: {entry.reference}</p>
                         )}
+                        {entry.createdBy && (
+                          <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
+                            User: {entry.createdBy}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))

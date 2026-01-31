@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { getCurrencyForCountry, getCurrencySymbol } from "@/lib/currencyUtils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -20,6 +21,7 @@ interface MaterialAdjustmentDialogProps {
 }
 
 export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess }: MaterialAdjustmentDialogProps) {
+  const { staff } = useAuth();
   const [adjustmentType, setAdjustmentType] = useState<'add' | 'subtract'>('add');
   const [lengthMm, setLengthMm] = useState<string>('');
   const [quantityPieces, setQuantityPieces] = useState<string>('1');
@@ -326,7 +328,8 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
             unit_price: unitPrice ? parseFloat(unitPrice) : null,
             price_unit: priceUnit,
             location: location || null,
-            notes: notes || null
+            notes: notes || null,
+            created_by_staff_id: staff?.id || null
           });
 
         if (insertError) throw insertError;
@@ -450,6 +453,7 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
               unit_price: null,
               price_unit: null,
               location: null,
+              created_by_staff_id: staff?.id || null,
               notes: data.notes || null
             });
         });

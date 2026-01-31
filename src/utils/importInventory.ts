@@ -12,7 +12,7 @@ interface InventoryRow {
   customer_id: string;
 }
 
-export async function importInventoryFromSpreadsheet(spreadsheetUrl?: string): Promise<{ success: number; errors: number; }> {
+export async function importInventoryFromSpreadsheet(spreadsheetUrl?: string, staffId?: string): Promise<{ success: number; errors: number; }> {
   try {
     console.log('Starting import from Google Sheets');
     
@@ -96,7 +96,8 @@ export async function importInventoryFromSpreadsheet(spreadsheetUrl?: string): P
         unit_price: unitPrice,
         currency: 'EUR',
         category: 'Parts', // Default category
-        customer_id: customerId
+        customer_id: customerId,
+        created_by_staff_id: staffId || null
       });
     }
 

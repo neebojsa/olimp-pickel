@@ -16,7 +16,7 @@ interface AuthContextType {
   staff: Staff | null;
   token: string | null;
   isLoading: boolean;
-  login: (staffData: Staff, sessionToken: string) => void;
+  login: (staffData: Staff, sessionToken: string, stayLoggedIn?: boolean) => void;
   logout: () => void;
   hasPagePermission: (page: string) => boolean;
   canSeePrices: () => boolean;
@@ -32,7 +32,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Check for existing session on app start
-    const savedToken = localStorage.getItem('staff_token');
+    // Check localStorage first (persistent session), then sessionStorage (temporary session)
+    const savedToken = localStorage.getItem('staff_token') || sessionStorage.getItem('staff_token');
     if (savedToken) {
       verifySession(savedToken);
     } else {
@@ -63,28 +64,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setToken(sessionToken);
       } else {
         localStorage.removeItem('staff_token');
+        sessionStorage.removeItem('staff_token');
       }
     } catch (error: any) {
       console.error('Session verification error:', error);
       // Only remove token if it's an auth error, not a connection error
       if (error?.message && !error.message.includes('Failed to fetch') && !error.message.includes('NetworkError')) {
         localStorage.removeItem('staff_token');
+        sessionStorage.removeItem('staff_token');
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const login = (staffData: Staff, sessionToken: string) => {
+  const login = (staffData: Staff, sessionToken: string, stayLoggedIn: boolean = true) => {
     setStaff(staffData);
     setToken(sessionToken);
-    localStorage.setItem('staff_token', sessionToken);
+    
+    if (stayLoggedIn) {
+      // Store in localStorage for persistent session
+      localStorage.setItem('staff_token', sessionToken);
+      sessionStorage.removeItem('staff_token'); // Clear any temporary session
+    } else {
+      // Store in sessionStorage for temporary session (cleared when browser tab closes)
+      sessionStorage.setItem('staff_token', sessionToken);
+      localStorage.removeItem('staff_token'); // Clear any persistent session
+    }
   };
 
   const logout = () => {
     setStaff(null);
     setToken(null);
     localStorage.removeItem('staff_token');
+    sessionStorage.removeItem('staff_token');
   };
 
   const hasPagePermission = (page: string): boolean => {
