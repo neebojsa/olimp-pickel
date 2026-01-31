@@ -20,7 +20,7 @@ import {
   ScanLine,
   AlertCircle,
   Check,
-  Settings,
+  Edit,
   X,
   Filter,
   Calendar as CalendarIcon
@@ -157,7 +157,7 @@ interface CostEntry {
   currency: string;
   issue_date: string;
   due_date: string;
-  description: string;
+  notes: string;
   document_number: string;
   status: 'pending' | 'paid' | 'overdue';
   created_at: string;
@@ -215,7 +215,6 @@ export default function CostManagement() {
   const [documentUrl, setDocumentUrl] = useState<string>("");
   const [supplierOCRData, setSupplierOCRData] = useState<any>(null);
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
-  const [isOCRSettingsOpen, setIsOCRSettingsOpen] = useState(false);
   const [ocrFieldMappings, setOCRFieldMappings] = useState<Record<string, string[]>>({
     document_type: [],
     subtotal_tax_excluded: [],
@@ -224,16 +223,6 @@ export default function CostManagement() {
     issue_date: [],
     due_date: [],
     document_number: []
-  });
-  const [editingMapping, setEditingMapping] = useState<{ field: string; index: number; value: string } | null>(null);
-  const [newMappingInputs, setNewMappingInputs] = useState<Record<string, string>>({
-    document_type: '',
-    subtotal_tax_excluded: '',
-    total_amount: '',
-    currency: '',
-    issue_date: '',
-    due_date: '',
-    document_number: ''
   });
   // Column header filters
   const [supplierFilter, setSupplierFilter] = useState({ search: "", selected: "all" });
@@ -260,7 +249,7 @@ export default function CostManagement() {
     currency: 'BAM',
     issue_date: '',
     due_date: '',
-    description: '',
+    notes: '',
     document_number: '',
     status: 'pending'
   });
@@ -340,22 +329,16 @@ export default function CostManagement() {
     }
   };
 
-  const saveOCRMappings = () => {
-    try {
-      localStorage.setItem('ocr_field_mappings', JSON.stringify(ocrFieldMappings));
-      setIsOCRSettingsOpen(false);
-    } catch (error) {
-      console.error('Error saving OCR mappings:', error);
-    }
-  };
 
   const fetchCostEntries = async () => {
     try {
       // For now, use accounting_entries as a placeholder
       // In a real implementation, you would create a cost_entries table
+      // Filter out income entries (outgoing invoices) - only show expenses (costs)
       const { data, error } = await supabase
         .from('accounting_entries')
         .select('*')
+        .eq('type', 'expense') // Only fetch expense entries (costs), exclude income (outgoing invoices)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -376,7 +359,7 @@ export default function CostManagement() {
           currency: 'BAM',
           issue_date: entry.date,
           due_date: (entry as any).due_date || '',
-          description: entry.description,
+          notes: (entry as any).notes || '',
           document_number: entry.reference || '',
           status: ((entry as any).status || 'pending') as 'pending' | 'paid' | 'overdue',
           created_at: entry.created_at,
@@ -515,14 +498,39 @@ export default function CostManagement() {
 
       // Upload document if present
       let uploadedDocumentUrl = documentUrl;
-      if (documentFile && !documentUrl) {
-        const url = await uploadDocument(documentFile);
+      
+      // Check if we have a file that needs to be uploaded (either from OCR or manual upload)
+      const fileToUpload = ocrFile || documentFile;
+      
+      // Check if documentUrl is a blob URL (local) or a Vercel temporary URL
+      const isBlobUrl = documentUrl?.startsWith('blob:');
+      const isVercelTempUrl = documentUrl?.includes('vercel.app') || documentUrl?.includes('localhost');
+      const isSupabaseUrl = documentUrl?.includes('supabase.co') || documentUrl?.includes('supabase');
+      
+      // If documentUrl is a blob URL (local) or Vercel temp URL, or we have a file but no valid URL, upload to Supabase
+      if (fileToUpload && (isBlobUrl || isVercelTempUrl || (!documentUrl && fileToUpload))) {
+        console.log('Uploading document to Supabase storage...');
+        const url = await uploadDocument(fileToUpload);
         if (url) {
           uploadedDocumentUrl = url;
+          // Update the documentUrl state to the Supabase URL
+          setDocumentUrl(url);
+          // Clean up blob URL if it was a blob URL
+          if (isBlobUrl && documentUrl) {
+            URL.revokeObjectURL(documentUrl);
+          }
         } else {
           // User can still save without document if upload fails
           console.warn('Document upload failed, but continuing with save');
+          uploadedDocumentUrl = null; // Don't save blob URLs or failed uploads
         }
+      } else if (isSupabaseUrl) {
+        // Already a Supabase URL, use it as-is
+        uploadedDocumentUrl = documentUrl;
+      } else if (documentUrl && !isBlobUrl && !isSupabaseUrl && !isVercelTempUrl) {
+        // If documentUrl exists but is not a valid URL format, don't save it
+        console.warn('Invalid document URL format, not saving:', documentUrl);
+        uploadedDocumentUrl = null;
       }
 
       // Auto-calculate status based on due_date if not manually set to "paid"
@@ -537,7 +545,7 @@ export default function CostManagement() {
           currency: formData.currency || 'BAM',
           issue_date: formData.issue_date || '',
           due_date: formData.due_date || '',
-          description: formData.description || '',
+          notes: formData.notes || '',
           document_number: formData.document_number || '',
           status: finalStatus,
           created_at: '',
@@ -671,6 +679,11 @@ export default function CostManagement() {
       setIsEditMode(false);
       setEditingEntry(null);
       
+      // Clean up blob URLs before resetting
+      if (documentUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(documentUrl);
+      }
+      
       // Reset form (don't set today's date - let OCR or user set it)
       setFormData({
         supplier_name: '',
@@ -680,13 +693,14 @@ export default function CostManagement() {
         currency: 'BAM',
         issue_date: '', // Don't set default - let OCR extract or user enter
         due_date: '',
-        description: '',
+        notes: '',
         document_number: '',
         status: 'pending'
       });
       setDocumentFile(null);
       setDocumentUrl('');
       setOCRFile(null);
+      setOCRFileName('');
     } catch (error) {
       console.error('Error saving cost entry:', error);
       alert('Error saving cost entry');
@@ -883,9 +897,6 @@ export default function CostManagement() {
             }
             if (suggestions.document_number && !prev.document_number) {
               updated.document_number = suggestions.document_number;
-            }
-            if (suggestions.description && !prev.description) {
-              updated.description = suggestions.description;
             }
             return updated;
           });
@@ -1087,7 +1098,7 @@ export default function CostManagement() {
       issue_date: fallbackData.issue_date || '', // USE OCR extracted date directly!
       due_date: fallbackData.due_date || '', // USE OCR extracted date directly!
       document_number: fallbackData.document_number || '',
-      description: ocrText.substring(0, 200) || '',
+      notes: '',
       status: 'pending'
     };
 
@@ -1767,13 +1778,9 @@ export default function CostManagement() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Cost Management</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={() => setIsOCRSettingsOpen(true)}>
-            <Settings className="w-4 h-4" />
-          </Button>
+                <div className="flex gap-2">
           <Button variant="outline" onClick={handleScanDocument} disabled={isOCRProcessing || !geminiOCRService.isAvailable()}>
             {isOCRProcessing ? (
               <>
@@ -1800,18 +1807,20 @@ export default function CostManagement() {
               <CardTitle>Cost Entries</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>
-                      <div className="flex items-center gap-2">
-                        Supplier
-                        <Popover open={isSupplierFilterOpen} onOpenChange={setIsSupplierFilterOpen}>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <Filter className={`h-3 w-3 ${supplierFilter.selected !== "all" || supplierFilter.search ? 'text-primary' : ''}`} />
-                            </Button>
-                          </PopoverTrigger>
+              {/* Desktop Table View - Hidden below 1280px */}
+              <div className="hidden xl:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <div className="flex items-center gap-2">
+                          Supplier
+                          <Popover open={isSupplierFilterOpen} onOpenChange={setIsSupplierFilterOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Filter className={`h-3 w-3 ${supplierFilter.selected !== "all" || supplierFilter.search ? 'text-primary' : ''}`} />
+                              </Button>
+                            </PopoverTrigger>
                           <PopoverContent className="w-80" align="start">
                             <div className="space-y-4">
                               <div className="flex items-center justify-between">
@@ -2180,6 +2189,198 @@ export default function CostManagement() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Card View - Visible below 1280px (xl:hidden) */}
+              <div className="xl:hidden space-y-3 w-full max-w-full min-w-0">
+                {costEntries
+                  .filter((entry) => {
+                    // Supplier filter
+                    const matchesSupplier = supplierFilter.selected === "all" || 
+                      entry.supplier_name === supplierFilter.selected;
+                    const matchesSupplierSearch = !supplierFilter.search || 
+                      entry.supplier_name?.toLowerCase().includes(supplierFilter.search.toLowerCase());
+                    
+                    // Document type filter
+                    const matchesDocumentType = documentTypeFilter === "all" || 
+                      entry.document_type === documentTypeFilter;
+                    
+                    // Amount filter
+                    const amount = entry.total_amount || 0;
+                    const amountFrom = amountFilter.from ? parseFloat(amountFilter.from) : undefined;
+                    const amountTo = amountFilter.to ? parseFloat(amountFilter.to) : undefined;
+                    const matchesAmount = (!amountFrom || amount >= amountFrom) && 
+                      (!amountTo || amount <= amountTo);
+                    
+                    // Issue date filter
+                    const issueDateStr = entry.issue_date;
+                    const issueDateTime = issueDateStr ? new Date(issueDateStr).getTime() : undefined;
+                    const issueFromTime = issueDateFilter.from ? issueDateFilter.from.getTime() : undefined;
+                    const issueToTime = issueDateFilter.to ? (() => {
+                      const toDate = new Date(issueDateFilter.to);
+                      toDate.setHours(23, 59, 59, 999);
+                      return toDate.getTime();
+                    })() : undefined;
+                    const matchesIssueDate = (!issueFromTime || (issueDateTime !== undefined && issueDateTime >= issueFromTime)) &&
+                      (!issueToTime || (issueDateTime !== undefined && issueDateTime <= issueToTime));
+                    
+                    // Due date filter - only filter if both dates are set, otherwise include entries without due dates
+                    const dueDateStr = entry.due_date;
+                    const dueDateTime = dueDateStr ? new Date(dueDateStr).getTime() : undefined;
+                    const dueFromTime = dueDateFilter.from ? dueDateFilter.from.getTime() : undefined;
+                    const dueToTime = dueDateFilter.to ? (() => {
+                      const toDate = new Date(dueDateFilter.to);
+                      toDate.setHours(23, 59, 59, 999);
+                      return toDate.getTime();
+                    })() : undefined;
+                    const matchesDueDate = (!dueFromTime && !dueToTime) || // No filter set
+                      (dueDateTime !== undefined && (!dueFromTime || dueDateTime >= dueFromTime) && (!dueToTime || dueDateTime <= dueToTime));
+                    
+                    // Status filter
+                    const effectiveStatus = getEffectiveStatus(entry);
+                    const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
+                    
+                    return matchesSupplier && matchesSupplierSearch && matchesDocumentType && 
+                      matchesAmount && matchesIssueDate && matchesDueDate && matchesStatus;
+                  })
+                  .map((entry) => {
+                    const effectiveStatus = getEffectiveStatus(entry);
+                    return (
+                      <Card 
+                        key={entry.id} 
+                        className={`p-4 border cursor-pointer hover:bg-muted/50 transition-colors w-full ${
+                          effectiveStatus === 'overdue' ? 'border-red-200 bg-red-50/50' :
+                          effectiveStatus === 'paid' ? 'border-green-200 bg-green-50/50' :
+                          'border-amber-200 bg-amber-50/50'
+                        }`}
+                      >
+                        <div className="space-y-3">
+                          {/* Header Row - Supplier Name and Actions */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-col space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</span>
+                                <div className="text-sm font-semibold break-words">{entry.supplier_name}</div>
+                              </div>
+                              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                <Badge variant="outline" className="text-xs">{entry.document_type}</Badge>
+                                <CostStatusBadge 
+                                  entry={entry} 
+                                  onStatusChange={async (newStatus) => {
+                                    try {
+                                      const { error } = await supabase
+                                        .from('accounting_entries')
+                                        .update({ status: newStatus })
+                                        .eq('id', entry.id);
+                                      
+                                      if (error) {
+                                        toast({
+                                          title: "Error",
+                                          description: "Failed to update cost entry status",
+                                          variant: "destructive"
+                                        });
+                                      } else {
+                                        await fetchCostEntries();
+                                        toast({
+                                          title: "Status Updated",
+                                          description: `Cost entry status changed to ${newStatus}`
+                                        });
+                                      }
+                                    } catch (error) {
+                                      console.error('Error updating status:', error);
+                                      toast({
+                                        title: "Error",
+                                        description: "Failed to update cost entry status",
+                                        variant: "destructive"
+                                      });
+                                    }
+                                  }} 
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Details - Responsive Grid */}
+                          {/* 375-640px: Single column, 641-1024px: 2 columns, 1025-1280px: 2 columns */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount</span>
+                              <div className="text-sm font-medium break-words">{formatCurrency(entry.total_amount, entry.currency)}</div>
+                            </div>
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Issue Date</span>
+                              <div className="text-sm font-medium break-words">{formatDate(entry.issue_date)}</div>
+                            </div>
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Due Date</span>
+                              <div className="text-sm font-medium break-words">
+                                {entry.due_date ? formatDate(entry.due_date) : <span className="text-muted-foreground">-</span>}
+                              </div>
+                            </div>
+                            <div className="flex flex-col space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Document</span>
+                              <div className="text-sm font-medium">
+                                {entry.document_url ? (
+                                  <a
+                                    href={entry.document_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline flex items-center gap-1 break-words"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <FileText className="w-4 h-4 flex-shrink-0" />
+                                    <span className="break-words">View Document</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Notes - Below View Document */}
+                          {entry.notes && entry.notes.trim() && (
+                            <div className="flex flex-col space-y-1 pt-1 border-t">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</span>
+                              <p className="text-sm break-words whitespace-pre-wrap">{entry.notes}</p>
+                            </div>
+                          )}
+
+                          {/* Action Buttons - Bottom of Card */}
+                          <div className="flex justify-end gap-2 pt-3 border-t mt-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntry(entry);
+                                setIsEditMode(true);
+                                setFormData(entry);
+                                setDocumentUrl(entry.document_url || '');
+                                setDocumentFile(null);
+                                setIsDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingEntry(entry);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+              </div>
             </CardContent>
           </Card>
               </div>
@@ -2200,7 +2401,7 @@ export default function CostManagement() {
             currency: 'BAM',
             issue_date: '', // Don't set default - let OCR extract or user enter
             due_date: '',
-            description: '',
+            notes: '',
             document_number: '',
             status: 'pending'
           });
@@ -2229,7 +2430,7 @@ export default function CostManagement() {
           });
         }
       }}>
-        <DialogContent className={documentUrl || documentFile ? "max-w-6xl max-h-[95vh] flex flex-col" : "max-w-2xl max-h-[95vh] flex flex-col"}>
+        <DialogContent className={documentUrl || documentFile ? "max-w-6xl max-h-[95vh] flex flex-col overflow-hidden" : "max-w-2xl max-h-[95vh] flex flex-col overflow-hidden"}>
           <DialogHeader className="flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
@@ -2271,8 +2472,54 @@ export default function CostManagement() {
               </div>
           </DialogHeader>
 
-          <div className={(documentUrl || documentFile) ? "flex gap-6 overflow-hidden flex-1 min-h-0" : "flex-1 overflow-y-auto min-h-0"}>
-            <div className={(documentUrl || documentFile) ? "w-1/3 overflow-y-auto pr-4 flex-shrink-0" : "w-full"}>
+          <div className={(documentUrl || documentFile) ? "flex flex-col sm:flex-row gap-6 overflow-y-auto flex-1 min-h-0" : "flex-1 overflow-y-auto min-h-0"}>
+            {/* Document Preview - Mobile: First, Desktop: Right Side */}
+            {(documentUrl || documentFile) && (
+              <div className="w-full sm:w-2/3 border-b sm:border-b-0 sm:border-l pb-6 sm:pb-0 pl-0 sm:pl-6 overflow-y-auto flex flex-col flex-shrink-0 order-first sm:order-last">
+                <div className="flex justify-center items-start pt-0 sm:pt-4">
+                  {(() => {
+                    const file = ocrFile || documentFile;
+                    let url = documentUrl;
+                    
+                    // If we have a file but no URL, create one
+                    if (file && !url) {
+                      url = URL.createObjectURL(file);
+                    }
+                    
+                    if (!url) return null;
+                    
+                    // Determine file type
+                    let isPDF = false;
+                    if (file) {
+                      isPDF = file.type === 'application/pdf';
+                    } else if (editingEntry?.document_url) {
+                      const docUrl = editingEntry.document_url.toLowerCase();
+                      isPDF = docUrl.endsWith('.pdf') || docUrl.includes('pdf');
+                    } else if (url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('pdf')) {
+                      isPDF = true;
+                    }
+                    
+                    return isPDF ? (
+                      <iframe
+                        src={`${url}#toolbar=0&navpanes=0`}
+                        className="w-full min-h-[400px] sm:min-h-[800px] rounded-lg shadow-sm border-0"
+                        title="Document Preview"
+                        style={{ border: 'none' }}
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt="Document Preview"
+                        className="max-w-full h-auto rounded-lg shadow-sm object-contain"
+                      />
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* Form Section - Mobile: Below Preview, Desktop: Left Side */}
+            <div className={(documentUrl || documentFile) ? "w-full sm:w-1/3 overflow-y-auto sm:pr-4 flex-shrink-0 min-w-0" : "w-full"}>
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label htmlFor="supplier">Supplier *</Label>
@@ -2465,7 +2712,7 @@ export default function CostManagement() {
                         currency: prev.currency || 'BAM',
                         issue_date: prev.issue_date || '',
                         due_date: newDueDate,
-                        description: prev.description || '',
+                        notes: prev.notes || '',
                         document_number: prev.document_number || '',
                         status: prev.status || 'pending',
                         created_at: prev.created_at || '',
@@ -2581,69 +2828,22 @@ export default function CostManagement() {
                 </div>
               )}
             </div>
-            </div>
-          </div>
-
-            {/* Document Preview - Right Side */}
-            {(documentUrl || documentFile) && (
-              <div className="w-2/3 border-l pl-6 overflow-y-auto flex flex-col flex-shrink-0">
-                <div className="flex justify-center items-start pt-4">
-                  {(() => {
-                    const file = ocrFile || documentFile;
-                    let url = documentUrl;
-                    
-                    // If we have a file but no URL, create one
-                    if (file && !url) {
-                      url = URL.createObjectURL(file);
-                    }
-                    
-                    if (!url) return null;
-                    
-                    // Determine file type
-                    let isPDF = false;
-                    if (file) {
-                      isPDF = file.type === 'application/pdf';
-                    } else if (editingEntry?.document_url) {
-                      const docUrl = editingEntry.document_url.toLowerCase();
-                      isPDF = docUrl.endsWith('.pdf') || docUrl.includes('pdf');
-                    } else if (url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('pdf')) {
-                      isPDF = true;
-                    }
-                    
-                    return isPDF ? (
-                      <iframe
-                        src={url}
-                        className="w-full min-h-[800px] rounded-lg shadow-sm"
-                        title="Document Preview"
-                      />
-                    ) : (
-                      <img
-                        src={url}
-                        alt="Document Preview"
-                        className="max-w-full h-auto rounded-lg shadow-sm"
-                      />
-                    );
-                  })()}
-                </div>
-              </div>
-              )}
-            </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description || ''}
-              placeholder={ocrSuggestions.description && !formData.description ? ocrSuggestions.description : ''}
-              className={ocrSuggestions.description && !formData.description ? 'placeholder:text-muted-foreground/50' : ''}
-              onChange={(e) => {
-                setFormData(prev => ({ ...prev, description: e.target.value }));
-                setApprovedFields(prev => new Set(prev).add('description'));
-              }}
-              onFocus={() => handleFieldFocus('description')}
-              rows={3}
-            />
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes || ''}
+                placeholder="Add any notes about this cost entry..."
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, notes: e.target.value }));
+                }}
+                rows={3}
+              />
+            </div>
+            </div>
           </div>
+            </div>
 
           <div className="flex justify-end space-x-2 pt-4 border-t flex-shrink-0 mt-4">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -3064,163 +3264,6 @@ export default function CostManagement() {
             </Button>
             <Button variant="destructive" onClick={deleteCostEntry}>
               Delete
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* OCR Field Mapping Settings Dialog */}
-      <Dialog open={isOCRSettingsOpen} onOpenChange={setIsOCRSettingsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>OCR Field Mapping Settings</DialogTitle>
-            <DialogDescription>
-              Configure text patterns to look for when extracting data from scanned documents.
-              You can add multiple patterns per field. The app will search for text that matches ~80% similarity and extract the value after it.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            {(['subtotal_tax_excluded', 'total_amount', 'currency', 'issue_date', 'due_date', 'document_number', 'document_type'] as const).map((fieldKey) => {
-              const fieldLabels: Record<string, string> = {
-                subtotal_tax_excluded: 'Subtotal (Tax Excluded)',
-                total_amount: 'Total Amount',
-                currency: 'Currency',
-                issue_date: 'Issue Date',
-                due_date: 'Due Date',
-                document_number: 'Document Number',
-                document_type: 'Document Type'
-              };
-
-              const fieldPlaceholders: Record<string, string> = {
-                subtotal_tax_excluded: 'e.g., Iznos bez PDVa:',
-                total_amount: 'e.g., Ukupno:',
-                currency: 'e.g., Valuta:',
-                issue_date: 'e.g., Datum izdavanja:',
-                due_date: 'e.g., Datum dospijeća:',
-                document_number: 'e.g., Broj fakture:',
-                document_type: 'e.g., Vrsta dokumenta:'
-              };
-
-              return (
-                <div key={fieldKey} className="space-y-2">
-                  <Label>{fieldLabels[fieldKey]}</Label>
-                  
-                  {/* Existing patterns as chips */}
-                  {ocrFieldMappings[fieldKey] && ocrFieldMappings[fieldKey].length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {ocrFieldMappings[fieldKey].map((pattern, index) => (
-                        <div
-                          key={index}
-                          className="group relative inline-flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-md text-sm cursor-pointer hover:bg-blue-200 transition-colors"
-                          onClick={() => setEditingMapping({ field: fieldKey, index, value: pattern })}
-                        >
-                          <span>{pattern}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOCRFieldMappings(prev => ({
-                                ...prev,
-                                [fieldKey]: prev[fieldKey].filter((_, i) => i !== index)
-                              }));
-                            }}
-                            className="ml-1 text-blue-600 hover:text-blue-800 opacity-70 hover:opacity-100"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add new pattern input */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={fieldPlaceholders[fieldKey]}
-                      value={editingMapping?.field === fieldKey && editingMapping.index >= 0 
-                        ? editingMapping.value 
-                        : newMappingInputs[fieldKey] || ''}
-                      onChange={(e) => {
-                        if (editingMapping?.field === fieldKey && editingMapping.index >= 0) {
-                          setEditingMapping({ ...editingMapping, value: e.target.value });
-                        } else {
-                          setNewMappingInputs(prev => ({ ...prev, [fieldKey]: e.target.value }));
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const value = editingMapping?.field === fieldKey && editingMapping.index >= 0
-                            ? editingMapping.value
-                            : newMappingInputs[fieldKey];
-                          if (value && value.trim()) {
-                            if (editingMapping?.field === fieldKey && editingMapping.index >= 0) {
-                              // Update existing
-                              const updated = [...ocrFieldMappings[fieldKey]];
-                              updated[editingMapping.index] = value.trim();
-                              setOCRFieldMappings(prev => ({ ...prev, [fieldKey]: updated }));
-                              setEditingMapping(null);
-                            } else {
-                              // Add new
-                              setOCRFieldMappings(prev => ({
-                                ...prev,
-                                [fieldKey]: [...(prev[fieldKey] || []), value.trim()]
-                              }));
-                              setNewMappingInputs(prev => ({ ...prev, [fieldKey]: '' }));
-                            }
-                          }
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        const value = editingMapping?.field === fieldKey && editingMapping.index >= 0
-                          ? editingMapping.value
-                          : newMappingInputs[fieldKey];
-                        if (value && value.trim()) {
-                          if (editingMapping?.field === fieldKey && editingMapping.index >= 0) {
-                            // Update existing
-                            const updated = [...ocrFieldMappings[fieldKey]];
-                            updated[editingMapping.index] = value.trim();
-                            setOCRFieldMappings(prev => ({ ...prev, [fieldKey]: updated }));
-                            setEditingMapping(null);
-                          } else {
-                            // Add new
-                            setOCRFieldMappings(prev => ({
-                              ...prev,
-                              [fieldKey]: [...(prev[fieldKey] || []), value.trim()]
-                            }));
-                            setNewMappingInputs(prev => ({ ...prev, [fieldKey]: '' }));
-                          }
-                        }
-                      }}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Add multiple patterns. The app will try each one until it finds a match (~80% similarity).
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => {
-              setIsOCRSettingsOpen(false);
-              setEditingMapping(null);
-            }}>
-              Cancel
-            </Button>
-            <Button onClick={() => {
-              saveOCRMappings();
-              setEditingMapping(null);
-            }}>
-              Save Settings
             </Button>
           </div>
         </DialogContent>

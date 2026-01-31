@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getCurrencyForCountry, getCurrencySymbol } from "@/lib/currencyUtils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
+import { ShapeImage } from "@/components/ShapeImage";
 
 interface MaterialAdjustmentDialogProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
   const [availableAdditions, setAvailableAdditions] = useState<any[]>([]);
   const [removalData, setRemovalData] = useState<{ [key: string]: { length: string; notes: string } }>({});
   const [materialProfile, setMaterialProfile] = useState<any>(null);
+  const [shapes, setShapes] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -499,11 +501,27 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
         </DialogHeader>
         
         <div className="space-y-4 py-4">
-          <div>
-            <Label className="text-base font-semibold">{material?.name}</Label>
-            <p className="text-sm text-muted-foreground mt-1">
-              Current quantity: {material?.quantity || 0} mm total
-            </p>
+          <div className="flex items-center gap-4">
+            {material?.materials_used && (() => {
+              const materialInfo = material.materials_used || {};
+              const shape = materialInfo?.shape || "";
+              const shapeId = materialInfo?.shapeId || null;
+              const shapeData = Array.isArray(shapes) ? shapes.find(s => s.id === shapeId || s.name === shape) : null;
+              return (
+                <ShapeImage 
+                  shapeName={shape} 
+                  shapeId={shapeId || undefined}
+                  imageUrl={shapeData?.image_url || null}
+                  size={80}
+                />
+              );
+            })()}
+            <div>
+              <Label className="text-base font-semibold">{material?.name}</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Current quantity: {material?.quantity || 0} mm total
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-2">

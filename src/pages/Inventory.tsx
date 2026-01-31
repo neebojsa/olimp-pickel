@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle, Minus, ShoppingCart, Calculator } from "lucide-react";
-import { ShapeIcon } from "@/components/ShapeIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { ShapeImage } from "@/components/ShapeImage";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +53,7 @@ export default function Inventory() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [stockLocations, setStockLocations] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
+  const [shapes, setShapes] = useState<any[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -150,6 +151,7 @@ export default function Inventory() {
     fetchCustomers();
     fetchStockLocations();
     fetchStaff();
+    fetchShapes();
     fetchMaterialsAndTools();
   }, []);
   const fetchMaterialStockQuantities = async () => {
@@ -203,26 +205,35 @@ export default function Inventory() {
   }, [isViewDialogOpen, selectedViewItem?.id]);
 
   const fetchInventoryItems = async () => {
-    const {
-      data
-    } = await supabase.from('inventory').select('*');
-    if (data) {
-      const formattedItems = data.map(item => ({
-        ...item,
-        sku: `SKU-${item.id}`,
-        currentQuantity: item.quantity,
-        minimumQuantity: 5,
-        // Default minimum
-        unitOfMeasure: item.unit || "piece",
-        unitCost: item.unit_price,
-        image: item.photo_url || null
-      }));
-      setInventoryItems(formattedItems);
-      
-      // Fetch material stock quantities for materials
-      await fetchMaterialStockQuantities();
-      // Fetch material reorders
-      await fetchMaterialReorders();
+    try {
+      const {
+        data,
+        error
+      } = await supabase.from('inventory').select('*');
+      if (error) {
+        console.error('Error fetching inventory items:', error);
+        return;
+      }
+      if (data) {
+        const formattedItems = data.map(item => ({
+          ...item,
+          sku: `SKU-${item.id}`,
+          currentQuantity: item.quantity,
+          minimumQuantity: 5,
+          // Default minimum
+          unitOfMeasure: item.unit || "piece",
+          unitCost: item.unit_price,
+          image: item.photo_url || null
+        }));
+        setInventoryItems(formattedItems);
+        
+        // Fetch material stock quantities for materials
+        await fetchMaterialStockQuantities();
+        // Fetch material reorders
+        await fetchMaterialReorders();
+      }
+    } catch (error: any) {
+      console.error('Error fetching inventory items:', error);
     }
   };
   const fetchSuppliers = async () => {
@@ -255,6 +266,23 @@ export default function Inventory() {
     } = await supabase.from('staff').select('id, name, position').eq('is_active', true);
     if (data) {
       setStaffList(data);
+    }
+  };
+  const fetchShapes = async () => {
+    try {
+      const {
+        data,
+        error
+      } = await supabase.from('shapes').select('id, name, image_url');
+      if (error) {
+        console.error('Error fetching shapes:', error);
+        return;
+      }
+      if (data) {
+        setShapes(data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching shapes:', error);
     }
   };
   const fetchMaterialsAndTools = async () => {
@@ -924,6 +952,9 @@ export default function Inventory() {
   };
   
   const getFilteredItems = (category: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/75cf3fad-9e2e-4472-b4c3-e606cf8f2f9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Inventory.tsx:935',message:'getFilteredItems called',data:{category,inventoryItemsLength:inventoryItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     let items = inventoryItems.filter(item => {
       if (!item || item?.category !== category || !item.name) return false;
       
@@ -1761,9 +1792,15 @@ export default function Inventory() {
                              {item?.category === "Materials" ? (() => {
                     const materialInfo = item.materials_used || {};
                     const shape = materialInfo?.shape || "";
-                    const color = getMaterialColor(materialInfo?.material);
-                    return <div className="w-10 h-10 flex items-center justify-center flex-shrink-0" style={{ color }}>
-                                    <ShapeIcon shape={shape} size={40} className="w-10 h-10" />
+                    const shapeId = materialInfo?.shapeId || null;
+                    const shapeData = Array.isArray(shapes) ? shapes.find(s => s.id === shapeId || s.name === shape) : null;
+                    return <div className="flex items-center justify-center flex-shrink-0">
+                                    <ShapeImage 
+                                      shapeName={shape} 
+                                      shapeId={shapeId || undefined}
+                                      imageUrl={shapeData?.image_url || null}
+                                      size={80}
+                                    />
                   </div>;
                 })() : <div className="h-[94px] w-[100px] sm:w-[125px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                             {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" /> : <CategoryIcon className="w-12 h-12 text-muted-foreground" />}
@@ -2025,10 +2062,16 @@ export default function Inventory() {
                     {item.category === "Materials" ? (() => {
                       const materialInfo = item.materials_used || {};
                       const shape = materialInfo?.shape || "";
-                      const color = getMaterialColor(materialInfo?.material);
+                      const shapeId = materialInfo?.shapeId || null;
+                      const shapeData = Array.isArray(shapes) ? shapes.find(s => s.id === shapeId || s.name === shape) : null;
                       return (
-                        <div className="absolute top-4 right-4 pointer-events-none sm:hidden z-0" style={{ color }}>
-                          <ShapeIcon shape={shape} size={40} className="w-10 h-10" />
+                        <div className="absolute top-4 right-4 pointer-events-none sm:hidden z-0">
+                          <ShapeImage 
+                            shapeName={shape} 
+                            shapeId={shapeId || undefined}
+                            imageUrl={shapeData?.image_url || null}
+                            size={80}
+                          />
                         </div>
                       );
                     })() : (
@@ -3413,9 +3456,26 @@ export default function Inventory() {
           {selectedViewItem && <div className="space-y-6">
               {/* Photo and Basic Info */}
               <div className="flex gap-6">
-                {selectedViewItem?.category !== "Materials" && <div className="w-[170px] h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                      {selectedViewItem.photo_url ? <img src={selectedViewItem.photo_url} alt={selectedViewItem.name} className="w-full h-full object-cover" /> : <Package className="w-16 h-16 text-muted-foreground" />}
-                  </div>}
+                {selectedViewItem?.category === "Materials" ? (() => {
+                  const materialInfo = selectedViewItem.materials_used || {};
+                  const shape = materialInfo?.shape || "";
+                  const shapeId = materialInfo?.shapeId || null;
+                  const shapeData = Array.isArray(shapes) ? shapes.find(s => s.id === shapeId || s.name === shape) : null;
+                  return (
+                    <div className="flex items-center justify-center flex-shrink-0">
+                      <ShapeImage 
+                        shapeName={shape} 
+                        shapeId={shapeId || undefined}
+                        imageUrl={shapeData?.image_url || null}
+                        size={80}
+                      />
+                    </div>
+                  );
+                })() : (
+                  <div className="w-[170px] h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {selectedViewItem.photo_url ? <img src={selectedViewItem.photo_url} alt={selectedViewItem.name} className="w-full h-full object-cover" /> : <Package className="w-16 h-16 text-muted-foreground" />}
+                  </div>
+                )}
                 <div className="flex-1 space-y-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

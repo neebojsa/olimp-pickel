@@ -73,10 +73,22 @@ function layerStrokeOpacity(depth: number) {
   return 1 - t * 0.75
 }
 
+function layerStrokeColor(depth: number) {
+  // Color cycle: black, light orange, light green, light purple
+  const colors = [
+    "#000000",      // black - first layer
+    "#FFB84D",     // light orange - second layer
+    "#90EE90",     // light green - third layer
+    "#DDA0DD"      // light purple - fourth layer
+  ]
+  // Cycle through colors based on depth
+  return colors[depth % colors.length]
+}
+
 function Layers({
   children,
 }: {
-  children: (opts: { depth: number; isFront: boolean; opacity: number; transform: string }) => React.ReactNode
+  children: (opts: { depth: number; isFront: boolean; opacity: number; transform: string; strokeColor: string }) => React.ReactNode
 }) {
   // Draw back -> front so front is on top
   const items: React.ReactNode[] = []
@@ -84,7 +96,8 @@ function Layers({
     const isFront = depth === 0
     const opacity = layerStrokeOpacity(depth)
     const transform = layerTransform(depth)
-    items.push(children({ depth, isFront, opacity, transform }))
+    const strokeColor = layerStrokeColor(depth)
+    items.push(children({ depth, isFront, opacity, transform, strokeColor }))
   }
   return <>{items}</>
 }
@@ -123,14 +136,14 @@ function renderShape(s: string) {
 function RoundBar() {
   return (
     <Layers>
-      {({ isFront, opacity, transform }) => (
+      {({ isFront, opacity, transform, strokeColor }) => (
         <g transform={transform} strokeOpacity={opacity}>
           <circle
             cx="44"
             cy="56"
             r="16"
             fill={isFront ? "currentColor" : "none"}
-            stroke="currentColor"
+            stroke={strokeColor}
           />
         </g>
       )}
@@ -141,8 +154,8 @@ function RoundBar() {
 function RoundTube() {
   return (
     <Layers>
-      {({ opacity, transform }) => (
-        <g transform={transform} strokeOpacity={opacity}>
+      {({ opacity, transform, strokeColor }) => (
+        <g transform={transform} strokeOpacity={opacity} stroke={strokeColor}>
           <circle cx="44" cy="56" r="16" />
         </g>
       )}
@@ -153,7 +166,7 @@ function RoundTube() {
 function SquareBar() {
   return (
     <Layers>
-      {({ isFront, opacity, transform }) => (
+      {({ isFront, opacity, transform, strokeColor }) => (
         <g transform={transform} strokeOpacity={opacity}>
           <rect
             x="26"
@@ -162,7 +175,7 @@ function SquareBar() {
             height="32"
             rx="6"
             fill={isFront ? "currentColor" : "none"}
-            stroke="currentColor"
+            stroke={strokeColor}
           />
         </g>
       )}
@@ -173,8 +186,8 @@ function SquareBar() {
 function SquareTube() {
   return (
     <Layers>
-      {({ opacity, transform }) => (
-        <g transform={transform} strokeOpacity={opacity}>
+      {({ opacity, transform, strokeColor }) => (
+        <g transform={transform} strokeOpacity={opacity} stroke={strokeColor}>
           <rect x="26" y="40" width="32" height="32" rx="6" />
         </g>
       )}
@@ -185,8 +198,8 @@ function SquareTube() {
 function RectangularTube() {
   return (
     <Layers>
-      {({ opacity, transform }) => (
-        <g transform={transform} strokeOpacity={opacity}>
+      {({ opacity, transform, strokeColor }) => (
+        <g transform={transform} strokeOpacity={opacity} stroke={strokeColor}>
           <rect x="22" y="40" width="60" height="30" rx="6" />
         </g>
       )}
@@ -197,7 +210,7 @@ function RectangularTube() {
 function RectangularBar() {
   return (
     <Layers>
-      {({ isFront, opacity, transform }) => (
+      {({ isFront, opacity, transform, strokeColor }) => (
         <g transform={transform} strokeOpacity={opacity}>
           <rect
             x="22"
@@ -206,7 +219,7 @@ function RectangularBar() {
             height="30"
             rx="6"
             fill={isFront ? "currentColor" : "none"}
-            stroke="currentColor"
+            stroke={strokeColor}
           />
         </g>
       )}
@@ -218,12 +231,12 @@ function HexBar() {
   const pts = "42 38 58 48 58 68 42 78 26 68 26 48"
   return (
     <Layers>
-      {({ isFront, opacity, transform }) => (
+      {({ isFront, opacity, transform, strokeColor }) => (
         <g transform={transform} strokeOpacity={opacity}>
           <polygon
             points={pts}
             fill={isFront ? "currentColor" : "none"}
-            stroke="currentColor"
+            stroke={strokeColor}
           />
         </g>
       )}
@@ -238,19 +251,19 @@ function Sheet() {
 
   return (
     <Layers>
-      {({ isFront, opacity, transform }) => (
+      {({ isFront, opacity, transform, strokeColor }) => (
         <g transform={transform} strokeOpacity={opacity}>
           <polygon
             points={pts}
             fill={isFront ? "currentColor" : "none"}
-            stroke="currentColor"
+            stroke={strokeColor}
           />
 
           {/* subtle edge hint only on the front layer (reads as thickness/face) */}
           {isFront && (
             <path
               d="M36 60 L88 50"
-              stroke="currentColor"
+              stroke={strokeColor}
               strokeOpacity={0.35}
             />
           )}
@@ -265,8 +278,8 @@ function Angle() {
   const d = "M30 42 V78 H54"
   return (
     <Layers>
-      {({ opacity, transform }) => (
-        <g transform={transform} strokeOpacity={opacity}>
+      {({ opacity, transform, strokeColor }) => (
+        <g transform={transform} strokeOpacity={opacity} stroke={strokeColor}>
           <path d={d} />
         </g>
       )}
@@ -282,8 +295,8 @@ function Channel() {
 
   return (
     <Layers>
-      {({ opacity, transform }) => (
-        <g transform={transform} strokeOpacity={opacity}>
+      {({ opacity, transform, strokeColor }) => (
+        <g transform={transform} strokeOpacity={opacity} stroke={strokeColor}>
           <path d={side} />
           <path d={right} />
           <path d={base} />
@@ -299,14 +312,14 @@ function Beam() {
 
   return (
     <Layers>
-      {({ isFront, opacity, transform }) => (
+      {({ isFront, opacity, transform, strokeColor }) => (
         <g transform={transform} strokeOpacity={opacity}>
           {!isFront ? (
             // Back layers: simple outline (lighter)
-            <path d={outlineD} />
+            <path d={outlineD} stroke={strokeColor} />
           ) : (
             // Front layer: slim filled beam
-            <g fill="currentColor" stroke="currentColor">
+            <g fill="currentColor" stroke={strokeColor}>
               <rect x="24" y="44" width="40" height="6" rx="2" />
               <rect x="47" y="50" width="4" height="20" rx="2" />
               <rect x="24" y="70" width="40" height="6" rx="2" />

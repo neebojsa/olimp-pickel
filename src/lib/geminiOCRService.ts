@@ -17,12 +17,22 @@ export class GeminiOCRService {
   private model: any = null;
 
   constructor(config: GeminiOCRConfig = {}) {
+    const envApiKey = import.meta.env.VITE_GEMINI_API_KEY;
     this.config = {
-      apiKey: config.apiKey || import.meta.env.VITE_GEMINI_API_KEY || '',
+      apiKey: config.apiKey || envApiKey || '',
       model: config.model || 'gemini-2.5-pro', // Use gemini-2.5-pro (suggested in API errors, supports vision)
       debug: config.debug ?? true,
       ...config
     };
+
+    // Debug logging to help diagnose issues
+    if (this.config.debug) {
+      console.log('Gemini OCR Service initialization:');
+      console.log('- API Key provided:', !!this.config.apiKey);
+      console.log('- API Key length:', this.config.apiKey ? this.config.apiKey.length : 0);
+      console.log('- Environment variable exists:', !!envApiKey);
+      console.log('- Model:', this.config.model);
+    }
 
     if (this.config.apiKey) {
       try {
@@ -30,10 +40,10 @@ export class GeminiOCRService {
         // Try to initialize with the specified model
         this.model = this.genAI.getGenerativeModel({ model: this.config.model });
         if (this.config.debug) {
-          console.log('Gemini OCR Service initialized with model:', this.config.model);
+          console.log('✓ Gemini OCR Service initialized successfully with model:', this.config.model);
         }
       } catch (error) {
-        console.error('Failed to initialize Gemini AI with model', this.config.model, ':', error);
+        console.error('✗ Failed to initialize Gemini AI with model', this.config.model, ':', error);
         // Try fallback models (based on API error suggestions)
         const fallbackModels = [
           'gemini-2.5-pro',      // Suggested in API error messages
@@ -47,18 +57,19 @@ export class GeminiOCRService {
           try {
             this.model = this.genAI!.getGenerativeModel({ model: fallbackModel });
             this.config.model = fallbackModel;
-            console.log('Using fallback model:', fallbackModel);
+            console.log('✓ Using fallback model:', fallbackModel);
             break;
           } catch (fallbackError) {
-            console.warn('Fallback model', fallbackModel, 'also failed:', fallbackError);
+            console.warn('✗ Fallback model', fallbackModel, 'also failed:', fallbackError);
           }
         }
         if (!this.model) {
-          console.error('All Gemini models failed to initialize');
+          console.error('✗ All Gemini models failed to initialize');
         }
       }
     } else {
-      console.warn('Gemini API key not provided. Set VITE_GEMINI_API_KEY environment variable.');
+      console.warn('⚠ Gemini API key not provided. Set VITE_GEMINI_API_KEY environment variable.');
+      console.warn('⚠ Note: In Vercel, you must redeploy after adding environment variables for them to take effect.');
     }
   }
 

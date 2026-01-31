@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { getCurrencySymbol } from "@/lib/currencyUtils";
+import { ShapeImage } from "@/components/ShapeImage";
 
 interface MaterialHistoryDialogProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export function MaterialHistoryDialog({ isOpen, onClose, material }: MaterialHis
   const [isLoading, setIsLoading] = useState(false);
   const [materialProfile, setMaterialProfile] = useState<any>(null);
   const [additionsForPricing, setAdditionsForPricing] = useState<any[]>([]);
+  const [shapes, setShapes] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,6 +49,7 @@ export function MaterialHistoryDialog({ isOpen, onClose, material }: MaterialHis
       fetchSuppliers();
       fetchMaterialProfile();
       fetchAdditionsForPricing();
+      fetchShapes();
     } else if (!isOpen) {
       // Reset state when closing
       setMaterialProfile(null);
@@ -54,6 +57,21 @@ export function MaterialHistoryDialog({ isOpen, onClose, material }: MaterialHis
       setAdditionsForPricing([]);
     }
   }, [isOpen, material?.id]);
+
+  const fetchShapes = async () => {
+    try {
+      const { data, error } = await supabase.from('shapes').select('id, name, image_url');
+      if (error) {
+        console.error('Error fetching shapes:', error);
+        return;
+      }
+      if (data) {
+        setShapes(data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching shapes:', error);
+    }
+  };
 
   // Re-fetch profile when material changes
   useEffect(() => {
@@ -354,16 +372,32 @@ export function MaterialHistoryDialog({ isOpen, onClose, material }: MaterialHis
         </DialogHeader>
         
         <div className="space-y-4">
-          <div>
-            <p className="text-base font-semibold">{material?.name}</p>
-            <p className="text-sm font-semibold text-blue-600">
-              Current quantity: {material?.quantity || 0} mm
-              {materialProfile?.kg_per_meter && (() => {
-                const currentMeters = (material?.quantity || 0) / 1000;
-                const currentKg = currentMeters * materialProfile.kg_per_meter;
-                return ` | ${currentKg.toFixed(2)} kg`;
-              })()}
-            </p>
+          <div className="flex items-center gap-4">
+            {material?.materials_used && (() => {
+              const materialInfo = material.materials_used || {};
+              const shape = materialInfo?.shape || "";
+              const shapeId = materialInfo?.shapeId || null;
+              const shapeData = Array.isArray(shapes) ? shapes.find(s => s.id === shapeId || s.name === shape) : null;
+              return (
+                <ShapeImage 
+                  shapeName={shape} 
+                  shapeId={shapeId || undefined}
+                  imageUrl={shapeData?.image_url || null}
+                  size={80}
+                />
+              );
+            })()}
+            <div>
+              <p className="text-base font-semibold">{material?.name}</p>
+              <p className="text-sm font-semibold text-blue-600">
+                Current quantity: {material?.quantity || 0} mm
+                {materialProfile?.kg_per_meter && (() => {
+                  const currentMeters = (material?.quantity || 0) / 1000;
+                  const currentKg = currentMeters * materialProfile.kg_per_meter;
+                  return ` | ${currentKg.toFixed(2)} kg`;
+                })()}
+              </p>
+            </div>
           </div>
 
           <ScrollArea className="h-[400px] pr-4">

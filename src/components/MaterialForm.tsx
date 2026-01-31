@@ -10,7 +10,7 @@ import { ChevronLeft, Search, Check } from "lucide-react";
 import { MaterialSearch } from "./MaterialSearch";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrencyForCountry, getCurrencySymbol } from "@/lib/currencyUtils";
-import { ShapeIcon } from "./ShapeIcon";
+import { ShapeImage } from "./ShapeImage";
 import { NumericInput } from "./NumericInput";
 
 interface MaterialFormProps {
@@ -52,6 +52,7 @@ interface Shape {
   name: string;
   calculation_type: 'simple_formula' | 'profile_table';
   description: string | null;
+  image_url: string | null;
 }
 
 interface StandardizedProfile {
@@ -293,13 +294,15 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
   useEffect(() => {
     const fetchShapes = async () => {
       try {
+        // @ts-expect-error - shapes table exists but types need regeneration
         const { data, error } = await supabase
+          // @ts-expect-error - shapes table exists but types need regeneration
           .from('shapes')
           .select('*')
           .order('name', { ascending: true });
 
         if (error) throw error;
-        setShapes(data || []);
+        setShapes((data || []) as unknown as Shape[]);
       } catch (error) {
         console.error('Error fetching shapes:', error);
       }
@@ -400,14 +403,16 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
       const fetchProfiles = async () => {
         setLoadingProfiles(true);
         try {
+          // @ts-expect-error - standardized_profiles table exists but types need regeneration
           const { data, error } = await supabase
+            // @ts-expect-error - standardized_profiles table exists but types need regeneration
             .from('standardized_profiles')
             .select('*')
             .eq('shape_id', shapeId)
             .order('designation', { ascending: true });
 
           if (error) throw error;
-          setProfiles(data || []);
+          setProfiles((data || []) as unknown as StandardizedProfile[]);
         } catch (error) {
           console.error('Error fetching profiles:', error);
         } finally {
@@ -642,8 +647,13 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
                       onClick={() => handleShapeSelect(displayName)}
                       className="group relative flex flex-col items-center justify-center p-3 md:p-5 rounded-lg border-2 border-border hover:border-primary transition-all duration-200 hover:shadow-lg bg-card"
                     >
-                      <div className="w-11 h-11 md:w-14 md:h-14 mb-2 flex items-center justify-center text-primary">
-                        <ShapeIcon shape={shapeOption.name} size={45} />
+                      <div className="mb-2 flex items-center justify-center">
+                        <ShapeImage 
+                          shapeName={shapeOption.name} 
+                          shapeId={shapeOption.id}
+                          imageUrl={shapeOption.image_url}
+                          size={45}
+                        />
                       </div>
                       <span className="text-xs md:text-sm font-medium text-center leading-tight">{displayName}</span>
                     </button>
@@ -818,8 +828,13 @@ export function MaterialForm({ onMaterialChange, initialData }: MaterialFormProp
               <CardContent className="p-4">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 text-primary">
-                      <ShapeIcon shape={shape} size={48} />
+                    <div>
+                      <ShapeImage 
+                        shapeName={shape} 
+                        shapeId={shapeId}
+                        imageUrl={shapes.find(s => s.id === shapeId)?.image_url || null}
+                        size={48}
+                      />
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Shape</div>

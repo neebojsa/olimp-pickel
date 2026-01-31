@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Edit2, Search, Settings } from "lucide-react";
+import { Plus, Trash2, Edit2, Search, Settings, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,12 +10,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StandardizedProfilesManagement } from "./StandardizedProfilesManagement";
+import { validateImageFile, resizeImageFile } from "@/lib/imageUtils";
 
 interface Shape {
   id: string;
   name: string;
   calculation_type: 'simple_formula' | 'profile_table';
   description: string | null;
+  image_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,8 +33,12 @@ export function ShapesManagement() {
   const [formData, setFormData] = useState({
     name: "",
     calculation_type: "simple_formula" as 'simple_formula' | 'profile_table',
-    description: ""
+    description: "",
+    image_url: "" as string | null
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const fetchShapes = async () => {
     try {
@@ -80,12 +86,25 @@ export function ShapesManagement() {
     }
 
     try {
+      // Upload image if a new file was selected
+      let imageUrl = formData.image_url;
+      if (imageFile) {
+        const uploadedUrl = await uploadShapeImage(imageFile);
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        } else {
+          // User can still save without image if upload fails
+          console.warn('Image upload failed, but continuing with shape creation');
+        }
+      }
+
       const { error } = await supabase
         .from('shapes')
         .insert([{
           name: formData.name.trim(),
           calculation_type: formData.calculation_type,
-          description: formData.description.trim() || null
+          description: formData.description.trim() || null,
+          image_url: imageUrl || null
         }]);
 
       if (error) throw error;
@@ -95,7 +114,9 @@ export function ShapesManagement() {
         description: "Shape added successfully",
       });
 
-      setFormData({ name: "", calculation_type: "simple_formula", description: "" });
+      setFormData({ name: "", calculation_type: "simple_formula", description: "", image_url: null });
+      setImageFile(null);
+      setImagePreview(null);
       setIsAddFormOpen(false);
       await fetchShapes();
     } catch (error: any) {
@@ -121,12 +142,25 @@ export function ShapesManagement() {
     }
 
     try {
+      // Upload image if a new file was selected
+      let imageUrl = formData.image_url;
+      if (imageFile) {
+        const uploadedUrl = await uploadShapeImage(imageFile);
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        } else {
+          // Keep existing image if upload fails
+          console.warn('Image upload failed, keeping existing image');
+        }
+      }
+
       const { error } = await supabase
         .from('shapes')
         .update({
           name: formData.name.trim(),
           calculation_type: formData.calculation_type,
-          description: formData.description.trim() || null
+          description: formData.description.trim() || null,
+          image_url: imageUrl || null
         })
         .eq('id', editingShape.id);
 
@@ -138,7 +172,9 @@ export function ShapesManagement() {
       });
 
       setEditingShape(null);
-      setFormData({ name: "", calculation_type: "simple_formula", description: "" });
+      setFormData({ name: "", calculation_type: "simple_formula", description: "", image_url: null });
+      setImageFile(null);
+      setImagePreview(null);
       setIsAddFormOpen(false);
       await fetchShapes();
     } catch (error: any) {
@@ -181,15 +217,98 @@ export function ShapesManagement() {
     setFormData({
       name: shape.name,
       calculation_type: shape.calculation_type,
-      description: shape.description || ""
+      description: shape.description || "",
+      image_url: shape.image_url || null
     });
+    setImageFile(null);
+    setImagePreview(shape.image_url || null);
     setIsAddFormOpen(true);
   };
 
   const handleCancelForm = () => {
     setEditingShape(null);
-    setFormData({ name: "", calculation_type: "simple_formula", description: "" });
+    setFormData({ name: "", calculation_type: "simple_formula", description: "", image_url: null });
+    setImageFile(null);
+    setImagePreview(null);
     setIsAddFormOpen(false);
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!validateImageFile(file)) {
+      toast({
+        title: "Invalid File",
+        description: "Please select a valid image file (.jpg, .jpeg, or .png)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Image must be smaller than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setImageFile(file);
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setFormData({ ...formData, image_url: null });
+  };
+
+  const uploadShapeImage = async (file: File): Promise<string | null> => {
+    try {
+      setIsUploadingImage(true);
+      // Resize image to max 800x600 while maintaining aspect ratio
+      const resizedFile = await resizeImageFile(file, 800, 600, 0.85);
+      
+      const fileExt = resizedFile.name.split('.').pop();
+      const fileName = `shape-${Date.now()}.${fileExt}`;
+      const filePath = fileName;
+
+      const { error: uploadError } = await supabase.storage
+        .from('shape-images')
+        .upload(filePath, resizedFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Image upload error:', uploadError);
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload image. Please try again.",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      const { data } = supabase.storage.from('shape-images').getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Upload Failed",
+        description: "An error occurred while uploading the image.",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const getCalculationTypeDescription = (type: string) => {
@@ -266,12 +385,53 @@ export function ShapesManagement() {
                 placeholder="e.g., Circular cross-section bar"
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="shape_image">Shape Image</Label>
+              <div className="flex items-center gap-4">
+                {imagePreview ? (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Shape preview"
+                      className="w-40 h-30 object-contain border rounded border-input bg-muted"
+                      style={{ width: '160px', height: '120px' }}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={handleRemoveImage}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="w-40 h-30 border-2 border-dashed border-muted-foreground/25 rounded flex items-center justify-center bg-muted/50" style={{ width: '160px', height: '120px' }}>
+                    <span className="text-xs text-muted-foreground text-center px-2">No image</span>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input
+                    id="shape_image"
+                    type="file"
+                    accept=".jpg,.jpeg,.png"
+                    onChange={handleImageSelect}
+                    disabled={isUploadingImage}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Accepted formats: JPG, JPEG, PNG (max 5MB)
+                  </p>
+                </div>
+              </div>
+            </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={handleCancelForm}>
+              <Button variant="outline" onClick={handleCancelForm} disabled={isUploadingImage}>
                 Cancel
               </Button>
-              <Button onClick={editingShape ? handleUpdateShape : handleAddShape}>
-                {editingShape ? "Update" : "Add"} Shape
+              <Button onClick={editingShape ? handleUpdateShape : handleAddShape} disabled={isUploadingImage}>
+                {isUploadingImage ? "Uploading..." : editingShape ? "Update" : "Add"} Shape
               </Button>
             </div>
           </div>
@@ -290,6 +450,7 @@ export function ShapesManagement() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-40">Image</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Calculation Type</TableHead>
                 <TableHead>How Weight is Calculated</TableHead>
@@ -300,6 +461,20 @@ export function ShapesManagement() {
             <TableBody>
               {filteredShapes.map((shape) => (
                 <TableRow key={shape.id}>
+                  <TableCell>
+                    {shape.image_url ? (
+                      <img
+                        src={shape.image_url}
+                        alt={shape.name}
+                        className="w-40 h-30 object-contain border rounded bg-muted"
+                        style={{ width: '160px', height: '120px' }}
+                      />
+                    ) : (
+                      <div className="w-40 h-30 border border-dashed border-muted-foreground/25 rounded flex items-center justify-center bg-muted/50 text-xs text-muted-foreground" style={{ width: '160px', height: '120px' }}>
+                        No image
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="font-medium">{shape.name}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded text-xs ${
