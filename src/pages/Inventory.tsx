@@ -20,7 +20,6 @@ import { MaterialForm, MaterialData } from "@/components/MaterialForm";
 import { ProductionStatusDialog } from "@/components/ProductionStatusDialog";
 import { formatDate } from "@/lib/dateUtils";
 import { getCurrencyForCountry, formatCurrency, getCurrencySymbol, formatCurrencyWithUnit } from "@/lib/currencyUtils";
-import { importInventoryFromSpreadsheet } from "@/utils/importInventory";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { ToolManagementDialog } from "@/components/ToolManagementDialog";
 import { ToolCategorySelector } from "@/components/ToolCategorySelector";
@@ -119,7 +118,6 @@ export default function Inventory() {
   const [materialData, setMaterialData] = useState<MaterialData | null>(null);
   const [isProductionStatusDialogOpen, setIsProductionStatusDialogOpen] = useState(false);
   const [selectedItemForProductionStatus, setSelectedItemForProductionStatus] = useState<any>(null);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isToolManagementDialogOpen, setIsToolManagementDialogOpen] = useState(false);
   const [isMaterialManagementDialogOpen, setIsMaterialManagementDialogOpen] = useState(false);
   const [isMaterialAdjustmentDialogOpen, setIsMaterialAdjustmentDialogOpen] = useState(false);
@@ -135,7 +133,6 @@ export default function Inventory() {
   const [duplicateItem, setDuplicateItem] = useState<{ id: string; name: string; part_number?: string | null; created_at: string } | null>(null);
   const [pendingSaveAction, setPendingSaveAction] = useState<(() => Promise<void>) | null>(null);
   const [materialReorders, setMaterialReorders] = useState<{ [key: string]: any }>({});
-  const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("");
   const [showOnlyWithProductionStatus, setShowOnlyWithProductionStatus] = useState(false);
   const [materialStockQuantities, setMaterialStockQuantities] = useState<{ [key: string]: number }>({});
@@ -600,36 +597,6 @@ export default function Inventory() {
           : "Failed to add item. Please try again.",
         variant: "destructive"
       });
-    }
-  };
-  const handleImportSpreadsheet = async (url: string) => {
-    try {
-      setIsUploading(true);
-      toast({
-        title: "Importing inventory...",
-        description: "This may take a few moments"
-      });
-      
-      const result = await importInventoryFromSpreadsheet(url, staff?.id);
-      
-      toast({
-        title: "Import completed!",
-        description: `Successfully imported ${result.success} items. ${result.errors > 0 ? `${result.errors} items failed.` : ''}`
-      });
-      
-      // Refresh the inventory list
-      fetchInventoryItems();
-      setIsImportDialogOpen(false);
-      setSpreadsheetUrl("");
-    } catch (error) {
-      console.error('Import failed:', error);
-      toast({
-        title: "Import failed",
-        description: "Failed to import inventory from spreadsheet",
-        variant: "destructive"
-      });
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -1605,16 +1572,6 @@ export default function Inventory() {
           <h1 className="text-2xl sm:text-3xl font-bold break-words">Inventory Management</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {currentCategory === "Parts" && (
-            <Button 
-              onClick={() => setIsImportDialogOpen(true)}
-              variant="outline"
-              disabled={isUploading}
-            >
-              <Package className="w-4 h-4 mr-2" />
-              Import from Spreadsheet
-            </Button>
-          )}
           {currentCategory === "Tools" && (
             <Button 
               onClick={() => setIsToolManagementDialogOpen(true)}
@@ -1734,9 +1691,9 @@ export default function Inventory() {
                 )}
                 
                 {/* "With Production Status" and "Add Part" - one line on mobile */}
-                <div className="flex flex-row items-center justify-between gap-2 md:gap-3 w-full md:w-auto">
-                  <div className="flex items-center gap-2 flex-1 md:flex-none">
-                    {category === "Parts" && (
+                {category === "Parts" && (
+                  <div className="flex flex-row items-center justify-between gap-2 md:gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-2 flex-1 md:flex-none">
                       <Button
                         variant={showOnlyWithProductionStatus ? "default" : "outline"}
                         onClick={() => setShowOnlyWithProductionStatus(!showOnlyWithProductionStatus)}
@@ -1746,32 +1703,44 @@ export default function Inventory() {
                         <ClipboardList className="w-4 h-4 mr-2" />
                         With Production Status
                       </Button>
-                    )}
-                    {category === "Materials" && (
-                      <>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
-                          className="whitespace-nowrap"
-                        >
-                          <FileText className="w-4 h-4 mr-2" />
-                          Reorder Summary
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsMaterialManagementDialogOpen(true)}
-                        >
-                          <Settings className="w-4 h-4 mr-2" />
-                          Settings
-                        </Button>
-                      </>
-                    )}
+                    </div>
+                    <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add {category.slice(0, -1)}
+                    </Button>
                   </div>
+                )}
+                {category === "Materials" && (
+                  <div className="flex flex-col gap-2 w-full md:w-auto">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
+                        className="whitespace-nowrap"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Reorder Summary
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsMaterialManagementDialogOpen(true)}
+                      >
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                      </Button>
+                    </div>
+                    <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap w-full md:w-auto">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add {category.slice(0, -1)}
+                    </Button>
+                  </div>
+                )}
+                {category !== "Parts" && category !== "Materials" && (
                   <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
                     <Plus className="w-4 h-4 mr-2" />
                     Add {category.slice(0, -1)}
                   </Button>
-                </div>
+                )}
               </div>
 
               {/* Items List - Desktop View */}
@@ -2070,24 +2039,6 @@ export default function Inventory() {
                       }
                     }}
                   >
-                    {/* Image/Shape Icon - Mobile Only (top-right) - Only for Materials */}
-                    {item.category === "Materials" && (() => {
-                      const materialInfo = item.materials_used || {};
-                      const shape = materialInfo?.shape || "";
-                      const shapeId = materialInfo?.shapeId || null;
-                      const shapeData = Array.isArray(shapes) ? shapes.find(s => s.id === shapeId || s.name === shape) : null;
-                      return (
-                        <div className="absolute top-4 right-4 pointer-events-none md:hidden z-0">
-                          <ShapeImage 
-                            shapeName={shape} 
-                            shapeId={shapeId || undefined}
-                            imageUrl={shapeData?.image_url || null}
-                            size={80}
-                          />
-                        </div>
-                      );
-                    })()}
-                    
                     <div className="space-y-3 w-full min-w-0 overflow-hidden">
                       {/* Name/Title */}
                       <div className="flex flex-col space-y-1">
@@ -2139,12 +2090,28 @@ export default function Inventory() {
                         const totalWeight = unitWeight * item.quantity;
                         const stockQuantityMm = materialStockQuantities[item.id] || 0;
                         const reorder = materialReorders[item.id];
+                        const shape = materialInfo?.shape || "";
+                        const shapeId = materialInfo?.shapeId || null;
+                        const shapeData = Array.isArray(shapes) ? shapes.find(s => s.id === shapeId || s.name === shape) : null;
                         
                         return (
                           <>
-                            <div className="flex flex-col space-y-1">
-                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stock</span>
-                              <div className="text-sm font-medium">{stockQuantityMm.toFixed(0)} mm</div>
+                            {/* Stock and Shape Picture - Bottom-aligned row */}
+                            <div className="flex w-full items-end justify-between gap-3 min-w-0 overflow-visible">
+                              {/* Stock section - left */}
+                              <div className="flex flex-col space-y-1 min-w-0 flex-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stock</span>
+                                <div className="text-sm font-medium">{stockQuantityMm.toFixed(0)} mm</div>
+                              </div>
+                              {/* Shape picture section - right */}
+                              <div className="flex-shrink-0 pointer-events-none overflow-visible">
+                                <ShapeImage 
+                                  shapeName={shape} 
+                                  shapeId={shapeId || undefined}
+                                  imageUrl={shapeData?.image_url || null}
+                                  size={80}
+                                />
+                              </div>
                             </div>
                             {totalWeight > 0 && (
                               <div className="flex flex-col space-y-1">
@@ -2238,17 +2205,6 @@ export default function Inventory() {
                       <div className="pt-2 border-t flex flex-wrap gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                         {item.category !== "Materials" && (
                           <>
-                            <Button variant="outline" size="sm" onClick={(e) => {
-                              e.stopPropagation();
-                              const itemExists = inventoryItems.some(i => i.id === item.id);
-                              if (itemExists) {
-                                setSelectedViewItem(item);
-                                setIsViewDialogOpen(true);
-                              }
-                            }}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
                             <Button variant="outline" size="sm" onClick={(e) => {
                               e.stopPropagation();
                               handleViewHistory(item);
@@ -3421,42 +3377,6 @@ export default function Inventory() {
         itemName={selectedItemForProductionStatus?.name || ""}
       />
 
-      {/* Import Spreadsheet Dialog */}
-      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Import from Spreadsheet</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="spreadsheet-url">Spreadsheet URL</Label>
-              <Input
-                id="spreadsheet-url"
-                value={spreadsheetUrl}
-                onChange={(e) => setSpreadsheetUrl(e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/..."
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsImportDialogOpen(false);
-                  setSpreadsheetUrl("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => handleImportSpreadsheet(spreadsheetUrl)}
-                disabled={!spreadsheetUrl.trim() || isUploading}
-              >
-                {isUploading ? "Importing..." : "Import"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* View Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={(open) => {
