@@ -1692,17 +1692,17 @@ ${cssVariables}
         setIsAddInvoiceOpen(open);
         if (!open) resetForm();
       }}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-4xl w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</DialogTitle>
               <DialogDescription>
                 Fill in the invoice details and add products
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pr-1">
               {/* Customer and Basic Info */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Customer *</Label>
                   <Select value={newInvoice.customerId} onValueChange={value => {
@@ -1761,7 +1761,7 @@ ${cssVariables}
                   return contactPerson && contactPerson.trim() !== '' ? (
                     <div>
                       <Label>Reference (Contact Person)</Label>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         <Select 
                           value={newInvoice.contactPersonReference || undefined} 
                           onValueChange={value => setNewInvoice({
@@ -1769,7 +1769,7 @@ ${cssVariables}
                             contactPersonReference: value
                           })}
                         >
-                          <SelectTrigger className="flex-1">
+                          <SelectTrigger className="flex-1 min-w-0">
                             <SelectValue placeholder="Select contact person (optional)" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1781,6 +1781,7 @@ ${cssVariables}
                             type="button"
                             variant="outline"
                             size="icon"
+                            className="flex-shrink-0"
                             onClick={() => setNewInvoice({
                               ...newInvoice,
                               contactPersonReference: ''
@@ -1933,7 +1934,7 @@ ${cssVariables}
               </div>
 
               {/* Declaration Number and Packing */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label>Declaration Number *</Label>
                   <Select value={newInvoice.declarationNumber} onValueChange={value => setNewInvoice({
@@ -1979,15 +1980,15 @@ ${cssVariables}
 
               {/* Invoice Items */}
               <div>
-                <div className="mb-4 flex items-end justify-between gap-4">
-                  <div className="flex-1">
+                <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+                  <div className="flex-1 w-full sm:w-auto">
                     <Label className="text-lg font-semibold">Invoice Items</Label>
                   </div>
-                  <div className="flex items-end gap-2 flex-1">
-                    <div className="flex-1">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 flex-1 w-full sm:w-auto">
+                    <div className="flex-1 min-w-0">
                       <Label className="text-sm">Quick Fill from Order Confirmation</Label>
                       <Select value={selectedOrderConfirmationId} onValueChange={setSelectedOrderConfirmationId}>
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select order confirmation..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -2008,6 +2009,7 @@ ${cssVariables}
                       size="sm"
                       onClick={applyOrderConfirmationItems}
                       disabled={!selectedOrderConfirmationId}
+                      className="w-full sm:w-auto"
                     >
                       Apply
                     </Button>
@@ -2015,7 +2017,7 @@ ${cssVariables}
                 </div>
 
                 <div className="space-y-3">
-                  {invoiceItems.map((item, index) => <div key={index} className="grid gap-2 p-3 rounded-lg shadow-sm" style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 0.8fr' }}>
+                  {invoiceItems.map((item, index) => <div key={index} className="grid gap-2 p-3 rounded-lg shadow-sm grid-cols-1 sm:grid-cols-[2fr_0.8fr_0.8fr_0.8fr_0.8fr]">
                       <div>
                         <Label className="text-xs">Product</Label>
                         <Popover 
@@ -2133,7 +2135,7 @@ ${cssVariables}
               </div>
 
               {/* Calculations Display */}
-              {selectedCustomer && <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              {selectedCustomer && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Total Quantity:</span>
@@ -2174,11 +2176,11 @@ ${cssVariables}
               </div>
             </div>
 
-            <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleSubmitInvoice}>
+            <div className="flex flex-col sm:flex-row gap-2 pt-4 flex-shrink-0 border-t">
+              <Button className="flex-1 w-full sm:w-auto" onClick={handleSubmitInvoice}>
                 {isEditMode ? 'Update Invoice' : 'Create Invoice'}
               </Button>
-              <Button variant="outline" onClick={() => setIsAddInvoiceOpen(false)}>
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsAddInvoiceOpen(false)}>
                 Cancel
               </Button>
             </div>
@@ -2388,16 +2390,16 @@ ${cssVariables}
 
 
       {/* Invoices List */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="rounded-none bg-transparent text-foreground shadow-none md:rounded-lg md:bg-card md:text-card-foreground md:shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between md:p-6 p-4">
           <CardTitle>Invoices</CardTitle>
           <Button onClick={() => setIsAddInvoiceOpen(true)}>
             + Add Invoice
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 md:p-6">
           {/* Desktop Table */}
-          <div className="hidden md:block">
+          <div className="hidden md:block w-full max-w-full min-w-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -2753,11 +2755,11 @@ ${cssVariables}
           </div>
 
           {/* Mobile Card View */}
-          <div className="md:hidden space-y-3">
+          <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
             {sortedInvoices.map(invoice => (
               <Card
                 key={invoice.id}
-                className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors"
+                className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors rounded-lg"
                 onClick={() => handleViewInvoice(invoice)}
               >
                 <div className="space-y-3">

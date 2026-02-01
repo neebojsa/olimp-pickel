@@ -450,122 +450,209 @@ const Settings = () => {
             <CardHeader>
               <CardTitle>Stock Locations</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>
-                      <div className="flex items-center gap-2">
-                        Status
-                        <Popover open={isLocationStatusFilterOpen} onOpenChange={setIsLocationStatusFilterOpen}>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <Filter className={`h-3 w-3 ${locationStatusFilter !== "all" ? 'text-primary' : ''}`} />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-48" align="start">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <Label>Filter by Status</Label>
-                                {locationStatusFilter !== "all" && (
-                                  <Button variant="ghost" size="sm" onClick={() => setLocationStatusFilter("all")}>
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                )}
+            <CardContent className="p-0 md:p-6">
+              {/* Desktop Table View */}
+              <div className="hidden md:block w-full max-w-full min-w-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>
+                        <div className="flex items-center gap-2">
+                          Status
+                          <Popover open={isLocationStatusFilterOpen} onOpenChange={setIsLocationStatusFilterOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Filter className={`h-3 w-3 ${locationStatusFilter !== "all" ? 'text-primary' : ''}`} />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48" align="start">
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <Label>Filter by Status</Label>
+                                  {locationStatusFilter !== "all" && (
+                                    <Button variant="ghost" size="sm" onClick={() => setLocationStatusFilter("all")}>
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <Select value={locationStatusFilter} onValueChange={(value) => {
+                                  setLocationStatusFilter(value);
+                                  setIsLocationStatusFilterOpen(false);
+                                }}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All Status</SelectItem>
+                                    <SelectItem value="active">Active</SelectItem>
+                                    <SelectItem value="inactive">Inactive</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
-                              <Select value={locationStatusFilter} onValueChange={(value) => {
-                                setLocationStatusFilter(value);
-                                setIsLocationStatusFilterOpen(false);
-                              }}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All Status</SelectItem>
-                                  <SelectItem value="active">Active</SelectItem>
-                                  <SelectItem value="inactive">Inactive</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </TableHead>
-                    <TableHead className="w-32">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stockLocations
-                    .filter(location => {
-                      if (locationStatusFilter === "all") return true;
-                      if (locationStatusFilter === "active") return location.is_active;
-                      if (locationStatusFilter === "inactive") return !location.is_active;
-                      return true;
-                    })
-                    .map((location) => (
-                    <TableRow key={location.id} className={!location.is_active ? "opacity-50" : ""}>
-                      <TableCell className="font-medium">
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-32">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stockLocations
+                      .filter(location => {
+                        if (locationStatusFilter === "all") return true;
+                        if (locationStatusFilter === "active") return location.is_active;
+                        if (locationStatusFilter === "inactive") return !location.is_active;
+                        return true;
+                      })
+                      .map((location) => (
+                      <TableRow key={location.id} className={!location.is_active ? "opacity-50" : ""}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            {location.name}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {location.description || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {location.address || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {location.is_active ? (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-500/10 text-gray-700 border-gray-200">
+                              Inactive
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openLocationDialog(location)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Location</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{location.name}"? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteLocation(location.id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3 w-full max-w-full min-w-0 p-4">
+                {stockLocations
+                  .filter(location => {
+                    if (locationStatusFilter === "all") return true;
+                    if (locationStatusFilter === "active") return location.is_active;
+                    if (locationStatusFilter === "inactive") return !location.is_active;
+                    return true;
+                  })
+                  .map((location) => (
+                  <Card
+                    key={location.id}
+                    className={`p-4 border ${!location.is_active ? "opacity-50" : ""}`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</span>
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4" />
-                          {location.name}
+                          <div className="text-sm font-semibold">{location.name}</div>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {location.description || '-'}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {location.address || '-'}
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      {location.description && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</span>
+                          <div className="text-sm text-muted-foreground break-words">{location.description}</div>
+                        </div>
+                      )}
+                      {location.address && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address</span>
+                          <div className="text-sm text-muted-foreground break-words">{location.address}</div>
+                        </div>
+                      )}
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
                         {location.is_active ? (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
+                          <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200 w-fit">
                             Active
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="bg-gray-500/10 text-gray-700 border-gray-200">
+                          <Badge variant="outline" className="bg-gray-500/10 text-gray-700 border-gray-200 w-fit">
                             Inactive
                           </Badge>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openLocationDialog(location)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Location</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{location.name}"? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteLocation(location.id)}>
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                      <div className="pt-2 border-t flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => openLocationDialog(location)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex-1">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Location</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{location.name}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteLocation(location.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -719,122 +806,223 @@ const Settings = () => {
             <CardHeader>
               <CardTitle>Staff Members</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>
-                      <div className="flex items-center gap-2">
-                        Status
-                        <Popover open={isStaffStatusFilterOpen} onOpenChange={setIsStaffStatusFilterOpen}>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <Filter className={`h-3 w-3 ${staffStatusFilter !== "all" ? 'text-primary' : ''}`} />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-48" align="start">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <Label>Filter by Status</Label>
-                                {staffStatusFilter !== "all" && (
-                                  <Button variant="ghost" size="sm" onClick={() => setStaffStatusFilter("all")}>
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                )}
+            <CardContent className="p-0 md:p-6">
+              {/* Desktop Table View */}
+              <div className="hidden md:block w-full max-w-full min-w-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Position</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>
+                        <div className="flex items-center gap-2">
+                          Status
+                          <Popover open={isStaffStatusFilterOpen} onOpenChange={setIsStaffStatusFilterOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Filter className={`h-3 w-3 ${staffStatusFilter !== "all" ? 'text-primary' : ''}`} />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48" align="start">
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <Label>Filter by Status</Label>
+                                  {staffStatusFilter !== "all" && (
+                                    <Button variant="ghost" size="sm" onClick={() => setStaffStatusFilter("all")}>
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <Select value={staffStatusFilter} onValueChange={(value) => {
+                                  setStaffStatusFilter(value);
+                                  setIsStaffStatusFilterOpen(false);
+                                }}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All Status</SelectItem>
+                                    <SelectItem value="active">Active</SelectItem>
+                                    <SelectItem value="inactive">Inactive</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
-                              <Select value={staffStatusFilter} onValueChange={(value) => {
-                                setStaffStatusFilter(value);
-                                setIsStaffStatusFilterOpen(false);
-                              }}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All Status</SelectItem>
-                                  <SelectItem value="active">Active</SelectItem>
-                                  <SelectItem value="inactive">Inactive</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </TableHead>
-                    <TableHead className="w-32">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {staff
-                    .filter(member => {
-                      if (staffStatusFilter === "all") return true;
-                      if (staffStatusFilter === "active") return member.is_active;
-                      if (staffStatusFilter === "inactive") return !member.is_active;
-                      return true;
-                    })
-                    .map((member) => (
-                    <TableRow key={member.id} className={!member.is_active ? "opacity-50" : ""}>
-                      <TableCell className="font-medium">
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-32">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {staff
+                      .filter(member => {
+                        if (staffStatusFilter === "all") return true;
+                        if (staffStatusFilter === "active") return member.is_active;
+                        if (staffStatusFilter === "inactive") return !member.is_active;
+                        return true;
+                      })
+                      .map((member) => (
+                      <TableRow key={member.id} className={!member.is_active ? "opacity-50" : ""}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            {member.name}
+                          </div>
+                        </TableCell>
+                        <TableCell>{member.position || '-'}</TableCell>
+                        <TableCell>{member.department || '-'}</TableCell>
+                        <TableCell className="text-sm">{member.email || '-'}</TableCell>
+                        <TableCell className="text-sm">{member.phone || '-'}</TableCell>
+                        <TableCell>
+                          {member.is_active ? (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-500/10 text-gray-700 border-gray-200">
+                              Inactive
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openStaffDialog(member)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{member.name}"? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteStaff(member.id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3 w-full max-w-full min-w-0 p-4">
+                {staff
+                  .filter(member => {
+                    if (staffStatusFilter === "all") return true;
+                    if (staffStatusFilter === "active") return member.is_active;
+                    if (staffStatusFilter === "inactive") return !member.is_active;
+                    return true;
+                  })
+                  .map((member) => (
+                  <Card
+                    key={member.id}
+                    className={`p-4 border ${!member.is_active ? "opacity-50" : ""}`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</span>
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4" />
-                          {member.name}
+                          <div className="text-sm font-semibold">{member.name}</div>
                         </div>
-                      </TableCell>
-                      <TableCell>{member.position || '-'}</TableCell>
-                      <TableCell>{member.department || '-'}</TableCell>
-                      <TableCell className="text-sm">{member.email || '-'}</TableCell>
-                      <TableCell className="text-sm">{member.phone || '-'}</TableCell>
-                      <TableCell>
+                      </div>
+                      {member.position && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Position</span>
+                          <div className="text-sm font-medium">{member.position}</div>
+                        </div>
+                      )}
+                      {member.department && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Department</span>
+                          <div className="text-sm font-medium">{member.department}</div>
+                        </div>
+                      )}
+                      {member.email && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</span>
+                          <a href={`mailto:${member.email}`} className="text-sm font-medium hover:underline break-all" onClick={(e) => e.stopPropagation()}>
+                            {member.email}
+                          </a>
+                        </div>
+                      )}
+                      {member.phone && (
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</span>
+                          <div className="text-sm font-medium">{member.phone}</div>
+                        </div>
+                      )}
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
                         {member.is_active ? (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
+                          <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200 w-fit">
                             Active
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="bg-gray-500/10 text-gray-700 border-gray-200">
+                          <Badge variant="outline" className="bg-gray-500/10 text-gray-700 border-gray-200 w-fit">
                             Inactive
                           </Badge>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openStaffDialog(member)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{member.name}"? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteStaff(member.id)}>
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                      <div className="pt-2 border-t flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => openStaffDialog(member)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex-1">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{member.name}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteStaff(member.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

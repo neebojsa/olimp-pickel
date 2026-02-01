@@ -113,9 +113,11 @@ export function MaterialReorderDialog({ isOpen, onClose, material, onSuccess }: 
               type="number"
               min="0"
               step="0.1"
-              value={lengthMm}
+              value={lengthMm || ""}
               onChange={(e) => setLengthMm(e.target.value)}
-              placeholder="e.g. 3000"
+              placeholder="0"
+              className="w-[120px]"
+              onWheel={(e) => e.currentTarget.blur()}
             />
           </div>
 

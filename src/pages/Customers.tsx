@@ -1001,13 +1001,13 @@ export default function Customers() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="rounded-none bg-transparent text-foreground shadow-none md:rounded-lg md:bg-card md:text-card-foreground md:shadow-sm">
+        <CardHeader className="md:p-6 p-4">
           <CardTitle>Customer Directory</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 md:p-6">
           {/* Desktop Table */}
-          <div className="hidden md:block">
+          <div className="hidden md:block w-full max-w-full min-w-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1185,11 +1185,11 @@ export default function Customers() {
           </div>
 
           {/* Mobile Card View */}
-          <div className="md:hidden space-y-3">
+          <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
             {paginatedCustomers.map((customer) => (
               <Card
                 key={customer.id}
-                className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors"
+                className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors rounded-lg"
                 onClick={() => handleCustomerClick(customer)}
               >
                 <div className="space-y-3">

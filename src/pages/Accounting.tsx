@@ -17,7 +17,7 @@ import { formatDateForInput } from "@/lib/dateUtils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"; 
 import { NumericInput } from "@/components/NumericInput";
 
 // Mock accounting data
@@ -331,9 +331,7 @@ export default function Accounting() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Accounting</h1>
-          <p className="text-muted-foreground">
-            Financial tracking and budget management
-          </p>
+          
         </div>
         <div className="flex gap-2">
           <Dialog open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen}>
@@ -418,8 +416,10 @@ export default function Accounting() {
                   <Input 
                     type="number" 
                     placeholder="0.00" 
-                    value={newTransaction.amount}
+                    value={newTransaction.amount || ""}
                     onChange={(e) => setNewTransaction({...newTransaction, amount: e.target.value})}
+                    className="w-[120px]"
+                    onWheel={(e) => e.currentTarget.blur()}
                   />
                 </div>
                 <div>
@@ -501,16 +501,16 @@ export default function Accounting() {
 
       {/* Main Content */}
       <Tabs defaultValue="transactions" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="budget">Budget</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-3">
+          <TabsTrigger value="transactions" className="w-full">Transactions</TabsTrigger>
+          <TabsTrigger value="budget" className="w-full">Budget</TabsTrigger>
+          <TabsTrigger value="reports" className="w-full">Reports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="transactions" className="space-y-4">
           {/* Search and Filters */}
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:space-x-4">
+            <div className="relative flex-1 w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Search transactions..."
@@ -519,39 +519,41 @@ export default function Accounting() {
                 className="pl-10"
               />
             </div>
-            <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Income">Income</SelectItem>
-                <SelectItem value="Expense">Expense</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2 sm:gap-4">
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger className="flex-1 min-w-0 sm:w-32">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Income">Income</SelectItem>
+                  <SelectItem value="Expense">Expense</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="flex-1 min-w-0 sm:w-48">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Transactions Table */}
-          <Card>
-            <CardHeader>
+          <Card className="rounded-none bg-transparent text-foreground shadow-none md:rounded-lg md:bg-card md:text-card-foreground md:shadow-sm">
+            <CardHeader className="md:p-6 p-4">
               <CardTitle>Transaction History</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0 md:p-6">
               {/* Desktop Table */}
-              <div className="hidden md:block">
+              <div className="hidden md:block w-full max-w-full min-w-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -813,9 +815,9 @@ export default function Accounting() {
               </div>
 
               {/* Mobile Card View */}
-              <div className="md:hidden space-y-3">
+              <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
                 {filteredTransactions.map((transaction) => (
-                  <Card key={transaction.id} className="p-4 border">
+                  <Card key={transaction.id} className="p-4 border rounded-lg">
                     <div className="space-y-3">
                       <div className="flex flex-col space-y-1">
                         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date</span>

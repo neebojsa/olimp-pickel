@@ -1572,15 +1572,6 @@ export default function Inventory() {
           <h1 className="text-2xl sm:text-3xl font-bold break-words">Inventory Management</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {currentCategory === "Tools" && (
-            <Button 
-              onClick={() => setIsToolManagementDialogOpen(true)}
-              variant="outline"
-            >
-              <Cog className="w-4 h-4 mr-2" />
-              Tool Management System
-            </Button>
-          )}
         </div>
       </div>
 
@@ -1735,7 +1726,23 @@ export default function Inventory() {
                     </Button>
                   </div>
                 )}
-                {category !== "Parts" && category !== "Materials" && (
+                {category === "Tools" && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsToolManagementDialogOpen(true)}
+                      className="whitespace-nowrap"
+                    >
+                      <Cog className="w-4 h-4 mr-2" />
+                      Tool Management System
+                    </Button>
+                    <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add {category.slice(0, -1)}
+                    </Button>
+                  </div>
+                )}
+                {category !== "Parts" && category !== "Materials" && category !== "Tools" && (
                   <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
                     <Plus className="w-4 h-4 mr-2" />
                     Add {category.slice(0, -1)}
@@ -2435,123 +2442,178 @@ export default function Inventory() {
                 </div>
               )}
             {currentCategory !== "Materials" && (
-            <div className="grid grid-cols-3 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="quantity">Quantity *</Label>
-                <NumericInput
-                  id="quantity"
-                  value={formData.quantity}
-                  onChange={(val) => setFormData(prev => ({ ...prev, quantity: val.toString() }))}
-                  min={0}
-                  placeholder="0"
-                />
-              </div>
-              {formData.category !== "Machines" && (
-                <div className="grid gap-2">
-                  <Label htmlFor="minimum_stock">Min Stock Level</Label>
-                  <NumericInput
-                    id="minimum_stock"
-                    value={formData.minimum_stock || 0}
-                    onChange={(val) => setFormData(prev => ({ ...prev, minimum_stock: val.toString() }))}
-                    min={0}
-                    placeholder="0"
-                  />
-                </div>
-              )}
-              {canSeePrices() && (
-                <div className="grid gap-2">
-                  <Label htmlFor="unit_price">Unit Price *</Label>
-                  <div className="relative w-40">
-                    <Input
-                      id="unit_price"
-                      type="number"
-                      value={formData.unit_price}
-                      onChange={(e) => setFormData(prev => ({ ...prev, unit_price: e.target.value }))}
+            <>
+              {currentCategory === "Parts" ? (
+                <>
+                  {/* Mobile layout for Parts: 2 rows of 2 columns */}
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                    {/* Row 1: Quantity and Min Stock Level */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="quantity">Quantity *</Label>
+                      <NumericInput
+                        id="quantity"
+                        value={formData.quantity}
+                        onChange={(val) => setFormData(prev => ({ ...prev, quantity: val.toString() }))}
+                        min={0}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="minimum_stock">Min Stock Level</Label>
+                      <NumericInput
+                        id="minimum_stock"
+                        value={formData.minimum_stock || ""}
+                        onChange={(val) => setFormData(prev => ({ ...prev, minimum_stock: val === 0 ? "" : val.toString() }))}
+                        min={0}
+                        placeholder="0"
+                      />
+                    </div>
+                    {/* Desktop: Unit Price in same row */}
+                    {canSeePrices() && (
+                      <div className="grid gap-2 hidden sm:grid">
+                        <Label htmlFor="unit_price">Unit Price *</Label>
+                        <NumericInput
+                          id="unit_price"
+                          value={formData.unit_price || ""}
+                          onChange={(val) => setFormData(prev => ({ ...prev, unit_price: val === 0 ? "" : val.toString() }))}
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                          increment={0.01}
+                          decrement={0.01}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {/* Mobile: Row 2 for Parts - Unit Price and Weight */}
+                  {canSeePrices() && (
+                    <div className="grid grid-cols-2 gap-4 sm:hidden mt-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="unit_price">Unit Price *</Label>
+                        <NumericInput
+                          id="unit_price"
+                          value={formData.unit_price || ""}
+                          onChange={(val) => setFormData(prev => ({ ...prev, unit_price: val === 0 ? "" : val.toString() }))}
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                          increment={0.01}
+                          decrement={0.01}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="weight">Weight (kg)</Label>
+                        <NumericInput
+                          id="weight"
+                          value={formData.weight}
+                          onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {/* Desktop: Weight in separate row */}
+                  <div className="grid gap-2 hidden sm:grid mt-4">
+                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <NumericInput
+                      id="weight"
+                      value={formData.weight}
+                      onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
                       min={0}
                       step={0.01}
                       placeholder="0.00"
-                      className="text-center rounded-full pl-6 pr-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden text-transparent"
-                      style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
                     />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-sm font-medium">
-                        {formData.unit_price || "0.00"}
-                      </span>
-                </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 border-0 shadow-none hover:bg-muted"
-                      onClick={() => {
-                        const currentVal = parseFloat(formData.unit_price || "0") || 0;
-                        const newVal = Math.max(0, currentVal - 0.01).toFixed(2);
-                        setFormData(prev => ({ ...prev, unit_price: newVal }));
-                      }}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 border-0 shadow-none hover:bg-muted"
-                      onClick={() => {
-                        const currentVal = parseFloat(formData.unit_price || "0") || 0;
-                        const newVal = (currentVal + 0.01).toFixed(2);
-                        setFormData(prev => ({ ...prev, unit_price: newVal }));
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
                   </div>
+                </>
+              ) : (
+                /* Other categories (Tools, Machines) - original layout */
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="quantity">Quantity *</Label>
+                    <NumericInput
+                      id="quantity"
+                      value={formData.quantity}
+                      onChange={(val) => setFormData(prev => ({ ...prev, quantity: val.toString() }))}
+                      min={0}
+                      placeholder="0"
+                    />
+                  </div>
+                  {formData.category !== "Machines" && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="minimum_stock">Min Stock Level</Label>
+                      <NumericInput
+                        id="minimum_stock"
+                        value={formData.minimum_stock || ""}
+                        onChange={(val) => setFormData(prev => ({ ...prev, minimum_stock: val === 0 ? "" : val.toString() }))}
+                        min={0}
+                        placeholder="0"
+                      />
+                    </div>
+                  )}
+                  {canSeePrices() && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="unit_price">Unit Price *</Label>
+                      <NumericInput
+                        id="unit_price"
+                        value={formData.unit_price || ""}
+                        onChange={(val) => setFormData(prev => ({ ...prev, unit_price: val === 0 ? "" : val.toString() }))}
+                        min={0}
+                        step={0.01}
+                        placeholder="0.00"
+                        increment={0.01}
+                        decrement={0.01}
+                      />
+                    </div>
+                  )}
+                  {currentCategory !== "Parts" && currentCategory !== "Materials" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="currency">Currency</Label>
+                    <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
+                      ...prev,
+                      currency: value
+                    }))}>
+                      <SelectTrigger id="currency">
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                        <SelectItem value="JPY">JPY (¥)</SelectItem>
+                        <SelectItem value="CHF">CHF (₣)</SelectItem>
+                        <SelectItem value="CAD">CAD (C$)</SelectItem>
+                        <SelectItem value="AUD">AUD (A$)</SelectItem>
+                        <SelectItem value="CNY">CNY (¥)</SelectItem>
+                        <SelectItem value="INR">INR (₹)</SelectItem>
+                        <SelectItem value="BAM">KM (BAM)</SelectItem>
+                        <SelectItem value="RSD">RSD (РСД)</SelectItem>
+                        <SelectItem value="PLN">PLN (zł)</SelectItem>
+                        <SelectItem value="CZK">CZK (Kč)</SelectItem>
+                        <SelectItem value="SEK">SEK (kr)</SelectItem>
+                        <SelectItem value="NOK">NOK (kr)</SelectItem>
+                        <SelectItem value="DKK">DKK (kr)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  )}
                 </div>
               )}
-              {currentCategory !== "Parts" && currentCategory !== "Materials" && (
-              <div className="grid gap-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
-                  ...prev,
-                  currency: value
-                }))}>
-                  <SelectTrigger id="currency">
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EUR">EUR (€)</SelectItem>
-                    <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="GBP">GBP (£)</SelectItem>
-                    <SelectItem value="JPY">JPY (¥)</SelectItem>
-                    <SelectItem value="CHF">CHF (₣)</SelectItem>
-                    <SelectItem value="CAD">CAD (C$)</SelectItem>
-                    <SelectItem value="AUD">AUD (A$)</SelectItem>
-                    <SelectItem value="CNY">CNY (¥)</SelectItem>
-                    <SelectItem value="INR">INR (₹)</SelectItem>
-                    <SelectItem value="BAM">KM (BAM)</SelectItem>
-                    <SelectItem value="RSD">RSD (РСД)</SelectItem>
-                    <SelectItem value="PLN">PLN (zł)</SelectItem>
-                    <SelectItem value="CZK">CZK (Kč)</SelectItem>
-                    <SelectItem value="SEK">SEK (kr)</SelectItem>
-                    <SelectItem value="NOK">NOK (kr)</SelectItem>
-                    <SelectItem value="DKK">DKK (kr)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {(currentCategory === "Machines") && (
+                <div className="grid gap-2 mt-4">
+                  <Label htmlFor="weight">Weight (kg)</Label>
+                  <NumericInput
+                    id="weight"
+                    value={formData.weight}
+                    onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
+                    min={0}
+                    step={0.01}
+                    placeholder="0.00"
+                  />
+                </div>
               )}
-            </div>
-            )}
-            {(currentCategory === "Parts" || currentCategory === "Machines") && (
-              <div className="grid gap-2">
-                <Label htmlFor="weight">Weight (kg)</Label>
-                <NumericInput
-                  id="weight"
-                  value={formData.weight}
-                  onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
-                  min={0}
-                  step={0.01}
-                  placeholder="0.00"
-                />
-              </div>
+            </>
             )}
             {currentCategory !== "Materials" && (
             <div className="grid gap-2">
@@ -2746,7 +2808,7 @@ export default function Inventory() {
                 </div>
               )}
             {editingItem?.category !== "Materials" && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit_quantity">Quantity *</Label>
                 <NumericInput
@@ -3540,7 +3602,7 @@ export default function Inventory() {
                               key={add.id}
                               className="p-3 border rounded-md"
                             >
-                              <div className="grid grid-cols-3 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {/* Column 1: Basic Info */}
                                 <div className="space-y-1">
                                   <div className="font-medium text-sm">

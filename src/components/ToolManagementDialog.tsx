@@ -441,13 +441,13 @@ export function ToolManagementDialog({
       </div>;
   };
   return <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Tool Management System</DialogTitle>
         </DialogHeader>
         
-        <div className="flex flex-col h-full">
-          <div className="mb-4">
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="mb-4 flex-shrink-0">
             <div className="flex gap-2">
               <Input placeholder="New root category title" value={editingCategory === null ? newCategoryTitle : ""} onChange={e => setNewCategoryTitle(e.target.value)} disabled={editingCategory !== null} />
               <Button onClick={() => addCategory()} disabled={editingCategory !== null}>
@@ -457,7 +457,7 @@ export function ToolManagementDialog({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-2">
+          <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
             {categories.map(category => renderCategory(category))}
           </div>
         </div>

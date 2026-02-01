@@ -564,9 +564,11 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
                     type="number"
                     min="0"
                     step="0.1"
-                    value={lengthMm}
+                    value={lengthMm || ""}
                     onChange={(e) => setLengthMm(e.target.value)}
-                    placeholder="e.g. 3000"
+                    placeholder="0"
+                    className="w-[120px]"
+                    onWheel={(e) => e.currentTarget.blur()}
                   />
                 </div>
 
@@ -576,9 +578,11 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
                     id="pieces"
                     type="number"
                     min="1"
-                    value={quantityPieces}
+                    value={quantityPieces || ""}
                     onChange={(e) => setQuantityPieces(e.target.value)}
-                    placeholder="e.g. 5"
+                    placeholder="0"
+                    className="w-[120px]"
+                    onWheel={(e) => e.currentTarget.blur()}
                   />
                 </div>
               </div>
@@ -625,7 +629,7 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
                             key={add.id}
                             className="p-3 border rounded-md"
                           >
-                            <div className="grid grid-cols-3 gap-4 mb-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
                               {/* Column 1: Basic Info */}
                               <div className="space-y-1">
                                 <div className="font-medium text-sm">
@@ -665,7 +669,7 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
                               <div></div>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t">
                               <div className="space-y-1">
                                 <Label htmlFor={`remove-length-${add.id}`} className="text-xs">
                                   Length to Remove (mm)
@@ -676,7 +680,10 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
                                   min="0"
                                   max={add.remainingMm}
                                   step="0.1"
-                                  value={removal.length}
+                                  value={removal.length || ""}
+                                  placeholder="0"
+                                  className="w-[120px]"
+                                  onWheel={(e) => e.currentTarget.blur()}
                                   onChange={(e) => {
                                     setRemovalData({
                                       ...removalData,
@@ -805,18 +812,20 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="unitPrice">Unit Price</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Input
                       id="unitPrice"
                       type="number"
                       min="0"
                       step="0.01"
-                      value={unitPrice}
+                      value={unitPrice || ""}
                       onChange={(e) => setUnitPrice(e.target.value)}
                       placeholder="0.00"
+                      className="w-[120px]"
+                      onWheel={(e) => e.currentTarget.blur()}
                     />
                     <Button
                       type="button"
