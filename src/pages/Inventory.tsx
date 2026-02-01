@@ -1696,14 +1696,15 @@ export default function Inventory() {
         
         return <TabsContent key={category} value={category} className="space-y-4 w-full max-w-full min-w-0">
               {/* Search and Add */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 w-full">
-                <div className="relative w-full sm:max-w-md sm:flex-1 min-w-0">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-2 w-full">
+                {/* Search bar - one line on mobile */}
+                <div className="relative w-full md:max-w-md md:flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input placeholder={`Search ${category.toLowerCase()}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 w-full" />
                 </div>
                 
-                {/* Sort dropdown */}
-                <div className="w-full sm:w-auto min-w-[150px]">
+                {/* Sort dropdown - one line on mobile */}
+                <div className="w-full md:w-auto min-w-[150px]">
                   <SortSelect
                     value={getCurrentSortValue()}
                     onChange={handleSortChange}
@@ -1713,56 +1714,59 @@ export default function Inventory() {
                   />
                 </div>
                 
-                {/* Customer filter and Production Status filter - only show for Parts */}
+                {/* Customer filter - one line on mobile (only for Parts) */}
                 {category === "Parts" && (
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                    <div className="w-full sm:w-60 min-w-0">
-                      <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Filter by customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map(customer => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value="all">All</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button
-                      variant={showOnlyWithProductionStatus ? "default" : "outline"}
-                      onClick={() => setShowOnlyWithProductionStatus(!showOnlyWithProductionStatus)}
-                      size="default"
-                      className="w-full sm:w-auto whitespace-nowrap"
-                    >
-                      <ClipboardList className="w-4 h-4 mr-2" />
-                      With Production Status
-                    </Button>
+                  <div className="w-full md:w-60 min-w-0">
+                    <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Filter by customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map(customer => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="all">All</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
                 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {category === "Materials" && (
-                    <>
+                {/* "With Production Status" and "Add Part" - one line on mobile */}
+                <div className="flex flex-row items-center justify-between gap-2 md:gap-3 w-full md:w-auto">
+                  <div className="flex items-center gap-2 flex-1 md:flex-none">
+                    {category === "Parts" && (
                       <Button
-                        variant="outline"
-                        onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
+                        variant={showOnlyWithProductionStatus ? "default" : "outline"}
+                        onClick={() => setShowOnlyWithProductionStatus(!showOnlyWithProductionStatus)}
+                        size="default"
                         className="whitespace-nowrap"
                       >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Reorder Summary
+                        <ClipboardList className="w-4 h-4 mr-2" />
+                        With Production Status
                       </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsMaterialManagementDialogOpen(true)}
-                      >
-                        <Settings className="w-4 h-4 mr-2" />
-                        Settings
-                      </Button>
-                    </>
-                  )}
+                    )}
+                    {category === "Materials" && (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
+                          className="whitespace-nowrap"
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Reorder Summary
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsMaterialManagementDialogOpen(true)}
+                        >
+                          <Settings className="w-4 h-4 mr-2" />
+                          Settings
+                        </Button>
+                      </>
+                    )}
+                  </div>
                   <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
                     <Plus className="w-4 h-4 mr-2" />
                     Add {category.slice(0, -1)}
@@ -1771,7 +1775,7 @@ export default function Inventory() {
               </div>
 
               {/* Items List - Desktop View */}
-              <div className="hidden sm:block space-y-1.5 w-full max-w-full min-w-0">
+              <div className="hidden md:block space-y-1.5 w-full max-w-full min-w-0">
                 {filteredItems.length > 0 ? filteredItems.map(item => item &&
             // Add null check for the entire item
             <Card key={item.id} className={`h-32 hover:shadow-md transition-shadow cursor-pointer ${
@@ -2020,12 +2024,20 @@ export default function Inventory() {
                             </div>
                           </div>
                           
-                          {/* Quantity Badge - Last Column */}
+                          {/* Quantity Display - Last Column */}
                           {item?.category !== "Materials" && (
-                            <div className="flex items-center justify-center flex-shrink-0">
-                              <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"} className="text-[10px] px-1 py-0.5">
-                                {item.quantity} {item.unit || "pcs"}
-                              </Badge>
+                            <div className="flex items-center justify-center flex-shrink-0 gap-2">
+                              <span className={`text-[1.9rem] font-bold ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                                {item.quantity}
+                              </span>
+                              <div className="flex flex-col justify-center leading-tight">
+                                <span className={`text-sm ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                                  {item.unit === "piece" || item.unit === "pcs" || !item.unit ? (item.quantity === 1 ? "piece" : "pieces") : item.unit}
+                                </span>
+                                <span className={`text-sm ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}`}>
+                                  in stock
+                                </span>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -2041,11 +2053,11 @@ export default function Inventory() {
               </div>
 
               {/* Mobile Card View */}
-              <div className="sm:hidden space-y-3 w-full max-w-full min-w-0">
+              <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
                 {filteredItems.length > 0 ? filteredItems.map(item => item && (
                   <Card 
                     key={item.id} 
-                    className={`p-4 border cursor-pointer hover:bg-muted/50 transition-colors relative ${
+                    className={`p-4 border cursor-pointer hover:bg-muted/50 transition-colors relative w-full max-w-full overflow-hidden ${
                       item.quantity <= (item.minimum_stock || 0) ? 'border-destructive bg-destructive/5' : ''
                     } ${
                       item.category === "Materials" && materialReorders[item.id] ? 'bg-blue-50 border-blue-200' : ''
@@ -2058,14 +2070,14 @@ export default function Inventory() {
                       }
                     }}
                   >
-                    {/* Image/Shape Icon - Mobile Only (top-right) */}
-                    {item.category === "Materials" ? (() => {
+                    {/* Image/Shape Icon - Mobile Only (top-right) - Only for Materials */}
+                    {item.category === "Materials" && (() => {
                       const materialInfo = item.materials_used || {};
                       const shape = materialInfo?.shape || "";
                       const shapeId = materialInfo?.shapeId || null;
                       const shapeData = Array.isArray(shapes) ? shapes.find(s => s.id === shapeId || s.name === shape) : null;
                       return (
-                        <div className="absolute top-4 right-4 pointer-events-none sm:hidden z-0">
+                        <div className="absolute top-4 right-4 pointer-events-none md:hidden z-0">
                           <ShapeImage 
                             shapeName={shape} 
                             shapeId={shapeId || undefined}
@@ -2074,23 +2086,9 @@ export default function Inventory() {
                           />
                         </div>
                       );
-                    })() : (
-                      <div className="absolute top-4 right-4 pointer-events-none sm:hidden z-0">
-                        {item.image ? (
-                          <img 
-                            src={item.image} 
-                            alt={item.name} 
-                            className="h-[94px] w-[125px] object-cover rounded-lg"
-                          />
-                        ) : (
-                          <div className="h-[94px] w-[125px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                            <CategoryIcon className="w-12 h-12 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    })()}
                     
-                    <div className="space-y-3">
+                    <div className="space-y-3 w-full min-w-0 overflow-hidden">
                       {/* Name/Title */}
                       <div className="flex flex-col space-y-1">
                         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</span>
@@ -2098,13 +2096,13 @@ export default function Inventory() {
                           {item.category === "Tools" ? formatToolName(item.materials_used, item.name) : item.name}
                         </div>
                         {item.part_number && item.category !== "Materials" && (
-                          <div className="text-xs text-muted-foreground">Part #: {item.part_number}</div>
+                          <div className="text-xs text-muted-foreground break-words">Part #: {item.part_number}</div>
                         )}
                         {item.production_status && (
-                          <div className="text-xs font-medium text-black">{item.production_status}</div>
+                          <div className="text-xs font-medium text-black break-words">{item.production_status}</div>
                         )}
                         {item.description && item.category === "Tools" && (
-                          <div className="text-xs text-muted-foreground mt-1">{item.description}</div>
+                          <div className="text-xs text-muted-foreground mt-1 break-words">{item.description}</div>
                         )}
                       </div>
 
@@ -2114,9 +2112,9 @@ export default function Inventory() {
                           {item.customer_id && (
                             <div className="flex flex-col space-y-1">
                               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer</span>
-                              <div className="text-sm font-medium flex items-center gap-1">
-                                <Users className="h-3 w-3 text-gray-400" />
-                                {customers.find(c => c.id === item.customer_id)?.name}
+                              <div className="text-sm font-medium flex items-center gap-1 min-w-0">
+                                <Users className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                                <span className="break-words min-w-0">{customers.find(c => c.id === item.customer_id)?.name}</span>
                               </div>
                             </div>
                           )}
@@ -2157,7 +2155,7 @@ export default function Inventory() {
                             {reorder && (
                               <div className="flex flex-col space-y-1">
                                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reorder</span>
-                                <div className="text-xs text-blue-600 font-medium">
+                                <div className="text-xs text-blue-600 font-medium break-words">
                                   {reorder.length_mm}mm {reorder.notes && `- ${reorder.notes}`}
                                 </div>
                               </div>
@@ -2171,9 +2169,9 @@ export default function Inventory() {
                           {item.supplier && (
                             <div className="flex flex-col space-y-1">
                               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</span>
-                              <div className="text-sm font-medium flex items-center gap-1">
-                                <Building2 className="h-3 w-3 text-gray-400" />
-                                {item.supplier}
+                              <div className="text-sm font-medium flex items-center gap-1 min-w-0">
+                                <Building2 className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                                <span className="break-words min-w-0">{item.supplier}</span>
                               </div>
                             </div>
                           )}
@@ -2190,22 +2188,47 @@ export default function Inventory() {
                       {item.location && (
                         <div className="flex flex-col space-y-1">
                           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Location</span>
-                          <div className="text-sm font-medium flex items-center gap-1">
-                            <MapPin className="h-3 w-3 text-gray-400" />
-                            {item.location}
+                          <div className="text-sm font-medium flex items-center gap-1 min-w-0">
+                            <MapPin className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                            <span className="break-words min-w-0">{item.location}</span>
                           </div>
                         </div>
                       )}
 
                       {item.category !== "Materials" && (
-                        <div className="flex flex-col space-y-1">
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantity</span>
-                          <div className="text-sm font-medium">
-                            <Badge variant={item.quantity <= (item.minimum_stock || 0) ? "destructive" : "secondary"}>
-                              {item.quantity} {item.unit || "pcs"}
-                            </Badge>
-                            {item.quantity <= (item.minimum_stock || 0) && (
-                              <span className="text-xs text-destructive ml-2">Low Stock</span>
+                        <div className="flex w-full justify-between items-end gap-4 min-w-0 h-[60px] overflow-visible">
+                          {/* Quantity section - left */}
+                          <div className="flex flex-col space-y-1 min-w-0 flex-1 justify-end">
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantity</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[1.9rem] font-bold ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                                {item.quantity}
+                              </span>
+                              <div className="flex flex-col justify-center leading-tight">
+                                <span className={`text-xs ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}`}>
+                                  {item.unit === "piece" || item.unit === "pcs" || !item.unit ? (item.quantity === 1 ? "piece" : "pieces") : item.unit}
+                                </span>
+                                <span className={`text-xs ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}`}>
+                                  in stock
+                                </span>
+                              </div>
+                              {item.quantity <= (item.minimum_stock || 0) && (
+                                <span className="text-xs text-destructive">Low Stock</span>
+                              )}
+                            </div>
+                          </div>
+                          {/* Picture section - right */}
+                          <div className="flex-shrink-0 pointer-events-none overflow-visible">
+                            {item.image ? (
+                              <img 
+                                src={item.image} 
+                                alt={item.name} 
+                                className="h-[90px] w-[120px] object-contain rounded-lg"
+                              />
+                            ) : (
+                              <div className="h-[90px] w-[120px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                                <CategoryIcon className="w-10 h-10 text-muted-foreground" />
+                              </div>
                             )}
                           </div>
                         </div>
