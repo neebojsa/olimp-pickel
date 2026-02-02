@@ -62,6 +62,7 @@ export function ShapeImage({
             display: 'block'
           }}
           loading="lazy"
+          key={imageUrl}
           onError={(e) => {
             // Fallback to placeholder if image fails to load
             const target = e.target as HTMLImageElement;

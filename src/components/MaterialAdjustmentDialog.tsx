@@ -41,10 +41,28 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
   const [shapes, setShapes] = useState<any[]>([]);
   const { toast } = useToast();
 
+  const fetchShapes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shapes' as any)
+        .select('id, name, image_url, updated_at');
+      if (error) {
+        console.error('Error fetching shapes:', error);
+        return;
+      }
+      if (data) {
+        setShapes(data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching shapes:', error);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchSuppliers();
       fetchStockLocations();
+      fetchShapes(); // Fetch shapes when dialog opens to get latest images
       if (adjustmentType === 'subtract') {
         fetchAvailableAdditions();
       }

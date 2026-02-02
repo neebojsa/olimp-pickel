@@ -270,7 +270,7 @@ export default function Inventory() {
       const {
         data,
         error
-      } = await supabase.from('shapes').select('id, name, image_url');
+      } = await supabase.from('shapes' as any).select('id, name, image_url, updated_at');
       if (error) {
         console.error('Error fetching shapes:', error);
         return;
@@ -3575,8 +3575,7 @@ export default function Inventory() {
                       <p className="text-sm text-muted-foreground">No available stock additions</p>
                     </div>
                   ) : (
-                    <ScrollArea className="h-[400px] border rounded-md p-4">
-                      <div className="space-y-3">
+                    <div className="space-y-3">
                         {materialViewAdditions.map((add: any) => {
                           const supplierName = suppliers.find(s => s.id === add.supplier_id)?.name || 'N/A';
                           const isEditingLocation = editingLocationForAddition === add.id;
@@ -3697,8 +3696,7 @@ export default function Inventory() {
                             </div>
                           );
                         })}
-                      </div>
-                    </ScrollArea>
+                    </div>
                   )}
                 </div>
               )}
@@ -3778,6 +3776,17 @@ export default function Inventory() {
                   </div>
                 </div>}
             </div>}
+            
+            {/* Cancel Button */}
+            <div className="pt-4 mt-6">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setIsViewDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+            </div>
         </DialogContent>
       </Dialog>
 
@@ -3790,7 +3799,13 @@ export default function Inventory() {
       {/* Material Management Dialog */}
       <MaterialManagementDialog 
         open={isMaterialManagementDialogOpen}
-        onOpenChange={setIsMaterialManagementDialogOpen}
+        onOpenChange={(open) => {
+          setIsMaterialManagementDialogOpen(open);
+          // Refresh shapes when dialog closes to get updated images
+          if (!open) {
+            fetchShapes();
+          }
+        }}
       />
 
       {/* Material Adjustment Dialog */}
