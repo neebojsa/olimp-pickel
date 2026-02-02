@@ -44,6 +44,7 @@ const navigation = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { staff, logout, hasPagePermission } = useAuth();
   const { toast } = useToast();
 
@@ -72,13 +73,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return hasPagePermission(page);
   });
 
-  const NavContent = () => {
+  const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
     const [searchTerm, setSearchTerm] = useState("");
 
     return (
       <div className="flex flex-col h-full">
         <div className="flex flex-col items-center justify-center px-4 pt-6 pb-4 space-y-4">
-          <Link to="/inventory" className="flex items-center justify-center">
+          <Link to="/inventory" className="flex items-center justify-center" onClick={onLinkClick}>
             {companyInfo?.logo_url ? (
               <img 
                 src={companyInfo.logo_url} 
@@ -107,6 +108,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Link
               key={item.name}
               to={item.href}
+              onClick={onLinkClick}
               className={cn(
                 "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
                 isActive
@@ -127,6 +129,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
         <Link
           to="/settings"
+          onClick={onLinkClick}
           className={cn(
             "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors w-full",
             location.pathname.startsWith("/settings")
@@ -160,7 +163,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Mobile Sidebar */}
-        <Sheet>
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <div className="flex flex-col flex-1 md:pl-0">
             <div className="flex items-center h-16 px-4 border-b md:hidden">
               <SheetTrigger asChild>
@@ -183,8 +186,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <ScrollToTopButton />
             </main>
           </div>
-          <SheetContent side="left" className="w-64 p-0">
-            <NavContent />
+          <SheetContent 
+            side="left" 
+            className="w-64 p-0"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <NavContent onLinkClick={() => setIsMobileMenuOpen(false)} />
           </SheetContent>
         </Sheet>
       </div>

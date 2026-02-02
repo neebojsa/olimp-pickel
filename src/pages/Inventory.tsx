@@ -415,10 +415,10 @@ export default function Inventory() {
         });
         return;
       }
-    } else if (!formData.name || !formData.quantity || (canSeePrices() && !formData.unit_price)) {
+    } else if (!formData.name) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields.",
+        description: "Please fill in the part name.",
         variant: "destructive"
       });
       return;
@@ -524,8 +524,8 @@ export default function Inventory() {
       part_number: formData.part_number,
       name: itemName,
       description: currentCategory === "Materials" && materialData ? (materialData.description || null) : (formData.description || null),
-      quantity: currentCategory === "Materials" ? 0 : parseInt(formData.quantity),
-      unit_price: currentCategory === "Materials" ? 0 : (canSeePrices() ? parseFloat(formData.unit_price) : 0),
+      quantity: currentCategory === "Materials" ? 0 : (parseInt(formData.quantity) || 0),
+      unit_price: currentCategory === "Materials" ? 0 : (canSeePrices() ? (parseFloat(formData.unit_price) || 0) : 0),
       currency: formData.currency,
       unit: formData.unit,
       weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : 0,
@@ -1964,7 +1964,7 @@ export default function Inventory() {
                                           {totalWeight > 0 && <span className="text-sm text-muted-foreground">
                                               {totalWeight.toFixed(1)} kg
                                             </span>}
-                                            <span className="font-semibold text-lg">
+                                            <span className="font-semibold text-lg text-blue-600">
                                               Stock: {stockQuantityMm.toFixed(0)} mm
                                             </span>
                                             {reorder && (
@@ -2108,7 +2108,7 @@ export default function Inventory() {
                               {/* Stock section - left */}
                               <div className="flex flex-col space-y-1 min-w-0 flex-1">
                                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stock</span>
-                                <div className="text-sm font-medium">{stockQuantityMm.toFixed(0)} mm</div>
+                                <div className="text-sm font-medium text-blue-600">{stockQuantityMm.toFixed(0)} mm</div>
                               </div>
                               {/* Shape picture section - right */}
                               <div className="flex-shrink-0 pointer-events-none overflow-visible">

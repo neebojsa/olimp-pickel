@@ -446,8 +446,8 @@ const Settings = () => {
             </Dialog>
           </div>
 
-          <Card>
-            <CardHeader>
+          <Card className="rounded-none bg-transparent text-foreground shadow-none md:rounded-lg md:bg-card md:text-card-foreground md:shadow-sm">
+            <CardHeader className="md:p-6 p-4">
               <CardTitle>Stock Locations</CardTitle>
             </CardHeader>
             <CardContent className="p-0 md:p-6">
@@ -571,7 +571,7 @@ const Settings = () => {
               </div>
 
               {/* Mobile Card View */}
-              <div className="md:hidden space-y-3 w-full max-w-full min-w-0 p-4">
+              <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
                 {stockLocations
                   .filter(location => {
                     if (locationStatusFilter === "all") return true;
@@ -582,7 +582,7 @@ const Settings = () => {
                   .map((location) => (
                   <Card
                     key={location.id}
-                    className={`p-4 border ${!location.is_active ? "opacity-50" : ""}`}
+                    className={`p-4 border rounded-lg ${!location.is_active ? "opacity-50" : ""}`}
                   >
                     <div className="space-y-3">
                       <div className="flex flex-col space-y-1">
@@ -660,8 +660,7 @@ const Settings = () => {
         <TabsContent value="staff" className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-semibold">Staff</h2>
-              <p className="text-muted-foreground">Manage team members and employees</p>
+              
             </div>
             <Dialog open={isStaffDialogOpen} onOpenChange={setIsStaffDialogOpen}>
               <DialogTrigger asChild>
@@ -802,8 +801,8 @@ const Settings = () => {
             </Dialog>
           </div>
 
-          <Card>
-            <CardHeader>
+          <Card className="rounded-none bg-transparent text-foreground shadow-none md:rounded-lg md:bg-card md:text-card-foreground md:shadow-sm">
+            <CardHeader className="md:p-6 p-4">
               <CardTitle>Staff Members</CardTitle>
             </CardHeader>
             <CardContent className="p-0 md:p-6">
@@ -927,7 +926,7 @@ const Settings = () => {
               </div>
 
               {/* Mobile Card View */}
-              <div className="md:hidden space-y-3 w-full max-w-full min-w-0 p-4">
+              <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
                 {staff
                   .filter(member => {
                     if (staffStatusFilter === "all") return true;
@@ -938,7 +937,7 @@ const Settings = () => {
                   .map((member) => (
                   <Card
                     key={member.id}
-                    className={`p-4 border ${!member.is_active ? "opacity-50" : ""}`}
+                    className={`p-4 border rounded-lg ${!member.is_active ? "opacity-50" : ""}`}
                   >
                     <div className="space-y-3">
                       <div className="flex flex-col space-y-1">
