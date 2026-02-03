@@ -64,6 +64,7 @@ export default function Inventory() {
   // Sort preferences for each category
   const partsSortPreference = useSortPreference("inventory:parts");
   const materialsSortPreference = useSortPreference("inventory:materials");
+  const componentsSortPreference = useSortPreference("inventory:components");
   const toolsSortPreference = useSortPreference("inventory:tools");
   const machinesSortPreference = useSortPreference("inventory:machines");
   const [formData, setFormData] = useState({
@@ -197,7 +198,7 @@ export default function Inventory() {
 
   // Fetch material additions when view dialog opens for a material
   useEffect(() => {
-    if (isViewDialogOpen && selectedViewItem?.category === "Materials" && selectedViewItem?.id) {
+    if (isViewDialogOpen && (selectedViewItem?.category === "Materials" || selectedViewItem?.category === "Components") && selectedViewItem?.id) {
       fetchMaterialViewAdditions(selectedViewItem.id);
     }
   }, [isViewDialogOpen, selectedViewItem?.id]);
@@ -398,7 +399,7 @@ export default function Inventory() {
   };
   const handleSaveItem = async () => {
     // For materials, validate material data instead of name
-    if (currentCategory === "Materials") {
+    if (currentCategory === "Materials" || currentCategory === "Components") {
       if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material) {
         toast({
           title: "Validation Error",
@@ -438,14 +439,14 @@ export default function Inventory() {
         return;
       }
     }
-    const itemName = currentCategory === "Materials" && materialData ? materialData.generatedName : 
+    const itemName = (currentCategory === "Materials" || currentCategory === "Components") && materialData ? materialData.generatedName : 
                      currentCategory === "Tools" && toolCategorySelection ? 
                      toolCategorySelection.categoryPath.join(" - ") :
                      formData.name;
     
-    // Check for duplicates (only for Parts and Materials)
-    if (currentCategory === "Parts" || currentCategory === "Materials") {
-      const materialsUsedData = currentCategory === "Materials" && materialData ? {
+    // Check for duplicates (only for Parts, Materials, and Components)
+    if (currentCategory === "Parts" || currentCategory === "Materials" || currentCategory === "Components") {
+      const materialsUsedData = (currentCategory === "Materials" || currentCategory === "Components") && materialData ? {
         surfaceFinish: materialData.surfaceFinish,
         shape: materialData.shape,
         shapeId: materialData.shapeId,
@@ -467,7 +468,7 @@ export default function Inventory() {
         p_id: null, // New item, no ID to exclude
         p_name: itemName,
         p_part_number: currentCategory === "Parts" ? (formData.part_number || null) : null,
-        p_description: currentCategory === "Materials" && materialData ? (materialData.description || null) : (formData.description || null),
+        p_description: (currentCategory === "Materials" || currentCategory === "Components") && materialData ? (materialData.description || null) : (formData.description || null),
         p_customer_id: currentCategory === "Parts" ? (formData.customer_id || null) : null,
         p_unit_price: currentCategory === "Parts" ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : 0) : null,
         p_currency: currentCategory === "Parts" ? formData.currency : null,
@@ -475,7 +476,7 @@ export default function Inventory() {
         p_location: formData.location || null,
         p_unit: currentCategory === "Parts" ? formData.unit : null,
         p_minimum_stock: currentCategory === "Parts" ? (parseInt(formData.minimum_stock) || 0) : null,
-        p_materials_used: currentCategory === "Materials" ? materialsUsedData : null
+        p_materials_used: (currentCategory === "Materials" || currentCategory === "Components") ? materialsUsedData : null
       });
       
       if (!duplicateError && duplicateData && Array.isArray(duplicateData) && duplicateData.length > 0) {
@@ -514,7 +515,7 @@ export default function Inventory() {
         return;
       }
     }
-    const itemName = currentCategory === "Materials" && materialData ? materialData.generatedName : 
+    const itemName = (currentCategory === "Materials" || currentCategory === "Components") && materialData ? materialData.generatedName : 
                      currentCategory === "Tools" && toolCategorySelection ? 
                      toolCategorySelection.categoryPath.join(" - ") :
                      formData.name;
@@ -524,9 +525,9 @@ export default function Inventory() {
     } = await supabase.from('inventory').insert({
       part_number: formData.part_number,
       name: itemName,
-      description: currentCategory === "Materials" && materialData ? (materialData.description || null) : (formData.description || null),
-      quantity: currentCategory === "Materials" ? 0 : (parseInt(formData.quantity) || 0),
-      unit_price: currentCategory === "Materials" ? 0 : (canSeePrices() ? (parseFloat(formData.unit_price) || 0) : 0),
+      description: (currentCategory === "Materials" || currentCategory === "Components") && materialData ? (materialData.description || null) : (formData.description || null),
+      quantity: (currentCategory === "Materials" || currentCategory === "Components") ? 0 : (parseInt(formData.quantity) || 0),
+      unit_price: (currentCategory === "Materials" || currentCategory === "Components") ? 0 : (canSeePrices() ? (parseFloat(formData.unit_price) || 0) : 0),
       currency: formData.currency,
       unit: formData.unit,
       weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : 0,
@@ -537,7 +538,7 @@ export default function Inventory() {
       minimum_stock: formData.category === "Machines" ? 0 : (parseInt(formData.minimum_stock) || 0),
       photo_url: photoUrl,
       created_by_staff_id: staff?.id || null,
-      materials_used: currentCategory === "Materials" && materialData ? {
+      materials_used: (currentCategory === "Materials" || currentCategory === "Components") && materialData ? {
         surfaceFinish: materialData.surfaceFinish,
         shape: materialData.shape,
         shapeId: materialData.shapeId,
@@ -629,8 +630,8 @@ export default function Inventory() {
       photo: null
     });
 
-    // For materials, parse the structured data from materials_used
-    if (item?.category === "Materials" && item.materials_used) {
+    // For materials and components, parse the structured data from materials_used
+    if ((item?.category === "Materials" || item?.category === "Components") && item.materials_used) {
       const materialInfo = item.materials_used;
       // Don't set generatedName - let MaterialForm regenerate it with new format
       setMaterialData({
@@ -714,7 +715,7 @@ export default function Inventory() {
       if (formData.photo) {
         photoUrl = await uploadPhoto(formData.photo);
       }
-      const itemName = editingItem?.category === "Materials" && materialData ? materialData.generatedName : 
+      const itemName = (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? materialData.generatedName : 
                        editingItem?.category === "Tools" && toolCategorySelection ? 
                        toolCategorySelection.categoryPath.join(" - ") :
                        formData.name;
@@ -724,7 +725,7 @@ export default function Inventory() {
       } = await supabase.from('inventory').update({
         part_number: formData.part_number,
         name: itemName,
-        description: editingItem?.category === "Materials" && materialData ? (materialData.description || null) : formData.description,
+        description: (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? (materialData.description || null) : formData.description,
         quantity: parseInt(formData.quantity) || 0,
         unit_price: canSeePrices() ? (parseFloat(formData.unit_price) || 0) : (editingItem?.unit_price || 0),
         currency: formData.currency,
@@ -736,7 +737,7 @@ export default function Inventory() {
         supplier: formData.category !== "Parts" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
         minimum_stock: formData.category === "Machines" ? 0 : (parseInt(formData.minimum_stock) || 0),
         photo_url: photoUrl,
-        materials_used: editingItem?.category === "Materials" && materialData ? {
+        materials_used: (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? {
           surfaceFinish: materialData.surfaceFinish,
           shape: materialData.shape,
           shapeId: materialData.shapeId,
@@ -838,12 +839,12 @@ export default function Inventory() {
   };
   
   const handleUpdateItem = async () => {
-    // For materials, validate material data instead of name
-    if (editingItem?.category === "Materials") {
+    // For materials and components, validate material data instead of name
+    if (editingItem?.category === "Materials" || editingItem?.category === "Components") {
       if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material) {
         toast({
           title: "Error",
-          description: "Please fill in all required material fields",
+          description: `Please fill in all required ${editingItem?.category === "Materials" ? "material" : "component"} fields`,
           variant: "destructive"
         });
         return;
@@ -866,14 +867,14 @@ export default function Inventory() {
       return;
     }
     
-    const itemName = editingItem?.category === "Materials" && materialData ? materialData.generatedName : 
+    const itemName = (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? materialData.generatedName : 
                      editingItem?.category === "Tools" && toolCategorySelection ? 
                      toolCategorySelection.categoryPath.join(" - ") :
                      formData.name;
     
-    // Check for duplicates (only for Parts and Materials)
-    if (editingItem?.category === "Parts" || editingItem?.category === "Materials") {
-      const materialsUsedData = editingItem?.category === "Materials" && materialData ? {
+    // Check for duplicates (only for Parts, Materials, and Components)
+    if (editingItem?.category === "Parts" || editingItem?.category === "Materials" || editingItem?.category === "Components") {
+      const materialsUsedData = (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? {
         surfaceFinish: materialData.surfaceFinish,
         shape: materialData.shape,
         shapeId: materialData.shapeId,
@@ -895,7 +896,7 @@ export default function Inventory() {
         p_id: editingItem.id, // Exclude current item
         p_name: itemName,
         p_part_number: editingItem.category === "Parts" ? (formData.part_number || null) : null,
-        p_description: editingItem?.category === "Materials" && materialData ? (materialData.description || null) : formData.description,
+        p_description: (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? (materialData.description || null) : formData.description,
         p_customer_id: editingItem.category === "Parts" ? (formData.customer_id || null) : null,
         p_unit_price: editingItem.category === "Parts" ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : (editingItem?.unit_price || 0)) : null,
         p_currency: editingItem.category === "Parts" ? formData.currency : null,
@@ -903,7 +904,7 @@ export default function Inventory() {
         p_location: formData.location || null,
         p_unit: editingItem.category === "Parts" ? formData.unit : null,
         p_minimum_stock: editingItem.category === "Parts" ? (parseInt(formData.minimum_stock) || 0) : null,
-        p_materials_used: editingItem?.category === "Materials" ? materialsUsedData : null
+        p_materials_used: (editingItem?.category === "Materials" || editingItem?.category === "Components") ? materialsUsedData : null
       });
       
       if (!duplicateError && duplicateData && Array.isArray(duplicateData) && duplicateData.length > 0) {
@@ -958,6 +959,8 @@ export default function Inventory() {
       sortPreference = partsSortPreference.sortPreference;
     } else if (category === "Materials") {
       sortPreference = materialsSortPreference.sortPreference;
+    } else if (category === "Components") {
+      sortPreference = componentsSortPreference.sortPreference;
     } else if (category === "Tools") {
       sortPreference = toolsSortPreference.sortPreference;
     } else if (category === "Machines") {
@@ -1012,6 +1015,8 @@ export default function Inventory() {
       case "Parts":
         return Package;
       case "Materials":
+        return Settings;
+      case "Components":
         return Settings;
       case "Tools":
         return Wrench;
@@ -1585,14 +1590,15 @@ export default function Inventory() {
 
       {/* Main Content */}
       <Tabs defaultValue="Parts" className="space-y-4 w-full max-w-full min-w-0" onValueChange={setCurrentCategory}>
-        <TabsList className="grid w-full grid-cols-4 min-w-0">
+        <TabsList className="grid w-full grid-cols-5 min-w-0">
           <TabsTrigger value="Parts">Parts</TabsTrigger>
           <TabsTrigger value="Materials">Materials</TabsTrigger>
+          <TabsTrigger value="Components">Components</TabsTrigger>
           <TabsTrigger value="Tools">Tools</TabsTrigger>
           <TabsTrigger value="Machines">Machines</TabsTrigger>
         </TabsList>
 
-        {["Parts", "Materials", "Tools", "Machines"].map(category => {
+        {["Parts", "Materials", "Components", "Tools", "Machines"].map(category => {
         const CategoryIcon = getCategoryIcon(category);
         const filteredItems = getFilteredItems(category);
         
@@ -1625,6 +1631,7 @@ export default function Inventory() {
         const getCurrentSortPreference = () => {
           if (category === "Parts") return partsSortPreference.sortPreference;
           if (category === "Materials") return materialsSortPreference.sortPreference;
+          if (category === "Components") return componentsSortPreference.sortPreference;
           if (category === "Tools") return toolsSortPreference.sortPreference;
           if (category === "Machines") return machinesSortPreference.sortPreference;
           return null;
@@ -1643,6 +1650,8 @@ export default function Inventory() {
             partsSortPreference.savePreference(preference);
           } else if (category === "Materials") {
             materialsSortPreference.savePreference(preference);
+          } else if (category === "Components") {
+            componentsSortPreference.savePreference(preference);
           } else if (category === "Tools") {
             toolsSortPreference.savePreference(preference);
           } else if (category === "Machines") {
@@ -1652,88 +1661,124 @@ export default function Inventory() {
         
         return <TabsContent key={category} value={category} className="space-y-4 w-full max-w-full min-w-0">
               {/* Search and Add */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-2 w-full">
-                {/* Search bar - one line on mobile */}
-                <div className="relative w-full md:max-w-md md:flex-1 min-w-0">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder={`Search ${category.toLowerCase()}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 w-full" />
-                </div>
-                
-                {/* Sort dropdown - one line on mobile */}
-                <div className="w-full md:w-auto min-w-[150px]">
-                  <SortSelect
-                    value={getCurrentSortValue()}
-                    onChange={handleSortChange}
-                    options={getSortOptions()}
-                    placeholder="Sort"
-                    className="w-full"
-                  />
-                </div>
-                
-                {/* Customer filter - one line on mobile (only for Parts) */}
-                {category === "Parts" && (
-                  <div className="w-full md:w-60 min-w-0">
-                    <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Filter by customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map(customer => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="all">All</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                
-                {/* "With Production Status" and "Add Part" - one line on mobile */}
-                {category === "Parts" && (
-                  <div className="flex flex-row items-center justify-between gap-2 md:gap-3 w-full md:w-auto">
-                    <div className="flex items-center gap-2 flex-1 md:flex-none">
-                      <Button
-                        variant={showOnlyWithProductionStatus ? "default" : "outline"}
-                        onClick={() => setShowOnlyWithProductionStatus(!showOnlyWithProductionStatus)}
-                        size="default"
-                        className="whitespace-nowrap"
-                      >
-                        <ClipboardList className="w-4 h-4 mr-2" />
-                        With Production Status
-                      </Button>
-                    </div>
-                    <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add {category.slice(0, -1)}
+              {category === "Materials" || category === "Components" ? (
+                <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
+                  {/* First row: Action buttons (on mobile) / Right side (on desktop) */}
+                  <div className="flex items-center gap-2 shrink-0 whitespace-nowrap w-full md:w-auto">
+                    {category === "Materials" && (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
+                          className="whitespace-nowrap flex-1 md:flex-none"
+                        >
+                          <FileText className="w-4 h-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Reorder Summary</span>
+                          <span className="sm:hidden">Reorder</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsMaterialManagementDialogOpen(true)}
+                          className="whitespace-nowrap flex-1 md:flex-none"
+                        >
+                          <Settings className="w-4 h-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Settings</span>
+                        </Button>
+                      </>
+                    )}
+                    <Button 
+                      onClick={() => handleOpenAddDialog(category)} 
+                      className="whitespace-nowrap flex-1 md:flex-none"
+                    >
+                      <Plus className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">{category === "Materials" ? "Add Material" : "Add Component"}</span>
+                      <span className="sm:hidden">Add</span>
                     </Button>
                   </div>
-                )}
-                {category === "Materials" && (
-                  <div className="flex flex-col gap-2 w-full md:w-auto">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
-                        className="whitespace-nowrap"
-                      >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Reorder Summary
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsMaterialManagementDialogOpen(true)}
-                      >
-                        <Settings className="w-4 h-4 mr-2" />
-                        Settings
+                  
+                  {/* Second row: Search + Sort (on mobile) / Left side (on desktop) */}
+                  <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0 w-full md:w-auto">
+                    {/* Search bar */}
+                    <div className="relative w-full sm:w-auto flex-1 min-w-[160px] md:max-w-[320px]">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input 
+                        placeholder={`Search ${category.toLowerCase()}...`} 
+                        value={searchTerm} 
+                        onChange={e => setSearchTerm(e.target.value)} 
+                        className="pl-10 w-full" 
+                      />
+                    </div>
+                    
+                    {/* Sort dropdown */}
+                    <div className="w-full sm:w-auto min-w-[150px]">
+                      <SortSelect
+                        value={getCurrentSortValue()}
+                        onChange={handleSortChange}
+                        options={getSortOptions()}
+                        placeholder="Sort"
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-2 w-full">
+                  {/* Search bar - one line on mobile */}
+                  <div className="relative w-full md:max-w-md md:flex-1 min-w-0">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input placeholder={`Search ${category.toLowerCase()}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 w-full" />
+                  </div>
+                  
+                  {/* Sort dropdown - one line on mobile */}
+                  <div className="w-full md:w-auto min-w-[150px]">
+                    <SortSelect
+                      value={getCurrentSortValue()}
+                      onChange={handleSortChange}
+                      options={getSortOptions()}
+                      placeholder="Sort"
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  {/* Customer filter - one line on mobile (only for Parts) */}
+                  {category === "Parts" && (
+                    <div className="w-full md:w-60 min-w-0">
+                      <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Filter by customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {customers.map(customer => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="all">All</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  {/* "With Production Status" and "Add Part" - one line on mobile */}
+                  {category === "Parts" && (
+                    <div className="flex flex-row items-center justify-between gap-2 md:gap-3 w-full md:w-auto">
+                      <div className="flex items-center gap-2 flex-1 md:flex-none">
+                        <Button
+                          variant={showOnlyWithProductionStatus ? "default" : "outline"}
+                          onClick={() => setShowOnlyWithProductionStatus(!showOnlyWithProductionStatus)}
+                          size="default"
+                          className="whitespace-nowrap"
+                        >
+                          <ClipboardList className="w-4 h-4 mr-2" />
+                          With Production Status
+                        </Button>
+                      </div>
+                      <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add {category.slice(0, -1)}
                       </Button>
                     </div>
-                    <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap w-full md:w-auto">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add {category.slice(0, -1)}
-                    </Button>
-                  </div>
-                )}
+                  )}
                 {category === "Tools" && (
                   <div className="flex items-center gap-2 flex-wrap">
                     <Button
@@ -1750,13 +1795,14 @@ export default function Inventory() {
                     </Button>
                   </div>
                 )}
-                {category !== "Parts" && category !== "Materials" && category !== "Tools" && (
+                {category !== "Parts" && category !== "Materials" && category !== "Components" && category !== "Tools" && (
                   <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
                     <Plus className="w-4 h-4 mr-2" />
                     Add {category.slice(0, -1)}
                   </Button>
                 )}
               </div>
+              )}
 
               {/* Items List - Desktop View */}
               <div className="hidden md:block space-y-1.5 w-full max-w-full min-w-0">
@@ -1765,7 +1811,7 @@ export default function Inventory() {
             <Card key={item.id} className={`h-32 hover:shadow-md transition-shadow cursor-pointer ${
               item.quantity <= (item.minimum_stock || 0) ? 'border-destructive bg-destructive/5' : ''
             } ${
-              item.category === "Materials" && materialReorders[item.id] ? 'bg-blue-50 border-blue-200' : ''
+              (item.category === "Materials" || item.category === "Components") && materialReorders[item.id] ? 'bg-blue-50 border-blue-200' : ''
             }`} onClick={() => {
               // Check if item still exists in the list (not deleted)
               const itemExists = inventoryItems.some(i => i.id === item.id);
@@ -1776,8 +1822,8 @@ export default function Inventory() {
             }}>
                        <CardContent className="p-4 h-full min-w-0 overflow-hidden">
                          <div className="grid grid-cols-[auto_1fr_auto] gap-2 sm:gap-4 h-full items-center min-w-0">
-                           {/* Material Shape Icon or Regular Image */}
-                             {item?.category === "Materials" ? (() => {
+                           {/* Material/Component Shape Icon or Regular Image */}
+                             {(item?.category === "Materials" || item?.category === "Components") ? (() => {
                     const materialInfo = item.materials_used || {};
                     const shape = materialInfo?.shape || "";
                     const shapeId = materialInfo?.shapeId || null;
@@ -1809,14 +1855,14 @@ export default function Inventory() {
                                      ) : (
                                       <>
                                         <h3 className="font-semibold text-lg truncate">{item.name}</h3>
-                                        {item.part_number && item?.category !== "Materials" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
+                                        {item.part_number && item?.category !== "Materials" && item?.category !== "Components" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
                                         {item.production_status && <p className="text-sm text-black font-medium">{item.production_status}</p>}
                                       </>
                                     )}
                                   </div>
                                  <AlertDialog>
                                    <div className="flex gap-1 ml-2">
-                                      {item.category !== "Materials" && (
+                                      {item.category !== "Materials" && item.category !== "Components" && (
                                         <>
                                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                                   e.stopPropagation();
@@ -1878,7 +1924,7 @@ export default function Inventory() {
                                            )}
                                          </>
                                        )}
-                                       {item.category !== "Materials" && (
+                                       {item.category !== "Materials" && item.category !== "Components" && (
                                          <>
                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                                  e.stopPropagation();
@@ -2434,7 +2480,7 @@ export default function Inventory() {
                   </div>
                 </div>
               </>
-            ) : currentCategory === "Materials" ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
+            ) : (currentCategory === "Materials" || currentCategory === "Components") ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
               currentCategory === "Tools" ? (
                 <ToolCategorySelector 
                   onSelectionChange={setToolCategorySelection}
@@ -2449,7 +2495,7 @@ export default function Inventory() {
                   }))} placeholder="Enter item name" />
                 </div>
               )}
-            {currentCategory !== "Materials" && (
+            {currentCategory !== "Materials" && currentCategory !== "Components" && (
             <>
               {currentCategory === "Parts" ? (
                 <>
@@ -2800,7 +2846,7 @@ export default function Inventory() {
                   </div>
                 </div>
               </>
-            ) : editingItem?.category === "Materials" ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
+            ) : (editingItem?.category === "Materials" || editingItem?.category === "Components") ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
               editingItem?.category === "Tools" ? (
                 <ToolCategorySelector 
                   onSelectionChange={setToolCategorySelection}
@@ -2898,7 +2944,7 @@ export default function Inventory() {
                 />
               </div>
             )}
-            {editingItem?.category !== "Materials" && (
+            {editingItem?.category !== "Materials" && editingItem?.category !== "Components" && (
             <div className="grid gap-2">
               <Label htmlFor="edit_location">Location</Label>
               <Select value={formData.location} onValueChange={value => setFormData(prev => ({
@@ -2948,7 +2994,7 @@ export default function Inventory() {
               description: e.target.value
             }))} placeholder="Enter description" rows={3} />
             </div>
-            {formData.category !== "Materials" && <div className="grid gap-2">
+            {formData.category !== "Materials" && formData.category !== "Components" && <div className="grid gap-2">
                 <DragDropImageUpload
                   value={photoPreview || formData.photo}
                   onChange={async (file) => {
@@ -3489,7 +3535,7 @@ export default function Inventory() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5" />
-              {selectedViewItem?.category === "Materials" ? "Material Details" : 
+              {(selectedViewItem?.category === "Materials" || selectedViewItem?.category === "Components") ? (selectedViewItem?.category === "Materials" ? "Material Details" : "Component Details") : 
                selectedViewItem?.category === "Tools" ? "Tool Details" : "Part Details"}
             </DialogTitle>
           </DialogHeader>
@@ -3497,7 +3543,7 @@ export default function Inventory() {
           {selectedViewItem && <div className="space-y-6">
               {/* Photo and Basic Info */}
               <div className="flex gap-6">
-                {selectedViewItem?.category === "Materials" ? (() => {
+                {(selectedViewItem?.category === "Materials" || selectedViewItem?.category === "Components") ? (() => {
                   const materialInfo = selectedViewItem.materials_used || {};
                   const shape = materialInfo?.shape || "";
                   const shapeId = materialInfo?.shapeId || null;
@@ -3522,20 +3568,20 @@ export default function Inventory() {
                     <div className="flex-1">
                       <Label className="text-sm font-medium text-muted-foreground">
                         {selectedViewItem.category === "Tools" ? "Tool Name" : 
-                         selectedViewItem.category === "Materials" ? "Material Name" : 
+                         (selectedViewItem.category === "Materials" || selectedViewItem.category === "Components") ? (selectedViewItem.category === "Materials" ? "Material Name" : "Component Name") : 
                          "Part Name"}
                       </Label>
                       <p className="text-xl font-semibold">
                         {selectedViewItem.category === "Tools" 
                           ? formatToolName(selectedViewItem.materials_used, selectedViewItem.name)
-                          : selectedViewItem.category === "Materials"
+                          : (selectedViewItem.category === "Materials" || selectedViewItem.category === "Components")
                           ? formatMaterialNameWithUnit(selectedViewItem.name)
                           : selectedViewItem.name
                         }
                       </p>
                     </div>
-                    {/* Totals for Materials */}
-                    {selectedViewItem?.category === "Materials" && materialViewAdditions.length > 0 && (() => {
+                    {/* Totals for Materials and Components */}
+                    {(selectedViewItem?.category === "Materials" || selectedViewItem?.category === "Components") && materialViewAdditions.length > 0 && (() => {
                       const totalRemainingMm = materialViewAdditions.reduce((sum, add) => sum + add.remainingMm, 0);
                       const totalRemainingMeters = totalRemainingMm / 1000;
                       let totalKg = 0;
@@ -3575,7 +3621,7 @@ export default function Inventory() {
                       <Label className="text-sm font-medium text-muted-foreground">Part Number</Label>
                       <p className="text-lg font-medium">{selectedViewItem.part_number}</p>
                     </div>}
-                  {selectedViewItem?.category !== "Materials" && (
+                  {selectedViewItem?.category !== "Materials" && selectedViewItem?.category !== "Components" && (
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">Location</Label>
                       <p className="flex items-center gap-2 text-base">
