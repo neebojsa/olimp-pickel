@@ -204,6 +204,7 @@ export default function Invoicing() {
   }]);
   const [productSearchOpen, setProductSearchOpen] = useState<Record<number, boolean>>({});
   const [productSearchTerms, setProductSearchTerms] = useState<Record<number, string>>({});
+  const productInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [orderConfirmations, setOrderConfirmations] = useState<any[]>([]);
   const [selectedOrderConfirmationId, setSelectedOrderConfirmationId] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -2022,38 +2023,142 @@ ${cssVariables}
                         <Label className="text-xs">Product</Label>
                         <Popover 
                           open={productSearchOpen[index] || false} 
-                          onOpenChange={(open) => setProductSearchOpen(prev => ({ ...prev, [index]: open }))}
+                          onOpenChange={(open) => {
+                            // Single source of truth - only set state, don't toggle
+                            setProductSearchOpen(prev => ({ ...prev, [index]: open }));
+                            // Auto-focus input when popover opens
+                            if (open && productInputRefs.current[index]) {
+                              setTimeout(() => {
+                                productInputRefs.current[index]?.focus();
+                              }, 0);
+                            }
+                            // Clear search term when closing if no product selected
+                            if (!open && !item.inventoryId) {
+                              setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
+                            }
+                          }}
                         >
                           <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between text-left font-normal"
-                            >
-                              {item.inventoryId ? (() => {
-                                const selectedItem = inventoryItems.find(invItem => invItem.id === item.inventoryId);
-                                return selectedItem ? (
-                                  <div className="flex flex-col items-start flex-1">
-                                    <span>{selectedItem.name}</span>
-                                    {selectedItem.part_number && (
-                                      <span className="text-xs text-muted-foreground">Part #: {selectedItem.part_number}</span>
-                                    )}
-                                  </div>
-                                ) : "Select product...";
-                              })() : "Select product..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                            <Command>
-                              <CommandInput 
-                                placeholder="Search products..." 
-                                value={productSearchTerms[index] || ''}
-                                onValueChange={(value) => {
-                                  setProductSearchTerms(prev => ({ ...prev, [index]: value }));
+                            <div className="relative w-full" style={{ pointerEvents: 'auto' }}>
+                              <Input
+                                ref={(el) => {
+                                  productInputRefs.current[index] = el;
                                 }}
+                                placeholder={productSearchOpen[index] ? "Search products..." : "Select product..."}
+                                value={(() => {
+                                  // When popover is open, show search term
+                                  if (productSearchOpen[index]) {
+                                    return productSearchTerms[index] || '';
+                                  }
+                                  // When closed and product selected, show product name
+                                  if (item.inventoryId) {
+                                    const selectedItem = inventoryItems.find(invItem => invItem.id === item.inventoryId);
+                                    if (selectedItem) {
+                                      return selectedItem.part_number 
+                                        ? `${selectedItem.name} (Part #: ${selectedItem.part_number})`
+                                        : selectedItem.name;
+                                    }
+                                  }
+                                  return '';
+                                })()}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setProductSearchTerms(prev => ({ ...prev, [index]: value }));
+                                  // Open popover when user starts typing (only if closed)
+                                  if (!productSearchOpen[index]) {
+                                    setProductSearchOpen(prev => ({ ...prev, [index]: true }));
+                                  }
+                                }}
+                                onFocus={() => {
+                                  // Only clear selected product text to start searching
+                                  // Don't open here - let onPointerDown handle opening to avoid double-open
+                                  if (item.inventoryId && !productSearchTerms[index] && productSearchOpen[index]) {
+                                    setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
+                                  }
+                                }}
+                                onPointerDown={(e) => {
+                                  // SINGLE event handler for opening - prevent default to avoid blur
+                                  // Stop propagation to prevent PopoverTrigger from also handling it
+                                  e.stopPropagation();
+                                  if (!productSearchOpen[index]) {
+                                    e.preventDefault();
+                                    // Only set open state here - single source of truth
+                                    setProductSearchOpen(prev => ({ ...prev, [index]: true }));
+                                    // Focus after opening
+                                    setTimeout(() => {
+                                      productInputRefs.current[index]?.focus();
+                                    }, 0);
+                                  }
+                                }}
+                                onClick={(e) => {
+                                  // Prevent PopoverTrigger's onClick from toggling
+                                  e.stopPropagation();
+                                }}
+                                className="w-full pr-8 cursor-text"
+                                readOnly={!productSearchOpen[index] && !!item.inventoryId}
                               />
-                              <CommandList>
+                              <ChevronsUpDown 
+                                className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 shrink-0 opacity-50 pointer-events-none" 
+                              />
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent 
+                            className="w-[var(--radix-popover-trigger-width)] p-0" 
+                            align="start"
+                            onInteractOutside={(e) => {
+                              // Prevent closing when clicking on the input field
+                              const target = e.target as HTMLElement;
+                              const inputElement = productInputRefs.current[index];
+                              const triggerElement = inputElement?.closest('.relative');
+                              if (inputElement && (inputElement === target || inputElement.contains(target) || (triggerElement && triggerElement.contains(target)))) {
+                                e.preventDefault();
+                                return;
+                              }
+                            }}
+                            onEscapeKeyDown={() => {
+                              setProductSearchOpen(prev => ({ ...prev, [index]: false }));
+                            }}
+                            onPointerDownOutside={(e) => {
+                              // Prevent closing when clicking on the input field
+                              const target = e.target as HTMLElement;
+                              const inputElement = productInputRefs.current[index];
+                              const triggerElement = inputElement?.closest('.relative');
+                              if (inputElement && (inputElement === target || inputElement.contains(target) || (triggerElement && triggerElement.contains(target)))) {
+                                e.preventDefault();
+                                return;
+                              }
+                            }}
+                            onMouseDown={(e) => {
+                              // Only prevent propagation for clicks on non-scrollable elements
+                              // Allow scrolling interactions to work normally
+                              const target = e.target as HTMLElement;
+                              const listElement = target.closest('[cmdk-list]');
+                              const commandItem = target.closest('[cmdk-item]');
+                              
+                              // Don't prevent default/propagation for scrollable list area
+                              // This allows wheel scrolling to work
+                              if (listElement && !commandItem) {
+                                return; // Allow scrolling in the list
+                              }
+                              
+                              // Prevent event from bubbling up and closing popover for clicks on items
+                              // But allow normal scrolling behavior
+                              e.stopPropagation();
+                            }}
+                            onWheel={(e) => {
+                              // Prevent scroll chaining to parent when scrolling inside popover
+                              e.stopPropagation();
+                            }}
+                          >
+                            <Command shouldFilter={false}>
+                              <CommandList 
+                                className="max-h-[280px] sm:max-h-[360px]"
+                                onWheel={(e) => {
+                                  // Prevent scroll from propagating to parent dialog/page
+                                  e.stopPropagation();
+                                }}
+                                style={{ overscrollBehavior: 'contain' }}
+                              >
                                 <CommandEmpty>No products found.</CommandEmpty>
                                 <CommandGroup>
                                   {inventoryItems
