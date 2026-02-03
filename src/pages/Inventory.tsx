@@ -100,7 +100,8 @@ export default function Inventory() {
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [materialsUsed, setMaterialsUsed] = useState([{
     name: "",
-    notes: ""
+    notes: "",
+    lengthPerPiece: ""
   }]);
   const [toolsUsed, setToolsUsed] = useState([{
     name: "",
@@ -672,11 +673,17 @@ export default function Inventory() {
 
     // Populate materials used
     if (item.materials_used && Array.isArray(item.materials_used)) {
-      setMaterialsUsed(item.materials_used);
+      // Ensure each material has lengthPerPiece field
+      setMaterialsUsed(item.materials_used.map((m: any) => ({
+        name: m.name || "",
+        notes: m.notes || "",
+        lengthPerPiece: m.lengthPerPiece || ""
+      })));
     } else {
       setMaterialsUsed([{
         name: "",
-        notes: ""
+        notes: "",
+        lengthPerPiece: ""
       }]);
     }
 
@@ -799,7 +806,8 @@ export default function Inventory() {
       setEditingItem(null);
       setMaterialsUsed([{
         name: "",
-        notes: ""
+        notes: "",
+        lengthPerPiece: ""
       }]);
       setToolsUsed([{
         name: "",
@@ -3006,15 +3014,42 @@ export default function Inventory() {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                        <Input placeholder="Material notes (optional)" value={material.notes} onChange={e => {
-                    const newMaterials = [...materialsUsed];
-                    newMaterials[index].notes = e.target.value;
-                    setMaterialsUsed(newMaterials);
-                  }} className="text-sm" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor={`material-length-${index}`} className="text-xs">Length per piece (mm)</Label>
+                            <NumericInput
+                              id={`material-length-${index}`}
+                              value={material.lengthPerPiece ? parseFloat(material.lengthPerPiece) : 0}
+                              onChange={(val) => {
+                                const newMaterials = [...materialsUsed];
+                                newMaterials[index].lengthPerPiece = val.toString();
+                                setMaterialsUsed(newMaterials);
+                              }}
+                              min={0}
+                              step={0.01}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor={`material-notes-${index}`} className="text-xs">Notes (optional)</Label>
+                            <Input 
+                              id={`material-notes-${index}`}
+                              placeholder="Material notes (optional)" 
+                              value={material.notes} 
+                              onChange={e => {
+                                const newMaterials = [...materialsUsed];
+                                newMaterials[index].notes = e.target.value;
+                                setMaterialsUsed(newMaterials);
+                              }} 
+                              className="text-sm" 
+                            />
+                          </div>
+                        </div>
                       </div>)}
                     <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => setMaterialsUsed([...materialsUsed, {
                   name: "",
-                  notes: ""
+                  notes: "",
+                  lengthPerPiece: ""
                 }])}>
                       <Plus className="w-4 h-4" />
                       Add Material
@@ -3124,7 +3159,8 @@ export default function Inventory() {
             <Button variant="outline" onClick={() => {
             setMaterialsUsed([{
               name: "",
-              notes: ""
+              notes: "",
+              lengthPerPiece: ""
             }]);
             setToolsUsed([{
               name: "",
@@ -3708,10 +3744,28 @@ export default function Inventory() {
                     Materials Used
                   </Label>
                   <div className="space-y-2">
-                    {selectedViewItem.materials_used.filter((material: any) => material.name).map((material: any, index: number) => <div key={index} className="p-3 bg-muted rounded-md">
-                        <p className="font-medium">{material.name}</p>
-                        {material.notes && <p className="text-sm text-muted-foreground mt-1">{material.notes}</p>}
-                      </div>)}
+                    {selectedViewItem.materials_used.filter((material: any) => material.name).map((material: any, index: number) => {
+                      // Find the material item in inventory to get its stock quantity
+                      const materialItem = inventoryItems.find((item: any) => 
+                        item.category === "Materials" && item.name === material.name
+                      );
+                      const totalStockLength = materialItem ? (materialStockQuantities[materialItem.id] || 0) : 0;
+                      
+                      return (
+                        <div key={index} className="p-3 bg-muted rounded-md">
+                          <p className="font-medium">
+                            {material.name}
+                            {material.lengthPerPiece && parseFloat(material.lengthPerPiece) > 0 && (
+                              <span className="text-muted-foreground"> --- {parseFloat(material.lengthPerPiece).toFixed(2)} mm</span>
+                            )}
+                            {totalStockLength > 0 && (
+                              <span className="text-blue-600"> ({totalStockLength.toFixed(0)} mm in stock)</span>
+                            )}
+                          </p>
+                          {material.notes && <p className="text-sm text-muted-foreground mt-1">{material.notes}</p>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>}
 
@@ -3736,15 +3790,17 @@ export default function Inventory() {
                     Files
                   </Label>
                   <div className="space-y-2">
-                    {selectedViewItem.drawings_files.map((file: any, index: number) => <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-md">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          <span className="font-medium">{file.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                          </span>
+                    {selectedViewItem.drawings_files.map((file: any, index: number) => <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-muted rounded-md">
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
+                          <FileText className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <span className="font-medium break-words">{file.name}</span>
+                            <span className="text-xs text-muted-foreground block sm:inline sm:ml-2">
+                              ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            </span>
+                          </div>
                         </div>
-                        <Button variant="outline" size="sm" onClick={async () => {
+                        <Button variant="outline" size="sm" className="flex-shrink-0 w-full sm:w-auto" onClick={async () => {
                   try {
                     // Fetch the file and create a blob URL for download
                     const response = await fetch(file.url);
