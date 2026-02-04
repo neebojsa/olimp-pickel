@@ -41,6 +41,7 @@ import { DuplicateWarningDialog } from "@/components/DuplicateWarningDialog";
 import { SortSelect, SortOption } from "@/components/SortSelect";
 import { useSortPreference } from "@/hooks/useSortPreference";
 import { sortItems } from "@/lib/sortUtils";
+import { CreateWorkOrderDialog } from "@/components/work-orders/CreateWorkOrderDialog";
 export default function Inventory() {
   const {
     toast
@@ -56,9 +57,6 @@ export default function Inventory() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  // Date picker popover for work order form
-  const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
-  const [workOrderDueDate, setWorkOrderDueDate] = useState<Date | undefined>(undefined);
   const [currentCategory, setCurrentCategory] = useState("Parts");
   
   // Sort preferences for each category
@@ -87,15 +85,6 @@ export default function Inventory() {
   const [isUploading, setIsUploading] = useState(false);
   const [isWorkOrderDialogOpen, setIsWorkOrderDialogOpen] = useState(false);
   const [selectedItemForWorkOrder, setSelectedItemForWorkOrder] = useState<any>(null);
-  const [workOrderQuantity, setWorkOrderQuantity] = useState(0);
-  const [tools, setTools] = useState([{
-    name: "",
-    quantity: ""
-  }]);
-  const [operatorsAndMachines, setOperatorsAndMachines] = useState([{
-    name: "",
-    type: "operator"
-  }]);
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [selectedItemForHistory, setSelectedItemForHistory] = useState<any>(null);
   const [historyData, setHistoryData] = useState<any[]>([]);
@@ -198,7 +187,7 @@ export default function Inventory() {
 
   // Fetch material additions when view dialog opens for a material
   useEffect(() => {
-    if (isViewDialogOpen && (selectedViewItem?.category === "Materials" || selectedViewItem?.category === "Components") && selectedViewItem?.id) {
+    if (isViewDialogOpen && selectedViewItem?.category === "Materials" && selectedViewItem?.id) {
       fetchMaterialViewAdditions(selectedViewItem.id);
     }
   }, [isViewDialogOpen, selectedViewItem?.id]);
@@ -399,7 +388,7 @@ export default function Inventory() {
   };
   const handleSaveItem = async () => {
     // For materials, validate material data instead of name
-    if (currentCategory === "Materials" || currentCategory === "Components") {
+    if (currentCategory === "Materials") {
       if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material) {
         toast({
           title: "Validation Error",
@@ -446,7 +435,7 @@ export default function Inventory() {
     
     // Check for duplicates (only for Parts, Materials, and Components)
     if (currentCategory === "Parts" || currentCategory === "Materials" || currentCategory === "Components") {
-      const materialsUsedData = (currentCategory === "Materials" || currentCategory === "Components") && materialData ? {
+      const materialsUsedData = currentCategory === "Materials" && materialData ? {
         surfaceFinish: materialData.surfaceFinish,
         shape: materialData.shape,
         shapeId: materialData.shapeId,
@@ -467,16 +456,16 @@ export default function Inventory() {
         p_category: currentCategory,
         p_id: null, // New item, no ID to exclude
         p_name: itemName,
-        p_part_number: currentCategory === "Parts" ? (formData.part_number || null) : null,
-        p_description: (currentCategory === "Materials" || currentCategory === "Components") && materialData ? (materialData.description || null) : (formData.description || null),
+        p_part_number: (currentCategory === "Parts" || currentCategory === "Components") ? (formData.part_number || null) : null,
+        p_description: currentCategory === "Materials" && materialData ? (materialData.description || null) : (formData.description || null),
         p_customer_id: currentCategory === "Parts" ? (formData.customer_id || null) : null,
-        p_unit_price: currentCategory === "Parts" ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : 0) : null,
-        p_currency: currentCategory === "Parts" ? formData.currency : null,
-        p_weight: currentCategory === "Parts" ? (parseFloat(formData.weight) || 0) : null,
+        p_unit_price: (currentCategory === "Parts" || currentCategory === "Components") ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : 0) : null,
+        p_currency: (currentCategory === "Parts" || currentCategory === "Components") ? formData.currency : null,
+        p_weight: (currentCategory === "Parts" || currentCategory === "Components") ? (parseFloat(formData.weight) || 0) : null,
         p_location: formData.location || null,
-        p_unit: currentCategory === "Parts" ? formData.unit : null,
-        p_minimum_stock: currentCategory === "Parts" ? (parseInt(formData.minimum_stock) || 0) : null,
-        p_materials_used: (currentCategory === "Materials" || currentCategory === "Components") ? materialsUsedData : null
+        p_unit: (currentCategory === "Parts" || currentCategory === "Components") ? formData.unit : null,
+        p_minimum_stock: (currentCategory === "Parts" || currentCategory === "Components") ? (parseInt(formData.minimum_stock) || 0) : null,
+        p_materials_used: currentCategory === "Materials" ? materialsUsedData : null
       });
       
       if (!duplicateError && duplicateData && Array.isArray(duplicateData) && duplicateData.length > 0) {
@@ -515,7 +504,7 @@ export default function Inventory() {
         return;
       }
     }
-    const itemName = (currentCategory === "Materials" || currentCategory === "Components") && materialData ? materialData.generatedName : 
+    const itemName = currentCategory === "Materials" && materialData ? materialData.generatedName : 
                      currentCategory === "Tools" && toolCategorySelection ? 
                      toolCategorySelection.categoryPath.join(" - ") :
                      formData.name;
@@ -525,20 +514,20 @@ export default function Inventory() {
     } = await supabase.from('inventory').insert({
       part_number: formData.part_number,
       name: itemName,
-      description: (currentCategory === "Materials" || currentCategory === "Components") && materialData ? (materialData.description || null) : (formData.description || null),
-      quantity: (currentCategory === "Materials" || currentCategory === "Components") ? 0 : (parseInt(formData.quantity) || 0),
-      unit_price: (currentCategory === "Materials" || currentCategory === "Components") ? 0 : (canSeePrices() ? (parseFloat(formData.unit_price) || 0) : 0),
+      description: currentCategory === "Materials" && materialData ? (materialData.description || null) : (formData.description || null),
+      quantity: currentCategory === "Materials" ? 0 : (parseInt(formData.quantity) || 0),
+      unit_price: currentCategory === "Materials" ? 0 : (canSeePrices() ? (parseFloat(formData.unit_price) || 0) : 0),
       currency: formData.currency,
       unit: formData.unit,
-      weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : 0,
+      weight: (formData.category === "Parts" || formData.category === "Machines" || formData.category === "Components") ? (parseFloat(formData.weight) || 0) : 0,
       location: formData.location,
       category: formData.category,
       customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
-      supplier: formData.category !== "Parts" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
+      supplier: formData.category !== "Parts" && formData.category !== "Components" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
       minimum_stock: formData.category === "Machines" ? 0 : (parseInt(formData.minimum_stock) || 0),
       photo_url: photoUrl,
       created_by_staff_id: staff?.id || null,
-      materials_used: (currentCategory === "Materials" || currentCategory === "Components") && materialData ? {
+      materials_used: currentCategory === "Materials" && materialData ? {
         surfaceFinish: materialData.surfaceFinish,
         shape: materialData.shape,
         shapeId: materialData.shapeId,
@@ -630,8 +619,8 @@ export default function Inventory() {
       photo: null
     });
 
-    // For materials and components, parse the structured data from materials_used
-    if ((item?.category === "Materials" || item?.category === "Components") && item.materials_used) {
+    // For materials, parse the structured data from materials_used
+    if (item?.category === "Materials" && item.materials_used) {
       const materialInfo = item.materials_used;
       // Don't set generatedName - let MaterialForm regenerate it with new format
       setMaterialData({
@@ -715,7 +704,7 @@ export default function Inventory() {
       if (formData.photo) {
         photoUrl = await uploadPhoto(formData.photo);
       }
-      const itemName = (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? materialData.generatedName : 
+      const itemName = editingItem?.category === "Materials" && materialData ? materialData.generatedName : 
                        editingItem?.category === "Tools" && toolCategorySelection ? 
                        toolCategorySelection.categoryPath.join(" - ") :
                        formData.name;
@@ -725,19 +714,19 @@ export default function Inventory() {
       } = await supabase.from('inventory').update({
         part_number: formData.part_number,
         name: itemName,
-        description: (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? (materialData.description || null) : formData.description,
+        description: editingItem?.category === "Materials" && materialData ? (materialData.description || null) : formData.description,
         quantity: parseInt(formData.quantity) || 0,
         unit_price: canSeePrices() ? (parseFloat(formData.unit_price) || 0) : (editingItem?.unit_price || 0),
         currency: formData.currency,
         unit: formData.unit,
-        weight: (formData.category === "Parts" || formData.category === "Machines") ? (parseFloat(formData.weight) || 0) : editingItem.weight || 0,
+        weight: (formData.category === "Parts" || formData.category === "Machines" || formData.category === "Components") ? (parseFloat(formData.weight) || 0) : editingItem.weight || 0,
         location: formData.location,
         category: formData.category,
         customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
-        supplier: formData.category !== "Parts" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
+        supplier: formData.category !== "Parts" && formData.category !== "Components" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
         minimum_stock: formData.category === "Machines" ? 0 : (parseInt(formData.minimum_stock) || 0),
         photo_url: photoUrl,
-        materials_used: (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? {
+        materials_used: editingItem?.category === "Materials" && materialData ? {
           surfaceFinish: materialData.surfaceFinish,
           shape: materialData.shape,
           shapeId: materialData.shapeId,
@@ -839,12 +828,12 @@ export default function Inventory() {
   };
   
   const handleUpdateItem = async () => {
-    // For materials and components, validate material data instead of name
-    if (editingItem?.category === "Materials" || editingItem?.category === "Components") {
+    // For materials, validate material data instead of name
+    if (editingItem?.category === "Materials") {
       if (!materialData || !materialData.surfaceFinish || !materialData.shape || !materialData.material) {
         toast({
           title: "Error",
-          description: `Please fill in all required ${editingItem?.category === "Materials" ? "material" : "component"} fields`,
+          description: "Please fill in all required material fields",
           variant: "destructive"
         });
         return;
@@ -895,16 +884,16 @@ export default function Inventory() {
         p_category: editingItem.category,
         p_id: editingItem.id, // Exclude current item
         p_name: itemName,
-        p_part_number: editingItem.category === "Parts" ? (formData.part_number || null) : null,
-        p_description: (editingItem?.category === "Materials" || editingItem?.category === "Components") && materialData ? (materialData.description || null) : formData.description,
+        p_part_number: (editingItem.category === "Parts" || editingItem.category === "Components") ? (formData.part_number || null) : null,
+        p_description: editingItem?.category === "Materials" && materialData ? (materialData.description || null) : formData.description,
         p_customer_id: editingItem.category === "Parts" ? (formData.customer_id || null) : null,
-        p_unit_price: editingItem.category === "Parts" ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : (editingItem?.unit_price || 0)) : null,
-        p_currency: editingItem.category === "Parts" ? formData.currency : null,
-        p_weight: editingItem.category === "Parts" ? (parseFloat(formData.weight) || 0) : null,
+        p_unit_price: (editingItem.category === "Parts" || editingItem.category === "Components") ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : (editingItem?.unit_price || 0)) : null,
+        p_currency: (editingItem.category === "Parts" || editingItem.category === "Components") ? formData.currency : null,
+        p_weight: (editingItem.category === "Parts" || editingItem.category === "Components") ? (parseFloat(formData.weight) || 0) : null,
         p_location: formData.location || null,
-        p_unit: editingItem.category === "Parts" ? formData.unit : null,
-        p_minimum_stock: editingItem.category === "Parts" ? (parseInt(formData.minimum_stock) || 0) : null,
-        p_materials_used: (editingItem?.category === "Materials" || editingItem?.category === "Components") ? materialsUsedData : null
+        p_unit: (editingItem.category === "Parts" || editingItem.category === "Components") ? formData.unit : null,
+        p_minimum_stock: (editingItem.category === "Parts" || editingItem.category === "Components") ? (parseInt(formData.minimum_stock) || 0) : null,
+        p_materials_used: editingItem?.category === "Materials" ? materialsUsedData : null
       });
       
       if (!duplicateError && duplicateData && Array.isArray(duplicateData) && duplicateData.length > 0) {
@@ -1593,7 +1582,10 @@ export default function Inventory() {
         <TabsList className="grid w-full grid-cols-5 min-w-0">
           <TabsTrigger value="Parts">Parts</TabsTrigger>
           <TabsTrigger value="Materials">Materials</TabsTrigger>
-          <TabsTrigger value="Components">Components</TabsTrigger>
+          <TabsTrigger value="Components">
+            <span className="hidden min-[480px]:inline">Components</span>
+            <span className="min-[480px]:hidden">Comp.</span>
+          </TabsTrigger>
           <TabsTrigger value="Tools">Tools</TabsTrigger>
           <TabsTrigger value="Machines">Machines</TabsTrigger>
         </TabsList>
@@ -1665,25 +1657,50 @@ export default function Inventory() {
                 <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
                   {/* First row: Action buttons (on mobile) / Right side (on desktop) */}
                   <div className="flex items-center gap-2 shrink-0 whitespace-nowrap w-full md:w-auto">
-                    {category === "Materials" && (
+                    {(category === "Materials" || category === "Components") && (
                       <>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
-                          className="whitespace-nowrap flex-1 md:flex-none"
-                        >
-                          <FileText className="w-4 h-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Reorder Summary</span>
-                          <span className="sm:hidden">Reorder</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsMaterialManagementDialogOpen(true)}
-                          className="whitespace-nowrap flex-1 md:flex-none"
-                        >
-                          <Settings className="w-4 h-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Settings</span>
-                        </Button>
+                        {category === "Materials" && (
+                          <>
+                            <Button
+                              variant="outline"
+                              onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
+                              className="whitespace-nowrap flex-1 md:flex-none"
+                            >
+                              <FileText className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Reorder Summary</span>
+                              <span className="sm:hidden">Reorder</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => setIsMaterialManagementDialogOpen(true)}
+                              className="whitespace-nowrap flex-1 md:flex-none"
+                            >
+                              <Settings className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Settings</span>
+                            </Button>
+                          </>
+                        )}
+                        {category === "Components" && (
+                          <>
+                            <Button
+                              variant="outline"
+                              onClick={() => setIsMaterialReorderSummaryDialogOpen(true)}
+                              className="whitespace-nowrap flex-1 md:flex-none"
+                            >
+                              <FileText className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Reorder Summary</span>
+                              <span className="sm:hidden">Reorder</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => setIsMaterialManagementDialogOpen(true)}
+                              className="whitespace-nowrap flex-1 md:flex-none"
+                            >
+                              <Settings className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Settings</span>
+                            </Button>
+                          </>
+                        )}
                       </>
                     )}
                     <Button 
@@ -1822,8 +1839,8 @@ export default function Inventory() {
             }}>
                        <CardContent className="p-4 h-full min-w-0 overflow-hidden">
                          <div className="grid grid-cols-[auto_1fr_auto] gap-2 sm:gap-4 h-full items-center min-w-0">
-                           {/* Material/Component Shape Icon or Regular Image */}
-                             {(item?.category === "Materials" || item?.category === "Components") ? (() => {
+                           {/* Material Shape Icon or Regular Image */}
+                             {item?.category === "Materials" ? (() => {
                     const materialInfo = item.materials_used || {};
                     const shape = materialInfo?.shape || "";
                     const shapeId = materialInfo?.shapeId || null;
@@ -1936,14 +1953,6 @@ export default function Inventory() {
                                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                                  e.stopPropagation();
                                  setSelectedItemForWorkOrder(item);
-                                 setTools([{
-                                   name: "",
-                                   quantity: ""
-                                 }]);
-                                 setOperatorsAndMachines([{
-                                   name: "",
-                                   type: "operator"
-                                 }]);
                                  setIsWorkOrderDialogOpen(true);
                                }} title="Create Work Order">
                                            <ClipboardList className="h-4 w-4" />
@@ -2334,8 +2343,6 @@ export default function Inventory() {
                             <Button variant="outline" size="sm" onClick={(e) => {
                               e.stopPropagation();
                               setSelectedItemForWorkOrder(item);
-                              setTools([{ name: "", quantity: "" }]);
-                              setOperatorsAndMachines([{ name: "", type: "operator" }]);
                               setIsWorkOrderDialogOpen(true);
                             }}>
                               <ClipboardList className="h-4 w-4 mr-2" />
@@ -2480,8 +2487,81 @@ export default function Inventory() {
                   </div>
                 </div>
               </>
-            ) : (currentCategory === "Materials" || currentCategory === "Components") ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
-              currentCategory === "Tools" ? (
+            ) : currentCategory === "Materials" ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
+              currentCategory === "Components" ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Component Name *</Label>
+                      <Input id="name" value={formData.name} onChange={e => setFormData(prev => ({
+                        ...prev,
+                        name: e.target.value
+                      }))} placeholder="Enter component name" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="part_number">Component Number</Label>
+                      <Input id="part_number" value={formData.part_number} onChange={e => setFormData(prev => ({
+                        ...prev,
+                        part_number: e.target.value
+                      }))} placeholder="Enter component number" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="supplier">Supplier</Label>
+                      <Select value={formData.supplier_id} onValueChange={value => {
+                        // Find the selected supplier and auto-set currency
+                        const selectedSupplier = suppliers.find(s => s.id === value);
+                        const currency = selectedSupplier?.country ? getCurrencyForCountry(selectedSupplier.country) : 'EUR';
+                        
+                        setFormData(prev => ({
+                          ...prev,
+                          supplier_id: value,
+                          currency: currency
+                        }));
+                      }}>
+                        <SelectTrigger id="supplier">
+                          <SelectValue placeholder="Select a supplier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map(supplier => <SelectItem key={supplier.id} value={supplier.id}>
+                              {supplier.name}
+                            </SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="currency">Currency</Label>
+                      <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
+                        ...prev,
+                        currency: value
+                      }))}>
+                        <SelectTrigger id="currency">
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="EUR">EUR (€)</SelectItem>
+                          <SelectItem value="USD">USD ($)</SelectItem>
+                          <SelectItem value="GBP">GBP (£)</SelectItem>
+                          <SelectItem value="JPY">JPY (¥)</SelectItem>
+                          <SelectItem value="CHF">CHF (₣)</SelectItem>
+                          <SelectItem value="CAD">CAD (C$)</SelectItem>
+                          <SelectItem value="AUD">AUD (A$)</SelectItem>
+                          <SelectItem value="CNY">CNY (¥)</SelectItem>
+                          <SelectItem value="INR">INR (₹)</SelectItem>
+                          <SelectItem value="BAM">KM (BAM)</SelectItem>
+                          <SelectItem value="RSD">RSD (РСД)</SelectItem>
+                          <SelectItem value="PLN">PLN (zł)</SelectItem>
+                          <SelectItem value="CZK">CZK (Kč)</SelectItem>
+                          <SelectItem value="SEK">SEK (kr)</SelectItem>
+                          <SelectItem value="NOK">NOK (kr)</SelectItem>
+                          <SelectItem value="DKK">DKK (kr)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </>
+              ) : currentCategory === "Tools" ? (
                 <ToolCategorySelector 
                   onSelectionChange={setToolCategorySelection}
                   initialSelection={toolCategorySelection}
@@ -2495,7 +2575,7 @@ export default function Inventory() {
                   }))} placeholder="Enter item name" />
                 </div>
               )}
-            {currentCategory !== "Materials" && currentCategory !== "Components" && (
+            {currentCategory !== "Materials" && (
             <>
               {currentCategory === "Parts" ? (
                 <>
@@ -2581,6 +2661,90 @@ export default function Inventory() {
                     />
                   </div>
                 </>
+              ) : currentCategory === "Components" ? (
+                <>
+                  {/* Mobile layout for Components: 2 rows of 2 columns */}
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                    {/* Row 1: Quantity and Min Stock Level */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="quantity">Quantity *</Label>
+                      <NumericInput
+                        id="quantity"
+                        value={formData.quantity}
+                        onChange={(val) => setFormData(prev => ({ ...prev, quantity: val.toString() }))}
+                        min={0}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="minimum_stock">Min Stock Level</Label>
+                      <NumericInput
+                        id="minimum_stock"
+                        value={formData.minimum_stock || ""}
+                        onChange={(val) => setFormData(prev => ({ ...prev, minimum_stock: val === 0 ? "" : val.toString() }))}
+                        min={0}
+                        placeholder="0"
+                      />
+                    </div>
+                    {/* Desktop: Unit Price in same row */}
+                    {canSeePrices() && (
+                      <div className="grid gap-2 hidden sm:grid">
+                        <Label htmlFor="unit_price">Unit Price *</Label>
+                        <NumericInput
+                          id="unit_price"
+                          value={formData.unit_price || ""}
+                          onChange={(val) => setFormData(prev => ({ ...prev, unit_price: val === 0 ? "" : val.toString() }))}
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                          increment={0.01}
+                          decrement={0.01}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {/* Mobile: Row 2 for Components - Unit Price and Weight */}
+                  {canSeePrices() && (
+                    <div className="grid grid-cols-2 gap-4 sm:hidden mt-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="unit_price">Unit Price *</Label>
+                        <NumericInput
+                          id="unit_price"
+                          value={formData.unit_price || ""}
+                          onChange={(val) => setFormData(prev => ({ ...prev, unit_price: val === 0 ? "" : val.toString() }))}
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                          increment={0.01}
+                          decrement={0.01}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="weight">Weight (kg)</Label>
+                        <NumericInput
+                          id="weight"
+                          value={formData.weight}
+                          onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {/* Desktop: Weight in separate row */}
+                  <div className="grid gap-2 hidden sm:grid mt-4">
+                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <NumericInput
+                      id="weight"
+                      value={formData.weight}
+                      onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
+                      min={0}
+                      step={0.01}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </>
               ) : (
                 /* Other categories (Tools, Machines) - original layout */
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -2621,7 +2785,7 @@ export default function Inventory() {
                       />
                     </div>
                   )}
-                  {currentCategory !== "Parts" && currentCategory !== "Materials" && (
+                  {currentCategory !== "Parts" && currentCategory !== "Materials" && currentCategory !== "Components" && (
                   <div className="grid gap-2">
                     <Label htmlFor="currency">Currency</Label>
                     <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
@@ -2687,7 +2851,7 @@ export default function Inventory() {
               </Select>
             </div>
             )}
-            {currentCategory !== "Parts" && currentCategory !== "Materials" && (
+            {currentCategory !== "Parts" && currentCategory !== "Materials" && currentCategory !== "Components" && (
               <div className="grid gap-2">
                 <Label htmlFor="supplier">Supplier</Label>
                 <Select value={formData.supplier_id} onValueChange={value => {
@@ -2846,8 +3010,81 @@ export default function Inventory() {
                   </div>
                 </div>
               </>
-            ) : (editingItem?.category === "Materials" || editingItem?.category === "Components") ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
-              editingItem?.category === "Tools" ? (
+            ) : editingItem?.category === "Materials" ? <MaterialForm onMaterialChange={setMaterialData} initialData={materialData || undefined} /> : 
+              editingItem?.category === "Components" ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit_name">Component Name *</Label>
+                      <Input id="edit_name" value={formData.name} onChange={e => setFormData(prev => ({
+                        ...prev,
+                        name: e.target.value
+                      }))} placeholder="Enter component name" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit_part_number">Component Number</Label>
+                      <Input id="edit_part_number" value={formData.part_number} onChange={e => setFormData(prev => ({
+                        ...prev,
+                        part_number: e.target.value
+                      }))} placeholder="Enter component number" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit_supplier">Supplier</Label>
+                      <Select value={formData.supplier_id} onValueChange={value => {
+                        // Find the selected supplier and auto-set currency
+                        const selectedSupplier = suppliers.find(s => s.id === value);
+                        const currency = selectedSupplier?.country ? getCurrencyForCountry(selectedSupplier.country) : 'EUR';
+                        
+                        setFormData(prev => ({
+                          ...prev,
+                          supplier_id: value,
+                          currency: currency
+                        }));
+                      }}>
+                        <SelectTrigger id="edit_supplier">
+                          <SelectValue placeholder="Select a supplier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map(supplier => <SelectItem key={supplier.id} value={supplier.id}>
+                              {supplier.name}
+                            </SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit_currency">Currency</Label>
+                      <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
+                        ...prev,
+                        currency: value
+                      }))}>
+                        <SelectTrigger id="edit_currency">
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="EUR">EUR (€)</SelectItem>
+                          <SelectItem value="USD">USD ($)</SelectItem>
+                          <SelectItem value="GBP">GBP (£)</SelectItem>
+                          <SelectItem value="JPY">JPY (¥)</SelectItem>
+                          <SelectItem value="CHF">CHF (₣)</SelectItem>
+                          <SelectItem value="CAD">CAD (C$)</SelectItem>
+                          <SelectItem value="AUD">AUD (A$)</SelectItem>
+                          <SelectItem value="CNY">CNY (¥)</SelectItem>
+                          <SelectItem value="INR">INR (₹)</SelectItem>
+                          <SelectItem value="BAM">KM (BAM)</SelectItem>
+                          <SelectItem value="RSD">RSD (РСД)</SelectItem>
+                          <SelectItem value="PLN">PLN (zł)</SelectItem>
+                          <SelectItem value="CZK">CZK (Kč)</SelectItem>
+                          <SelectItem value="SEK">SEK (kr)</SelectItem>
+                          <SelectItem value="NOK">NOK (kr)</SelectItem>
+                          <SelectItem value="DKK">DKK (kr)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </>
+              ) : editingItem?.category === "Tools" ? (
                 <ToolCategorySelector 
                   onSelectionChange={setToolCategorySelection}
                   initialSelection={toolCategorySelection}
@@ -2944,7 +3181,7 @@ export default function Inventory() {
                 />
               </div>
             )}
-            {editingItem?.category !== "Materials" && editingItem?.category !== "Components" && (
+            {editingItem?.category !== "Materials" && (
             <div className="grid gap-2">
               <Label htmlFor="edit_location">Location</Label>
               <Select value={formData.location} onValueChange={value => setFormData(prev => ({
@@ -2994,7 +3231,7 @@ export default function Inventory() {
               description: e.target.value
             }))} placeholder="Enter description" rows={3} />
             </div>
-            {formData.category !== "Materials" && formData.category !== "Components" && <div className="grid gap-2">
+            {formData.category !== "Materials" && <div className="grid gap-2">
                 <DragDropImageUpload
                   value={photoPreview || formData.photo}
                   onChange={async (file) => {
@@ -3226,288 +3463,22 @@ export default function Inventory() {
       </Dialog>
 
       {/* Work Order Dialog */}
-      <Dialog open={isWorkOrderDialogOpen} onOpenChange={setIsWorkOrderDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create Work Order for {selectedItemForWorkOrder?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="wo_partName">Part Name</Label>
-                <Input id="wo_partName" value={selectedItemForWorkOrder?.name || ""} readOnly className="bg-muted" />
-              </div>
-              <div>
-                <Label htmlFor="wo_partNumber">Part Number</Label>
-                <Input id="wo_partNumber" value={selectedItemForWorkOrder?.part_number || ""} readOnly className="bg-muted" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="wo_quantity">Quantity</Label>
-                <NumericInput
-                  id="wo_quantity"
-                  value={workOrderQuantity}
-                  onChange={(val) => setWorkOrderQuantity(val)}
-                  min={0}
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label htmlFor="wo_priority">Priority</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="wo_productionTime">Production Time</Label>
-                <Input id="wo_productionTime" placeholder="e.g. 3.5 hours" />
-              </div>
-              <div>
-                <Label htmlFor="wo_dueDate">Due Date</Label>
-                <Popover open={isDueDatePickerOpen} onOpenChange={setIsDueDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !workOrderDueDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {workOrderDueDate ? format(workOrderDueDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={workOrderDueDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          setWorkOrderDueDate(date);
-                          setIsDueDatePickerOpen(false);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="wo_description">Description</Label>
-              <Textarea id="wo_description" placeholder="Part description..." rows={3} defaultValue={selectedItemForWorkOrder?.description || ""} />
-            </div>
-
-            <div>
-              <Label htmlFor="wo_setupInstructions">Setup Instructions</Label>
-              <Textarea id="wo_setupInstructions" placeholder="Setup instructions for this work order..." rows={3} />
-            </div>
-
-            <div>
-              <Label htmlFor="wo_qualityRequirements">Quality Requirements</Label>
-              <Textarea id="wo_qualityRequirements" placeholder="Quality requirements and tolerances..." rows={3} />
-            </div>
-
-            <div>
-              <Label htmlFor="wo_productionNotes">Production Notes</Label>
-              <Textarea id="wo_productionNotes" placeholder="Production notes and requirements..." rows={3} />
-            </div>
-
-            {/* Tools Section */}
-            <div>
-              <Label className="flex items-center gap-2 mb-3">
-                <Settings className="w-4 h-4" />
-                Tools Required
-              </Label>
-              <div className="space-y-3">
-                {tools.map((tool, index) => <div key={index} className="flex gap-2 items-end">
-                    <div className="flex-1">
-                      <Select value={tool.name} onValueChange={value => {
-                    const newTools = [...tools];
-                    newTools[index].name = value;
-                    setTools(newTools);
-                  }}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select tool" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["CNC Mill", "Drill Press", "Precision Vise", "Laser Cutter", "Press Brake", "Precision Lathe", "CMM Machine", "Carbide Inserts", "5-Axis CNC Mill", "Boring Bar Set", "Go/No-Go Gauges", "Horizontal Boring Machine", "Carbide Tooling Set", "Surface Finish Gauge"].map(toolName => <SelectItem key={toolName} value={toolName}>
-                              {toolName}
-                            </SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-40">
-                      <NumericInput
-                        value={tool.quantity}
-                        onChange={(val) => {
-                    const newTools = [...tools];
-                          newTools[index].quantity = val.toString();
-                    setTools(newTools);
-                        }}
-                        min={0}
-                        placeholder="Qty"
-                      />
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => {
-                  if (tools.length > 1) {
-                    setTools(tools.filter((_, i) => i !== index));
-                  }
-                }}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>)}
-                <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => setTools([...tools, {
-                name: "",
-                quantity: ""
-              }])}>
-                  <Plus className="w-4 h-4" />
-                  Add Tool
-                </Button>
-              </div>
-            </div>
-
-            {/* Operators and Machines Section */}
-            <div>
-              <Label className="flex items-center gap-2 mb-3">
-                <Users className="w-4 h-4" />
-                Operators & Machines
-              </Label>
-              <div className="space-y-3">
-                {operatorsAndMachines.map((item, index) => <div key={index} className="flex gap-2 items-end">
-                    <div className="flex-1">
-                      <Select value={item.name} onValueChange={value => {
-                    const newItems = [...operatorsAndMachines];
-                    newItems[index].name = value;
-                    setOperatorsAndMachines(newItems);
-                  }}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={item.type === "operator" ? "Select operator" : "Select machine"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {item.type === "operator" ? staffList.map(staffMember => <SelectItem key={staffMember.id} value={staffMember.name}>
-                                {staffMember.name} - {staffMember.position}
-                              </SelectItem>) : ["CNC Machine #1", "CNC Machine #2", "CNC Machine #3", "Laser Cutting Machine #1", "CNC Lathe #2", "5-Axis CNC Machine #1", "Horizontal Boring Machine #2"].map(machine => <SelectItem key={machine} value={machine}>
-                                {machine}
-                              </SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-32">
-                      <Select value={item.type} onValueChange={value => {
-                    const newItems = [...operatorsAndMachines];
-                    newItems[index].type = value as "operator" | "machine";
-                    newItems[index].name = ""; // Clear selection when type changes
-                    setOperatorsAndMachines(newItems);
-                  }}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="operator">Operator</SelectItem>
-                          <SelectItem value="machine">Machine</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => {
-                  if (operatorsAndMachines.length > 1) {
-                    setOperatorsAndMachines(operatorsAndMachines.filter((_, i) => i !== index));
-                  }
-                }}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>)}
-                <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => setOperatorsAndMachines([...operatorsAndMachines, {
-                name: "",
-                type: "operator"
-              }])}>
-                  <Plus className="w-4 h-4" />
-                  Add Operator/Machine
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setIsWorkOrderDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={async () => {
-              const partName = selectedItemForWorkOrder?.name;
-              const partNumber = selectedItemForWorkOrder?.part_number;
-              const quantity = workOrderQuantity.toString();
-              const productionTime = (document.getElementById('wo_productionTime') as HTMLInputElement)?.value;
-              const dueDate = (document.getElementById('wo_dueDate') as HTMLInputElement)?.value;
-              const description = (document.getElementById('wo_description') as HTMLTextAreaElement)?.value;
-              if (!partName || !description) {
-                toast({
-                  title: "Error",
-                  description: "Please fill in required fields",
-                  variant: "destructive"
-                });
-                return;
-              }
-
-              // Generate work order number
-              const {
-                data: workOrderNumber,
-                error: numberError
-              } = await supabase.rpc('generate_work_order_number');
-              if (numberError) {
-                toast({
-                  title: "Error",
-                  description: "Failed to generate work order number",
-                  variant: "destructive"
-                });
-                return;
-              }
-              const {
-                data,
-                error
-              } = await supabase.from('work_orders').insert([{
-                title: workOrderNumber,
-                work_order_number: workOrderNumber,
-                description: description,
-                estimated_hours: productionTime ? parseFloat(productionTime) : null,
-                due_date: dueDate || null,
-                priority: 'medium',
-                status: 'pending',
-                inventory_id: selectedItemForWorkOrder?.id,
-                part_name: partName,
-                part_number: partNumber
-              }]).select();
-              if (error) {
-                toast({
-                  title: "Error",
-                  description: "Failed to create work order",
-                  variant: "destructive"
-                });
-              } else {
-                setIsWorkOrderDialogOpen(false);
-                toast({
-                  title: "Work Order Created",
-                  description: `Work order ${workOrderNumber} created for ${partName}`
-                });
-              }
-            }}>
-                Create Work Order
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CreateWorkOrderDialog
+        open={isWorkOrderDialogOpen}
+        onOpenChange={setIsWorkOrderDialogOpen}
+        defaultPartId={selectedItemForWorkOrder?.id}
+        defaultMaterials={selectedItemForWorkOrder?.materials_used && Array.isArray(selectedItemForWorkOrder.materials_used) 
+          ? selectedItemForWorkOrder.materials_used.filter((m: any) => m.name).map((m: any) => ({
+              name: m.name,
+              notes: m.notes || "",
+              lengthPerPiece: m.lengthPerPiece || ""
+            }))
+          : undefined}
+        onSuccess={() => {
+          // Refresh inventory items if needed
+          fetchInventoryItems();
+        }}
+      />
 
       {/* History Dialog */}
       <PartHistoryDialog isOpen={isHistoryDialogOpen} onClose={() => setIsHistoryDialogOpen(false)} item={selectedItemForHistory} historyData={historyData} />
@@ -3543,7 +3514,7 @@ export default function Inventory() {
           {selectedViewItem && <div className="space-y-6">
               {/* Photo and Basic Info */}
               <div className="flex gap-6">
-                {(selectedViewItem?.category === "Materials" || selectedViewItem?.category === "Components") ? (() => {
+                {selectedViewItem?.category === "Materials" ? (() => {
                   const materialInfo = selectedViewItem.materials_used || {};
                   const shape = materialInfo?.shape || "";
                   const shapeId = materialInfo?.shapeId || null;
@@ -3568,20 +3539,21 @@ export default function Inventory() {
                     <div className="flex-1">
                       <Label className="text-sm font-medium text-muted-foreground">
                         {selectedViewItem.category === "Tools" ? "Tool Name" : 
-                         (selectedViewItem.category === "Materials" || selectedViewItem.category === "Components") ? (selectedViewItem.category === "Materials" ? "Material Name" : "Component Name") : 
+                         selectedViewItem.category === "Materials" ? "Material Name" : 
+                         selectedViewItem.category === "Components" ? "Component Name" :
                          "Part Name"}
                       </Label>
                       <p className="text-xl font-semibold">
                         {selectedViewItem.category === "Tools" 
                           ? formatToolName(selectedViewItem.materials_used, selectedViewItem.name)
-                          : (selectedViewItem.category === "Materials" || selectedViewItem.category === "Components")
+                          : selectedViewItem.category === "Materials"
                           ? formatMaterialNameWithUnit(selectedViewItem.name)
                           : selectedViewItem.name
                         }
                       </p>
                     </div>
-                    {/* Totals for Materials and Components */}
-                    {(selectedViewItem?.category === "Materials" || selectedViewItem?.category === "Components") && materialViewAdditions.length > 0 && (() => {
+                    {/* Totals for Materials */}
+                    {selectedViewItem?.category === "Materials" && materialViewAdditions.length > 0 && (() => {
                       const totalRemainingMm = materialViewAdditions.reduce((sum, add) => sum + add.remainingMm, 0);
                       const totalRemainingMeters = totalRemainingMm / 1000;
                       let totalKg = 0;
@@ -3621,7 +3593,7 @@ export default function Inventory() {
                       <Label className="text-sm font-medium text-muted-foreground">Part Number</Label>
                       <p className="text-lg font-medium">{selectedViewItem.part_number}</p>
                     </div>}
-                  {selectedViewItem?.category !== "Materials" && selectedViewItem?.category !== "Components" && (
+                  {selectedViewItem?.category !== "Materials" && (
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">Location</Label>
                       <p className="flex items-center gap-2 text-base">
