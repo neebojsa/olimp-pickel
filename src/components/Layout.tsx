@@ -77,7 +77,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     const [searchTerm, setSearchTerm] = useState("");
 
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full min-h-screen">
         <div className="flex flex-col items-center justify-center px-4 pt-6 pb-4 space-y-4">
           <Link to="/inventory" className="flex items-center justify-center" onClick={onLinkClick}>
             {companyInfo?.logo_url ? (
@@ -188,7 +188,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <SheetContent 
             side="left" 
-            className="w-64 p-0"
+            className="w-64 p-0 !h-screen max-h-none [&>button]:hidden"
             onOpenAutoFocus={(e) => e.preventDefault()}
           >
             <NavContent onLinkClick={() => setIsMobileMenuOpen(false)} />
