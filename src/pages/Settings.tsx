@@ -64,15 +64,50 @@ export default function Settings() {
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
+  // System settings state
+  const [systemSettings, setSystemSettings] = useState({
+    app_title: "Olimp Pickel",
+    favicon_url: ""
+  });
+  const [faviconFile, setFaviconFile] = useState<File | null>(null);
+
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  // Update document title and favicon when system settings change
+  useEffect(() => {
+    if (systemSettings.app_title) {
+      document.title = systemSettings.app_title;
+    }
+    
+    if (systemSettings.favicon_url) {
+      // Remove existing favicon links
+      const existingLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]');
+      existingLinks.forEach(link => link.remove());
+      
+      // Add new favicon link
+      const link = document.createElement('link');
+      link.rel = 'icon';
+      // Detect favicon type from data URL or file extension
+      if (systemSettings.favicon_url.startsWith('data:image/svg')) {
+        link.type = 'image/svg+xml';
+      } else if (systemSettings.favicon_url.startsWith('data:image/png')) {
+        link.type = 'image/png';
+      } else {
+        link.type = 'image/x-icon';
+      }
+      link.href = systemSettings.favicon_url;
+      document.head.appendChild(link);
+    }
+  }, [systemSettings]);
 
   const fetchAllData = async () => {
     await Promise.all([
       fetchCompanyInfo(),
       fetchUserProfile(),
-      fetchUserPreferences()
+      fetchUserPreferences(),
+      fetchSystemSettings()
     ]);
   };
 
@@ -128,6 +163,26 @@ export default function Settings() {
     }
     if (data) {
       setCompanyData(data);
+    }
+  };
+
+  const fetchSystemSettings = async () => {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error fetching system settings:', error);
+      return;
+    }
+    
+    if (data) {
+      setSystemSettings({
+        app_title: data.app_title || "Olimp Pickel",
+        favicon_url: data.favicon_url || ""
+      });
     }
   };
 
@@ -194,6 +249,55 @@ export default function Settings() {
       toast({
         title: "Upload failed",
         description: "Failed to process avatar. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const handleFaviconUpload = async (file: File) => {
+    try {
+      // Validate file type - favicon can be ICO, PNG, or SVG
+      const validTypes = ['image/x-icon', 'image/png', 'image/svg+xml', 'image/jpeg', 'image/jpg'];
+      if (!validTypes.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an ICO, PNG, JPG, or SVG image.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // For ICO files, don't resize, just convert to base64
+      if (file.type === 'image/x-icon') {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64String = reader.result as string;
+            resolve(base64String);
+          };
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // For other image types, resize to 32x32 (standard favicon size)
+      const resizedFile = await resizeImageFile(file, 32, 32, 0.9);
+      
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64String = reader.result as string;
+          resolve(base64String);
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(resizedFile);
+      });
+    } catch (error) {
+      console.error('Favicon upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to process favicon. Please try again.",
         variant: "destructive",
       });
       return null;
@@ -299,6 +403,72 @@ export default function Settings() {
     toast({
       title: "Preferences saved",
       description: "Your preferences have been updated successfully.",
+    });
+  };
+
+  const handleSaveSystemSettings = async () => {
+    let faviconUrl = systemSettings.favicon_url;
+    
+    if (faviconFile) {
+      faviconUrl = await handleFaviconUpload(faviconFile);
+      if (!faviconUrl) return;
+    }
+
+    const settingsData = {
+      app_title: systemSettings.app_title,
+      favicon_url: faviconUrl
+    };
+
+    const { data: existingData, error: fetchError } = await supabase
+      .from('system_settings')
+      .select('id')
+      .limit(1)
+      .maybeSingle();
+    
+    if (fetchError) {
+      console.error('Fetch error:', fetchError);
+      toast({
+        title: "Save failed",
+        description: `Failed to fetch system settings: ${fetchError.message}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (existingData) {
+      const { error } = await supabase
+        .from('system_settings')
+        .update(settingsData)
+        .eq('id', existingData.id);
+      
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: `Failed to update system settings: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from('system_settings')
+        .insert([settingsData]);
+      
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: `Failed to save system settings: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setSystemSettings({ ...systemSettings, favicon_url: faviconUrl });
+    setFaviconFile(null);
+    toast({
+      title: "System settings saved",
+      description: "Your system settings have been updated successfully.",
     });
   };
 
@@ -880,6 +1050,52 @@ export default function Settings() {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
+                  <Label>Application Title</Label>
+                  <Input
+                    value={systemSettings.app_title}
+                    onChange={(e) => setSystemSettings(prev => ({ ...prev, app_title: e.target.value }))}
+                    placeholder="Enter application title"
+                  />
+                  <p className="text-xs text-muted-foreground">This title will be displayed in the browser tab</p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label>Favicon</Label>
+                  <div className="flex items-center gap-4">
+                    {systemSettings.favicon_url && (
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={systemSettings.favicon_url} 
+                          alt="Favicon" 
+                          className="w-8 h-8 object-contain"
+                        />
+                        <span className="text-sm text-muted-foreground">Current favicon</span>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        type="file"
+                        accept="image/x-icon,image/png,image/svg+xml,image/jpeg,image/jpg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFaviconFile(file);
+                          }
+                        }}
+                        className="cursor-pointer"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Upload an ICO, PNG, JPG, or SVG file (recommended: 32x32px)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
                   <Label>Language</Label>
                   <Select value={preferences.language} onValueChange={(value) => setPreferences(prev => ({ ...prev, language: value }))}>
                     <SelectTrigger>
@@ -1055,9 +1271,12 @@ export default function Settings() {
                 
                 <Separator />
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  <Button onClick={handleSaveSystemSettings} className="px-8">
+                    Save App Settings
+                  </Button>
                   <Button onClick={handleSavePreferences} className="px-8">
-                    Save System Settings
+                    Save Preferences
                   </Button>
                 </div>
                 

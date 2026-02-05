@@ -8,6 +8,7 @@ import { Layout } from "@/components/Layout";
 import { Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
+import { supabase } from "@/integrations/supabase/client";
 import Login from "./pages/Login";
 import Inventory from "./pages/Inventory";
 import WorkOrders from "./pages/WorkOrders";
@@ -60,6 +61,40 @@ const AppContent: React.FC = () => {
       loadUserTheme();
     }
   }, [staff, loadUserTheme]);
+
+  // Load system settings (title and favicon) on app startup
+  useEffect(() => {
+    const loadSystemSettings = async () => {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+      
+      if (!error && data) {
+        // Update document title
+        if (data.app_title) {
+          document.title = data.app_title;
+        }
+        
+        // Update favicon
+        if (data.favicon_url) {
+          // Remove existing favicon links
+          const existingLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]');
+          existingLinks.forEach(link => link.remove());
+          
+          // Add new favicon link
+          const link = document.createElement('link');
+          link.rel = 'icon';
+          link.type = data.favicon_url.startsWith('data:image/svg') ? 'image/svg+xml' : 'image/x-icon';
+          link.href = data.favicon_url;
+          document.head.appendChild(link);
+        }
+      }
+    };
+
+    loadSystemSettings();
+  }, []);
 
   return (
     <BrowserRouter>

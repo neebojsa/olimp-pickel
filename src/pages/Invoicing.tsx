@@ -3082,6 +3082,42 @@ ${cssVariables}
                     flex: 1 1 0 !important;
                   }
                   
+                  /* Footer positioning for screen - FIXED */
+                  .invoice-footer-wrapper {
+                    position: absolute !important;
+                    bottom: 10mm !important;
+                    left: 15mm !important;
+                    right: 15mm !important;
+                    width: calc(100% - 30mm) !important;
+                    margin-top: 0 !important;
+                  }
+                  
+                  .invoice-content-area {
+                    padding-bottom: 0mm !important;
+                    overflow: visible !important;
+                    min-height: 0 !important;
+                    position: relative !important;
+                    z-index: 0 !important;
+                  }
+                  
+                  .invoice-items-table {
+                    page-break-inside: auto !important;
+                    margin-bottom: 0 !important;
+                  }
+                  
+                  .invoice-items-table tbody tr {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                  }
+                  
+                  .invoice-footer-wrapper {
+                    z-index: 1 !important;
+                  }
+                  
+                  .invoice-foreign-note {
+                    z-index: 2 !important;
+                  }
+                  
                   /* Invoice items table - screen preview */
                   .invoice-items-table {
                     width: 100% !important;
@@ -3305,9 +3341,40 @@ ${cssVariables}
                     flex: 1 1 0 !important;
                   }
                    
-                   /* Footer positioning for print */
+                   /* Footer positioning for print - FIXED */
                    .invoice-footer-wrapper {
-                     margin-top: auto !important;
+                     position: absolute !important;
+                     bottom: 10mm !important;
+                     left: 15mm !important;
+                     right: 15mm !important;
+                     width: calc(100% - 30mm) !important;
+                     margin-top: 0 !important;
+                   }
+                   
+                   .invoice-content-area {
+                     padding-bottom: 0mm !important;
+                     overflow: visible !important;
+                     min-height: 0 !important;
+                     position: relative !important;
+                     z-index: 0 !important;
+                   }
+                   
+                   .invoice-items-table {
+                     page-break-inside: auto !important;
+                     margin-bottom: 0 !important;
+                   }
+                   
+                   .invoice-items-table tbody tr {
+                     page-break-inside: avoid !important;
+                     break-inside: avoid !important;
+                   }
+                   
+                   .invoice-footer-wrapper {
+                     z-index: 1 !important;
+                   }
+                   
+                   .invoice-foreign-note {
+                     z-index: 2 !important;
                    }
                   
                   .invoice-header {
@@ -3597,160 +3664,176 @@ ${cssVariables}
                         </div>
                       </div>
 
-                      {/* Invoice Items */}
-                      <div className="no-page-break">
-                        <table className="invoice-items-table w-full border-collapse print:border-black">
-                          <thead>
-                            <tr>
-                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.partName}</th>
-                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.partNumber}</th>
-                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.unit}</th>
-                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.quantity}</th>
-                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.subtotalWeight}</th>
-                              <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.price}</th>
-                              <th className="text-right text-sm" style={{verticalAlign: 'middle'}}>{translations.amount}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {pageItems.map((item, itemIndex) => {
-                              // Use inventory_id if available, otherwise fallback to name lookup for backward compatibility
-                              // Debug: log the item to see what fields are available
-                              if (itemIndex === 0) {
-                                console.log('Invoice item data:', item);
-                                console.log('Has inventory_id?', !!item.inventory_id, item.inventory_id);
-                              }
-                              const inventoryItem = item.inventory_id 
-                                ? inventoryItems.find(inv => inv.id === item.inventory_id)
-                                : inventoryItems.find(inv => inv.name === item.description);
-                              const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
-                              return (
-                                <tr key={itemIndex}>
-                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{item.description}</td>
-                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{inventoryItem?.part_number || '-'}</td>
-                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{inventoryItem?.unit || translations.piece}</td>
-                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{item.quantity}</td>
-                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{subtotalWeight.toFixed(2)} kg</td>
-                                  <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
-                                  <td className="text-right text-sm" style={{verticalAlign: 'middle'}}>{formatCurrency(item.total, selectedInvoice.currency)}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                      {/* Content area with padding to prevent footer overlap */}
+                      <div className="invoice-content-area">
+                        {/* Invoice Items */}
+                        <div className="no-page-break">
+                          <table className="invoice-items-table w-full border-collapse print:border-black">
+                            <thead>
+                              <tr>
+                                <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.partName}</th>
+                                <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.partNumber}</th>
+                                <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.unit}</th>
+                                <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.quantity}</th>
+                                <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.subtotalWeight}</th>
+                                <th className="text-left text-sm" style={{verticalAlign: 'middle'}}>{translations.price}</th>
+                                <th className="text-right text-sm" style={{verticalAlign: 'middle'}}>{translations.amount}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pageItems.map((item, itemIndex) => {
+                                // Use inventory_id if available, otherwise fallback to name lookup for backward compatibility
+                                // Debug: log the item to see what fields are available
+                                if (itemIndex === 0) {
+                                  console.log('Invoice item data:', item);
+                                  console.log('Has inventory_id?', !!item.inventory_id, item.inventory_id);
+                                }
+                                const inventoryItem = item.inventory_id 
+                                  ? inventoryItems.find(inv => inv.id === item.inventory_id)
+                                  : inventoryItems.find(inv => inv.name === item.description);
+                                const subtotalWeight = (inventoryItem?.weight || 0) * item.quantity;
+                                // Translate "piece"/"pieces" to "kom." for domestic invoices
+                                const isDomestic = selectedInvoice.customers?.country === 'Bosnia and Herzegovina';
+                                const unitValue = inventoryItem?.unit || translations.piece;
+                                const displayUnit = (isDomestic && (unitValue === 'piece' || unitValue === 'pieces' || !unitValue)) 
+                                  ? 'kom.' 
+                                  : unitValue;
+                                return (
+                                  <tr key={itemIndex}>
+                                    <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{item.description}</td>
+                                    <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{inventoryItem?.part_number || '-'}</td>
+                                    <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{displayUnit}</td>
+                                    <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{item.quantity}</td>
+                                    <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{subtotalWeight.toFixed(2)} kg</td>
+                                    <td className="text-left text-sm" style={{verticalAlign: 'middle'}}>{formatCurrency(item.unit_price, selectedInvoice.currency)}</td>
+                                    <td className="text-right text-sm" style={{verticalAlign: 'middle'}}>{formatCurrency(item.total, selectedInvoice.currency)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Invoice Summary - Only on last page */}
+                        {isLastPage && (
+                          <>
+                            <div className="grid grid-cols-2 gap-6 no-page-break print:mt-2">
+                           
+                              <div style={{ width: '420px' }}>
+                                <h3 className="font-semibold mb-2 print-text-base">{translations.summary}</h3>
+                                <div className="space-y-1 text-sm print:space-y-2 print-text-sm">
+                                  <p><span className="font-medium">{translations.totalQuantity}</span> {selectedInvoice.total_quantity} {translations.pieces}</p>
+                                  <p><span className="font-medium">{translations.netWeight}</span> {selectedInvoice.net_weight} kg</p>
+                                  <p><span className="font-medium">{translations.totalWeight}</span> {selectedInvoice.total_weight} kg</p>
+                                  <p><span className="font-medium">{translations.packing}</span> {selectedInvoice.packing} {selectedInvoice.packing === 1 ? translations.package : translations.packages}</p>
+                                </div>
+                                {/* Declaration for foreign invoices under 6000€ */}
+                                {selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' && 
+                                 selectedInvoice.currency === 'EUR' && 
+                                 (selectedInvoice.amount || 0) < 6000 && (
+                                  <div className="mt-4 print:mt-6 text-sm print-text-sm space-y-2">
+                                    <p className="leading-relaxed text-justify print:text-justify">
+                                      Izjava: Izvoznik proizvoda obuhvaćenih ovom ispravom izjavljuje da su, osim ako je to drugačije izričito navedeno, ovi proizvodi bosanskohercegovačkog preferencijalnog porijekla.
+                                    </p>
+                                    <p className="leading-relaxed">
+                                      Potpis izvoznika: {invoiceSettings.signatory || 'Radmila Kuzmanović'} <span style={{ borderBottom: '1px solid #000', display: 'inline-block', minWidth: '150px', marginBottom: '-0.2rem' }}></span>
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="text-right w-3/5 ml-auto">
+                                <div className="space-y-2 print:space-y-3">
+                                  <div className="flex justify-between print-text-sm">
+                                    <span>{translations.subtotal}</span>
+                                    <span>{formatCurrency((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
+                                  </div>
+                                  <div className="flex justify-between print-text-sm">
+                                    <span>{translations.vat} ({selectedInvoice.vat_rate}%):</span>
+                                    <span>{formatCurrency((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
+                                  </div>
+                                  <div 
+                                    id="invoice-total-amount"
+                                    style={{
+                                      backgroundColor: invoiceSettings.primaryColor,
+                                      position: 'absolute',
+                                      width: '286px',
+                                      paddingLeft: '50px',
+                                      paddingRight: '48px',
+                                      height: '30px',
+                                      right: '7px'
+                                    }} 
+                                    className="flex justify-between font-bold text-lg print-invoice-bg h-[35px] items-center print-text-base total-amount-bg"
+                                  >
+                                    <span>{translations.total}</span>
+                                    <span>{formatCurrency(selectedInvoice.amount || 0, selectedInvoice.currency)}</span>
+                                  </div>
+                                </div>
+                                {/* VAT Exemption Notice for Foreign Customers - Positioned below Total */}
+                                {selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' && (
+                                  <div 
+                                    id="invoice-vat-exemption-statement"
+                                    className="print-text-xs text-xs" 
+                                    style={{ 
+                                      position: 'absolute',
+                                      right: '7px',
+                                      width: '286px',
+                                      paddingLeft: '0px',
+                                      paddingRight: '0px',
+                                      marginTop: '40px',
+                                      textAlign: 'left',
+                                      color: '#000000'
+                                    }}
+                                  >
+                                    <p className="mb-1 leading-tight">Oslobođeno od plaćanja PDV-a po članu 27. tačka 1. zakona o PDV-u, Službeni glasnik br. 91/05 i 35/05.</p>
+                                    <p className="leading-tight">Exempt from VAT payment pursuant to Article 27, Item 1 of the VAT Law, Official Gazette No. 91/05 and 35/05.</p>
+                                  </div>
+                                )}
+                                {/* Signatory - Positioned below VAT Exemption Notice */}
+                                {invoiceSettings.signatory && (
+                                  <div 
+                                    id="invoice-signatory"
+                                    className="text-center" 
+                                    style={{ 
+                                      position: 'absolute',
+                                      right: '7px',
+                                      width: '286px',
+                                      paddingLeft: '50px',
+                                      paddingRight: '48px',
+                                      marginTop: selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' ? '100px' : '45px',
+                                      fontSize: '0.7rem'
+                                    }}
+                                  >
+                                    <p style={{ marginBottom: '1.8rem', marginTop: '1.8rem'}}>{invoiceSettings.signatory}</p>
+                                    <div style={{ borderBottom: '1px solid #000', width: '100%', margin: '0 auto' }}></div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {selectedInvoice.notes && (
+                              <div className="no-page-break print:mt-6">
+                                <h3 className="font-semibold mb-2 print-text-base">{translations.notes}</h3>
+                                <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.notes}</p>
+                              </div>
+                            )}
+                          </>
+                        )}
+
                       </div>
 
-                      {/* Invoice Summary - Only on last page */}
-                      {isLastPage && (
-                        <>
-                          <div className="grid grid-cols-2 gap-6 no-page-break print:mt-2">
-                         
-                            <div style={{ width: '420px' }}>
-                              <h3 className="font-semibold mb-2 print-text-base">{translations.summary}</h3>
-                              <div className="space-y-1 text-sm print:space-y-2 print-text-sm">
-                                <p><span className="font-medium">{translations.totalQuantity}</span> {selectedInvoice.total_quantity} {translations.pieces}</p>
-                                <p><span className="font-medium">{translations.netWeight}</span> {selectedInvoice.net_weight} kg</p>
-                                <p><span className="font-medium">{translations.totalWeight}</span> {selectedInvoice.total_weight} kg</p>
-                                <p><span className="font-medium">{translations.packing}</span> {selectedInvoice.packing} {selectedInvoice.packing === 1 ? translations.package : translations.packages}</p>
-                              </div>
-                              {/* Declaration for foreign invoices under 6000€ */}
-                              {selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' && 
-                               selectedInvoice.currency === 'EUR' && 
-                               (selectedInvoice.amount || 0) < 6000 && (
-                                <div className="mt-4 print:mt-6 text-sm print-text-sm space-y-2">
-                                  <p className="leading-relaxed text-justify print:text-justify">
-                                    Izjava: Izvoznik proizvoda obuhvaćenih ovom ispravom izjavljuje da su, osim ako je to drugačije izričito navedeno, ovi proizvodi bosanskohercegovačkog preferencijalnog porijekla.
-                                  </p>
-                                  <p className="leading-relaxed">
-                                    Potpis izvoznika: {invoiceSettings.signatory || 'Radmila Kuzmanović'} <span style={{ borderBottom: '1px solid #000', display: 'inline-block', minWidth: '150px', marginBottom: '-0.2rem' }}></span>
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="text-right w-3/5 ml-auto">
-                              <div className="space-y-2 print:space-y-3">
-                                <div className="flex justify-between print-text-sm">
-                                  <span>{translations.subtotal}</span>
-                                  <span>{formatCurrency((selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
-                                </div>
-                                <div className="flex justify-between print-text-sm">
-                                  <span>{translations.vat} ({selectedInvoice.vat_rate}%):</span>
-                                  <span>{formatCurrency((selectedInvoice.amount || 0) - (selectedInvoice.amount || 0) / (1 + (selectedInvoice.vat_rate || 0) / 100), selectedInvoice.currency)}</span>
-                                </div>
-                                <div 
-                                  id="invoice-total-amount"
-                                  style={{
-                                    backgroundColor: invoiceSettings.primaryColor,
-                                    position: 'absolute',
-                                    width: '286px',
-                                    paddingLeft: '50px',
-                                    paddingRight: '48px',
-                                    height: '30px',
-                                    right: '7px'
-                                  }} 
-                                  className="flex justify-between font-bold text-lg print-invoice-bg h-[35px] items-center print-text-base total-amount-bg"
-                                >
-                                  <span>{translations.total}</span>
-                                  <span>{formatCurrency(selectedInvoice.amount || 0, selectedInvoice.currency)}</span>
-                                </div>
-                              </div>
-                              {/* VAT Exemption Notice for Foreign Customers - Positioned below Total */}
-                              {selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' && (
-                                <div 
-                                  id="invoice-vat-exemption-statement"
-                                  className="print-text-xs text-xs" 
-                                  style={{ 
-                                    position: 'absolute',
-                                    right: '7px',
-                                    width: '286px',
-                                    paddingLeft: '0px',
-                                    paddingRight: '0px',
-                                    marginTop: '40px',
-                                    textAlign: 'left',
-                                    color: '#000000'
-                                  }}
-                                >
-                                  <p className="mb-1 leading-tight">Oslobođeno od plaćanja PDV-a po članu 27. tačka 1. zakona o PDV-u, Službeni glasnik br. 91/05 i 35/05.</p>
-                                  <p className="leading-tight">Exempt from VAT payment pursuant to Article 27, Item 1 of the VAT Law, Official Gazette No. 91/05 and 35/05.</p>
-                                </div>
-                              )}
-                              {/* Signatory - Positioned below VAT Exemption Notice */}
-                              {invoiceSettings.signatory && (
-                                <div 
-                                  id="invoice-signatory"
-                                  className="text-center" 
-                                  style={{ 
-                                    position: 'absolute',
-                                    right: '7px',
-                                    width: '286px',
-                                    paddingLeft: '50px',
-                                    paddingRight: '48px',
-                                    marginTop: selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' ? '100px' : '45px',
-                                    fontSize: '0.7rem'
-                                  }}
-                                >
-                                  <p style={{ marginBottom: '1.8rem', marginTop: '1.8rem'}}>{invoiceSettings.signatory}</p>
-                                  <div style={{ borderBottom: '1px solid #000', width: '100%', margin: '0 auto' }}></div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {selectedInvoice.notes && (
-                            <div className="no-page-break print:mt-6">
-                              <h3 className="font-semibold mb-2 print-text-base">{translations.notes}</h3>
-                              <p className="text-sm whitespace-pre-line print-text-sm">{selectedInvoice.notes}</p>
-                            </div>
-                          )}
-                        </>
-                      )}
-
-                      {/* Content wrapper that grows to push footer down */}
-                      <div className="flex-1" style={{minHeight: 0}}></div>
-
-                      {/* Foreign Customer Note - Above footer line */}
-                      {selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' && invoiceSettings.foreignNote && invoiceSettings.foreignNote.trim() && (
-                        <div className="invoice-footer-wrapper mt-auto" style={{ marginBottom: 0 }}>
+                      {/* Foreign Customer Note - Above footer line - FIXED position */}
+                      {isLastPage && selectedInvoice.customers?.country !== 'Bosnia and Herzegovina' && invoiceSettings.foreignNote && invoiceSettings.foreignNote.trim() && (
+                        <div 
+                          className="invoice-foreign-note"
+                          style={{ 
+                            position: 'absolute',
+                            bottom: '30mm',
+                            left: '15mm',
+                            right: '15mm',
+                            width: 'calc(100% - 30mm)'
+                          }}
+                        >
                           <p 
                             className="print-text-xs text-xs leading-relaxed" 
                             style={{ 
@@ -3764,9 +3847,9 @@ ${cssVariables}
                         </div>
                       )}
 
-                      {/* Footer with separator line - Always at bottom */}
+                      {/* Footer with separator line - FIXED at bottom */}
                       {(invoiceSettings.foreignFooter.some(col => col.trim()) || invoiceSettings.domesticFooter.some(col => col.trim())) && (
-                        <div className="invoice-footer-wrapper mt-auto">
+                        <div className="invoice-footer-wrapper">
                           <Separator className="print:border-black print:border-t print:mt-4 print:mb-2 border-t border-gray-600 mt-4 mb-2" />
                           <div className="text-xs print-text-xs flex justify-between gap-6 invoice-footer-columns" style={{ color: '#000000' }}>
                             {selectedInvoice.customers?.country === 'Bosnia and Herzegovina' ? (

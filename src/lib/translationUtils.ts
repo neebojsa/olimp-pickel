@@ -70,7 +70,7 @@ const bosnianTranslations: InvoiceTranslations = {
   generatedOn: 'Generisano',
   at: 'u',
   pieces: 'kom',
-  piece: 'komad'
+  piece: 'kom.'
 };
 
 const englishTranslations: InvoiceTranslations = {

@@ -31,6 +31,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { MaterialAdjustmentDialog } from "@/components/MaterialAdjustmentDialog";
+import { ComponentAdjustmentDialog } from "@/components/ComponentAdjustmentDialog";
 import { MaterialHistoryDialog } from "@/components/MaterialHistoryDialog";
 import { MaterialReorderDialog } from "@/components/MaterialReorderDialog";
 import { MaterialReorderSummaryDialog } from "@/components/MaterialReorderSummaryDialog";
@@ -113,6 +114,9 @@ export default function Inventory() {
   const [isMaterialManagementDialogOpen, setIsMaterialManagementDialogOpen] = useState(false);
   const [isMaterialAdjustmentDialogOpen, setIsMaterialAdjustmentDialogOpen] = useState(false);
   const [selectedMaterialForAdjustment, setSelectedMaterialForAdjustment] = useState<any>(null);
+  const [isComponentAdjustmentDialogOpen, setIsComponentAdjustmentDialogOpen] = useState(false);
+  const [selectedComponentForAdjustment, setSelectedComponentForAdjustment] = useState<any>(null);
+  const [componentAdjustmentType, setComponentAdjustmentType] = useState<'add' | 'subtract'>('add');
   const [isMaterialHistoryDialogOpen, setIsMaterialHistoryDialogOpen] = useState(false);
   const [selectedMaterialForHistory, setSelectedMaterialForHistory] = useState<any>(null);
   const [isMaterialReorderDialogOpen, setIsMaterialReorderDialogOpen] = useState(false);
@@ -1941,6 +1945,42 @@ export default function Inventory() {
                                            )}
                                          </>
                                        )}
+                                       {item.category === "Components" && (
+                                         <>
+                                           <Button variant="outline" size="icon" className="h-8 w-8 text-green-600" onClick={e => {
+                                             e.stopPropagation();
+                                             setSelectedComponentForAdjustment(item);
+                                             setComponentAdjustmentType('add');
+                                             setIsComponentAdjustmentDialogOpen(true);
+                                           }} title="Add Quantity">
+                                             <Plus className="h-4 w-4" />
+                                           </Button>
+                                           <Button variant="outline" size="icon" className="h-8 w-8 text-red-600" onClick={e => {
+                                             e.stopPropagation();
+                                             setSelectedComponentForAdjustment(item);
+                                             setComponentAdjustmentType('subtract');
+                                             setIsComponentAdjustmentDialogOpen(true);
+                                           }} title="Remove Quantity">
+                                             <Minus className="h-4 w-4" />
+                                           </Button>
+                                           {!materialReorders[item.id] ? (
+                                             <Button variant="outline" size="icon" className="h-8 w-8 text-blue-600" onClick={e => {
+                                               e.stopPropagation();
+                                               setSelectedMaterialForReorder(item);
+                                               setIsMaterialReorderDialogOpen(true);
+                                             }} title="Mark for Reorder">
+                                               <ShoppingCart className="h-4 w-4" />
+                                             </Button>
+                                           ) : (
+                                             <Button variant="outline" size="icon" className="h-8 w-8 text-orange-600" onClick={e => {
+                                               e.stopPropagation();
+                                               handleCancelReorder(item.id);
+                                             }} title="Cancel Reorder">
+                                               <X className="h-4 w-4" />
+                                             </Button>
+                                           )}
+                                         </>
+                                       )}
                                        {item.category !== "Materials" && item.category !== "Components" && (
                                          <>
                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
@@ -2330,7 +2370,47 @@ export default function Inventory() {
                             )}
                           </>
                         )}
-                        {item.category !== "Materials" && (
+                        {item.category === "Components" && (
+                          <>
+                            <Button variant="outline" size="sm" className="text-green-600" onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedComponentForAdjustment(item);
+                              setComponentAdjustmentType('add');
+                              setIsComponentAdjustmentDialogOpen(true);
+                            }}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-red-600" onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedComponentForAdjustment(item);
+                              setComponentAdjustmentType('subtract');
+                              setIsComponentAdjustmentDialogOpen(true);
+                            }}>
+                              <Minus className="h-4 w-4 mr-2" />
+                              Remove
+                            </Button>
+                            {!materialReorders[item.id] ? (
+                              <Button variant="outline" size="sm" className="text-blue-600" onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedMaterialForReorder(item);
+                                setIsMaterialReorderDialogOpen(true);
+                              }}>
+                                <ShoppingCart className="h-4 w-4 mr-2" />
+                                Reorder
+                              </Button>
+                            ) : (
+                              <Button variant="outline" size="sm" className="text-orange-600" onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelReorder(item.id);
+                              }}>
+                                <X className="h-4 w-4 mr-2" />
+                                Cancel Reorder
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        {item.category !== "Materials" && item.category !== "Components" && (
                           <>
                             <Button variant="outline" size="sm" onClick={(e) => {
                               e.stopPropagation();
@@ -3887,6 +3967,16 @@ export default function Inventory() {
         isOpen={isMaterialAdjustmentDialogOpen}
         onClose={() => setIsMaterialAdjustmentDialogOpen(false)}
         material={selectedMaterialForAdjustment}
+        onSuccess={() => {
+          // Refresh inventory items
+          fetchInventoryItems();
+        }}
+      />
+      <ComponentAdjustmentDialog
+        isOpen={isComponentAdjustmentDialogOpen}
+        onClose={() => setIsComponentAdjustmentDialogOpen(false)}
+        component={selectedComponentForAdjustment}
+        initialType={componentAdjustmentType}
         onSuccess={() => {
           // Refresh inventory items
           fetchInventoryItems();

@@ -10,7 +10,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { getCurrencyForCountry, getCurrencySymbol } from "@/lib/currencyUtils";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { ShapeImage } from "@/components/ShapeImage";
 
@@ -620,9 +619,8 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
               ) : (
                 <div className="space-y-2">
                   <Label>Select additions to remove from:</Label>
-                  <ScrollArea className="h-[400px] border rounded-md p-4">
-                    <div className="space-y-4">
-                      {availableAdditions.map((add: any) => {
+                  <div className="space-y-4">
+                    {availableAdditions.map((add: any) => {
                         const supplierName = suppliers.find(s => s.id === add.supplier_id)?.name || 'N/A';
                         const removal = removalData[add.id] || { length: '', notes: '' };
                         const remainingMeters = add.remainingMm / 1000;
@@ -739,9 +737,8 @@ export function MaterialAdjustmentDialog({ isOpen, onClose, material, onSuccess 
                             </div>
                           </div>
                         );
-                      })}
-                    </div>
-                  </ScrollArea>
+                    })}
+                  </div>
                   
                   {/* Summary Footer */}
                   {availableAdditions.length > 0 && (() => {
