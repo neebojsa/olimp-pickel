@@ -15,7 +15,6 @@ import WorkOrders from "./pages/WorkOrders";
 import Invoicing from "./pages/Invoicing";
 import Accounting from "./pages/Accounting";
 import CostManagement from "./pages/CostManagement";
-import Labels from "./pages/Labels";
 import Sales from "./pages/Sales";
 import Customers from "./pages/Customers";
 import Suppliers from "./pages/Suppliers";
@@ -124,11 +123,6 @@ const AppContent: React.FC = () => {
               <Route path="/cost-management" element={
                 <ProtectedRoute page="cost-management">
                   <Layout><CostManagement /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/labels" element={
-                <ProtectedRoute page="labels">
-                  <Layout><Labels /></Layout>
                 </ProtectedRoute>
               } />
               <Route path="/sales" element={
