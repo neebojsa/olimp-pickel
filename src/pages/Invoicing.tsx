@@ -3300,23 +3300,6 @@ ${cssVariables}
                                 return;
                               }
                             }}
-                            onMouseDown={(e) => {
-                              // Only prevent propagation for clicks on non-scrollable elements
-                              // Allow scrolling interactions to work normally
-                              const target = e.target as HTMLElement;
-                              const listElement = target.closest('[cmdk-list]');
-                              const commandItem = target.closest('[cmdk-item]');
-                              
-                              // Don't prevent default/propagation for scrollable list area
-                              // This allows wheel scrolling to work
-                              if (listElement && !commandItem) {
-                                return; // Allow scrolling in the list
-                              }
-                              
-                              // Prevent event from bubbling up and closing popover for clicks on items
-                              // But allow normal scrolling behavior
-                              e.stopPropagation();
-                            }}
                             onWheel={(e) => {
                               // Prevent scroll chaining to parent when scrolling inside popover
                               e.stopPropagation();

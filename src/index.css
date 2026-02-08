@@ -259,13 +259,6 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
-  /* Mobile touch scrolling utility for dropdowns/command lists */
-  .touch-scroll {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
-  }
-
   body {
     @apply bg-background text-foreground;
     font-family: 'Lexend', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
