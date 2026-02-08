@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { FileText, Plus, Search, DollarSign, Calendar as CalendarIcon, Send, Trash2, Edit, Settings, Check, ChevronsUpDown, Printer, Filter, X, ExternalLink, Tag } from "lucide-react";
+import { FileText, Plus, Search, DollarSign, Calendar as CalendarIcon, Send, Trash2, Edit, Settings, Check, ChevronsUpDown, Printer, Filter, X, ExternalLink, Tag, Download } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1052,6 +1052,7 @@ export default function Invoicing() {
   const selectedCustomer = getSelectedCustomer();
 
   const [printingInvoice, setPrintingInvoice] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   
   // Labels functionality state
   const [isLabelsDialogOpen, setIsLabelsDialogOpen] = useState(false);
@@ -2143,465 +2144,479 @@ export default function Invoicing() {
 
   const labels = selectedInvoiceForLabels ? generateLabels(selectedInvoiceForLabels) : [];
 
-  const printInvoiceWithMediaPrint = () => {
+  // Shared helper function to prepare print window with invoice content
+  const prepareInvoicePrintWindow = (): Window | null => {
     if (!invoiceContainerRef.current || !selectedInvoice) {
       toast({
         title: "Error",
         description: "Invoice not found. Please try again.",
         variant: "destructive"
       });
-      return;
+      return null;
     }
 
-    setPrintingInvoice(true);
-    try {
-      const container = invoiceContainerRef.current;
-      const pages = container.querySelectorAll('.print-invoice-page');
-      
-      if (pages.length === 0) {
-        toast({
-          title: "Error",
-          description: "No invoice pages found to print.",
-          variant: "destructive"
-        });
-        setPrintingInvoice(false);
-        return;
-      }
-
-      // Create a new window for printing
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        toast({
-          title: "Error",
-          description: "Please allow popups to print the invoice.",
-          variant: "destructive"
-        });
-        setPrintingInvoice(false);
-        return;
-      }
-
-      // Clone all pages with deep cloning to preserve styles
-      const pagesHTML: string[] = [];
-      pages.forEach((page) => {
-        const clonedPage = page.cloneNode(true) as HTMLElement;
-        // Remove any print:hidden elements
-        const hiddenElements = clonedPage.querySelectorAll('.print\\:hidden, [class*="print:hidden"]');
-        hiddenElements.forEach(el => el.remove());
-        pagesHTML.push(clonedPage.outerHTML);
+    const container = invoiceContainerRef.current;
+    const pages = container.querySelectorAll('.print-invoice-page');
+    
+    if (pages.length === 0) {
+      toast({
+        title: "Error",
+        description: "No invoice pages found.",
+        variant: "destructive"
       });
+      return null;
+    }
 
-      // Get all inline styles from the document
-      const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
-      
-      // Get all linked stylesheets
-      const stylesheetLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-        .map(link => `<link rel="stylesheet" href="${(link as HTMLLinkElement).href}">`)
-        .join('\n');
-      
-      // Get CSS variables from root
-      const rootStyles = window.getComputedStyle(document.documentElement);
-      const cssVariables = Array.from(rootStyles).filter(prop => prop.startsWith('--'))
-        .map(prop => `  ${prop}: ${rootStyles.getPropertyValue(prop)};`)
-        .join('\n');
-      
-      // Write the HTML with all styles
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Invoice ${selectedInvoice.invoice_number}</title>
-            <meta charset="utf-8">
-            ${stylesheetLinks}
-            <style>
-              :root {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        title: "Error",
+        description: "Please allow popups to print/download the invoice.",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    // Clone all pages with deep cloning to preserve styles
+    const pagesHTML: string[] = [];
+    pages.forEach((page) => {
+      const clonedPage = page.cloneNode(true) as HTMLElement;
+      // Remove any print:hidden elements
+      const hiddenElements = clonedPage.querySelectorAll('.print\\:hidden, [class*="print:hidden"]');
+      hiddenElements.forEach(el => el.remove());
+      pagesHTML.push(clonedPage.outerHTML);
+    });
+
+    // Get all inline styles from the document
+    const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
+    
+    // Get all linked stylesheets
+    const stylesheetLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .map(link => `<link rel="stylesheet" href="${(link as HTMLLinkElement).href}">`)
+      .join('\n');
+    
+    // Get CSS variables from root
+    const rootStyles = window.getComputedStyle(document.documentElement);
+    const cssVariables = Array.from(rootStyles).filter(prop => prop.startsWith('--'))
+      .map(prop => `  ${prop}: ${rootStyles.getPropertyValue(prop)};`)
+      .join('\n');
+    
+    // Write the HTML with all styles
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice ${selectedInvoice.invoice_number}</title>
+          <meta charset="utf-8">
+          ${stylesheetLinks}
+          <style>
+            :root {
 ${cssVariables}
+            }
+            
+            ${inlineStyles}
+            
+            /* Ensure @media print styles are applied */
+            @media print {
+              @page {
+                margin: 0 !important;
+                size: A4;
               }
               
-              ${inlineStyles}
-              
-              /* Ensure @media print styles are applied */
-              @media print {
-                @page {
-                  margin: 0 !important;
-                  size: A4;
-                }
-                
-                html, body {
-                  margin: 0 !important;
-                  padding: 0 !important;
-                  width: 210mm !important;
-                  height: 297mm !important;
-                  background: white !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-                
-                .print-invoice-page {
-                  width: 210mm !important;
-                  height: 297mm !important;
-                  margin: 0 !important;
-                  padding: 15mm 15mm 10mm 15mm !important;
-                  page-break-after: always !important;
-                  page-break-inside: avoid !important;
-                  background: white !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-                
-                .print-invoice-page:last-child {
-                  page-break-after: auto !important;
-                }
-                
-                .print-invoice-page * {
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-                
-                .invoice-header {
-                  display: flex !important;
-                  justify-content: space-between !important;
-                  margin-bottom: 0mm !important;
-                }
-                
-                /* Reduce gap between company header and invoice header */
-                .company-header {
-                  margin-bottom: 0.3rem !important;
-                }
-                
-                /* Ensure consistent line-height for customer details, invoice details, and summary sections */
-                /* Customer details section (Bill To) */
-                .invoice-header > div:first-child,
-                .invoice-header > div:first-child p,
-                .invoice-header > div:first-child h3,
-                .invoice-header > div:first-child p.text-sm,
-                .invoice-header > div:first-child p.print-text-sm,
-                .invoice-header > div:first-child p.print-text-base,
-                .invoice-header > div:first-child p.font-bold,
-                .invoice-header > div:first-child p.whitespace-pre-line {
-                  line-height: 1.4 !important;
-                }
-                
-                /* Add spacing between customer detail lines to match invoice details */
-                .invoice-header > div:first-child p:not(:last-child) {
-                  margin-bottom: 0.5rem !important;
-                }
-                
-                /* Invoice details section (Invoice Number, Issue Date, etc.) */
-                .invoice-header > div:last-child,
-                .invoice-header .text-right,
-                .invoice-header .text-right p,
-                .invoice-header .text-right div,
-                .invoice-header .text-right div p,
-                .invoice-header .text-right .space-y-1 p,
-                .invoice-header .text-right .space-y-2 p {
-                  line-height: 1.4 !important;
-                }
-                
-                /* Summary section */
-                .grid.grid-cols-2,
-                .grid.grid-cols-2 h3,
-                .grid.grid-cols-2 p,
-                .grid.grid-cols-2 .space-y-1,
-                .grid.grid-cols-2 .space-y-1 p,
-                .grid.grid-cols-2 .space-y-2,
-                .grid.grid-cols-2 .space-y-2 p,
-                .grid.grid-cols-2 > div,
-                .grid.grid-cols-2 > div p,
-                .grid.grid-cols-2 > div > div,
-                .grid.grid-cols-2 > div > div p {
-                  line-height: 1.4 !important;
-                }
-                
-                .invoice-items-table thead {
-                  background-color: transparent !important;
-                  background: transparent !important;
-                  margin-top: 0mm !important;
-                 
-                }
-                
-                .invoice-items-table thead th {
-                  background-color: transparent !important;
-                  background: transparent !important;
-                  border-top: none !important;
-                  border-bottom: none !important;
-                  border-left: none !important;
-                  border-right: none !important;
-                  border: none !important;
-                  vertical-align: middle !important;
-                }
-                
-                .invoice-items-table td {
-                  vertical-align: middle !important;
-                  border-top: 1px solid rgb(212, 212, 212) !important;
-                  border-bottom: none !important;
-                  border-left: none !important;
-                  border-right: none !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-                
-                /* Add border-bottom only to the last row */
-                .invoice-items-table tbody tr:last-child td {
-                  border-bottom: 1px solid rgb(212, 212, 212) !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-                
-                /* Column widths for proper wrapping - match screen widths */
-                .invoice-items-table th:nth-child(1),
-                .invoice-items-table td:nth-child(1) {
-                  width: 35% !important;
-                  max-width: 35% !important;
-                }
-                
-                .invoice-items-table th:nth-child(2),
-                .invoice-items-table td:nth-child(2) {
-                  width: 17% !important;
-                  max-width: 17% !important;
-                }
-                
-                .invoice-items-table th:nth-child(3),
-                .invoice-items-table td:nth-child(3) {
-                  width: 8% !important;
-                  max-width: 8% !important;
-                }
-                
-                .invoice-items-table th:nth-child(4),
-                .invoice-items-table td:nth-child(4) {
-                  width: 8% !important;
-                  max-width: 8% !important;
-                }
-                
-                .invoice-items-table th:nth-child(5),
-                .invoice-items-table td:nth-child(5) {
-                  width: 10% !important;
-                  max-width: 10% !important;
-                }
-                
-                .invoice-items-table th:nth-child(6),
-                .invoice-items-table td:nth-child(6) {
-                  width: 10% !important;
-                  max-width: 10% !important;
-                }
-                
-                .invoice-items-table th:nth-child(7),
-                .invoice-items-table td:nth-child(7) {
-                  width: 12% !important;
-                  max-width: 12% !important;
-                  text-align: right !important;
-                }
-                
-                /* Summary section grid layout */
-                .grid.grid-cols-2 {
-                  display: grid !important;
-                  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-                  gap: 1.5rem !important;
-                  position: relative !important;
-                }
-                
-                /* Total amount background styling */
-                .total-amount-bg {
-                  position: absolute !important;
-                  width: 286px !important;
-                  padding-left: 50px !important;
-                  padding-right: 48px !important;
-                  right: 7px !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-                   .invoice-title-bg {
-                     position: absolute !important;
-                     width: 286px !important;
-                     padding-left: 23px !important;
-                     right: 7px !important;
-                     justify-content: left !important;
-                     -webkit-print-color-adjust: exact !important;
-                     print-color-adjust: exact !important;
-                     color-adjust: exact !important;
-                   }
-
-                   .total-amount-bg {
-                     position: absolute !important;
-                     width: 286px !important;
-                     padding-left: 23px !important;
-                     right: 7px !important;
-                     -webkit-print-color-adjust: exact !important;
-                     print-color-adjust: exact !important;
-                     color-adjust: exact !important;
-                   }
-                
-                .print-invoice-bg {
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-                
-                /* Spacing for Subtotal, VAT labels and values */
-                .grid.grid-cols-2 > div:last-child .flex.justify-between {
-                  display: flex !important;
-                  justify-content: space-between !important;
-                  width: 100% !important;
-                  gap: 1rem !important;
-                }
-                
-                /* Total row spacing - reduce gap to match Subtotal/VAT visual spacing */
-                #invoice-total-amount.flex.justify-between {
-                  display: flex !important;
-                  justify-content: space-between !important;
-                  
-                  gap: 0.5rem !important;
-                }
-                
-                /* Total amount div with gray background - specific ID for PDF print */
-                #invoice-total-amount {
-                  position: absolute !important;
-                  width: 286px !important;
-                  padding-left: 50px !important;
-                  padding-right: 48px !important;
-                  padding-top: 2px !important;
-                  height: 30px !important;
-                  right: -50px !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-                
-                /* VAT Exemption Statement - specific ID for PDF print */
-                #invoice-vat-exemption-statement {
-                  position: absolute !important;
-                  right: -50px !important;
-                  width: 286px !important;
-                  padding-left: 0px !important;
-                  padding-right: 0px !important;
-                  margin-top: 46px !important;
-                  text-align: left !important;
-                  color: #000000 !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-                
-                /* Signatory - specific ID for PDF print */
-                #invoice-signatory {
-                  position: absolute !important;
-                  right: -50px !important;
-                  width: 286px !important;
-                  padding-left: 50px !important;
-                  padding-right: 48px !important;
-                  text-align: center !important;
-                  font-size: 0.7rem !important;
-                  /* margin-top is set dynamically based on customer country */
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                }
-              }
-              
-              /* Screen styles for preview */
-              body {
-                margin: 0;
-                padding: 20px;
-                background: #f5f5f5;
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
               }
               
               .print-invoice-page {
-                width: 210mm;
-                height: 297mm;
-                background: white;
-                margin: 0 auto 20px;
-                padding: 15mm 15mm 10mm 15mm;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                box-sizing: border-box;
+                width: 210mm !important;
+                height: 297mm !important;
+                margin: 0 !important;
+                padding: 15mm 15mm 10mm 15mm !important;
+                page-break-after: always !important;
+                page-break-inside: avoid !important;
+                background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
               }
-            </style>
-          </head>
-          <body>
-            ${pagesHTML.join('')}
-          </body>
-        </html>
-      `);
+              
+              .print-invoice-page:last-child {
+                page-break-after: auto !important;
+              }
+              
+              .print-invoice-page * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              
+              .invoice-header {
+                display: flex !important;
+                justify-content: space-between !important;
+                margin-bottom: 0mm !important;
+              }
+              
+              /* Reduce gap between company header and invoice header */
+              .company-header {
+                margin-bottom: 0.3rem !important;
+              }
+              
+              /* Ensure consistent line-height for customer details, invoice details, and summary sections */
+              /* Customer details section (Bill To) */
+              .invoice-header > div:first-child,
+              .invoice-header > div:first-child p,
+              .invoice-header > div:first-child h3,
+              .invoice-header > div:first-child p.text-sm,
+              .invoice-header > div:first-child p.print-text-sm,
+              .invoice-header > div:first-child p.print-text-base,
+              .invoice-header > div:first-child p.font-bold,
+              .invoice-header > div:first-child p.whitespace-pre-line {
+                line-height: 1.4 !important;
+              }
+              
+              /* Add spacing between customer detail lines to match invoice details */
+              .invoice-header > div:first-child p:not(:last-child) {
+                margin-bottom: 0.5rem !important;
+              }
+              
+              /* Invoice details section (Invoice Number, Issue Date, etc.) */
+              .invoice-header > div:last-child,
+              .invoice-header .text-right,
+              .invoice-header .text-right p,
+              .invoice-header .text-right div,
+              .invoice-header .text-right div p,
+              .invoice-header .text-right .space-y-1 p,
+              .invoice-header .text-right .space-y-2 p {
+                line-height: 1.4 !important;
+              }
+              
+              /* Summary section */
+              .grid.grid-cols-2,
+              .grid.grid-cols-2 h3,
+              .grid.grid-cols-2 p,
+              .grid.grid-cols-2 .space-y-1,
+              .grid.grid-cols-2 .space-y-1 p,
+              .grid.grid-cols-2 .space-y-2,
+              .grid.grid-cols-2 .space-y-2 p,
+              .grid.grid-cols-2 > div,
+              .grid.grid-cols-2 > div p,
+              .grid.grid-cols-2 > div > div,
+              .grid.grid-cols-2 > div > div p {
+                line-height: 1.4 !important;
+              }
+              
+              .invoice-items-table thead {
+                background-color: transparent !important;
+                background: transparent !important;
+                margin-top: 0mm !important;
+               
+              }
+              
+              .invoice-items-table thead th {
+                background-color: transparent !important;
+                background: transparent !important;
+                border-top: none !important;
+                border-bottom: none !important;
+                border-left: none !important;
+                border-right: none !important;
+                border: none !important;
+                vertical-align: middle !important;
+              }
+              
+              .invoice-items-table td {
+                vertical-align: middle !important;
+                border-top: 1px solid rgb(212, 212, 212) !important;
+                border-bottom: none !important;
+                border-left: none !important;
+                border-right: none !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              
+              /* Add border-bottom only to the last row */
+              .invoice-items-table tbody tr:last-child td {
+                border-bottom: 1px solid rgb(212, 212, 212) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              
+              /* Column widths for proper wrapping - match screen widths */
+              .invoice-items-table th:nth-child(1),
+              .invoice-items-table td:nth-child(1) {
+                width: 35% !important;
+                max-width: 35% !important;
+              }
+              
+              .invoice-items-table th:nth-child(2),
+              .invoice-items-table td:nth-child(2) {
+                width: 17% !important;
+                max-width: 17% !important;
+              }
+              
+              .invoice-items-table th:nth-child(3),
+              .invoice-items-table td:nth-child(3) {
+                width: 8% !important;
+                max-width: 8% !important;
+              }
+              
+              .invoice-items-table th:nth-child(4),
+              .invoice-items-table td:nth-child(4) {
+                width: 8% !important;
+                max-width: 8% !important;
+              }
+              
+              .invoice-items-table th:nth-child(5),
+              .invoice-items-table td:nth-child(5) {
+                width: 10% !important;
+                max-width: 10% !important;
+              }
+              
+              .invoice-items-table th:nth-child(6),
+              .invoice-items-table td:nth-child(6) {
+                width: 10% !important;
+                max-width: 10% !important;
+              }
+              
+              .invoice-items-table th:nth-child(7),
+              .invoice-items-table td:nth-child(7) {
+                width: 12% !important;
+                max-width: 12% !important;
+                text-align: right !important;
+              }
+              
+              /* Summary section grid layout */
+              .grid.grid-cols-2 {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 1.5rem !important;
+                position: relative !important;
+              }
+              
+              /* Total amount background styling */
+              .total-amount-bg {
+                position: absolute !important;
+                width: 286px !important;
+                padding-left: 50px !important;
+                padding-right: 48px !important;
+                right: 7px !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+                 .invoice-title-bg {
+                   position: absolute !important;
+                   width: 286px !important;
+                   padding-left: 23px !important;
+                   right: 7px !important;
+                   justify-content: left !important;
+                   -webkit-print-color-adjust: exact !important;
+                   print-color-adjust: exact !important;
+                   color-adjust: exact !important;
+                 }
+
+                 .total-amount-bg {
+                   position: absolute !important;
+                   width: 286px !important;
+                   padding-left: 23px !important;
+                   right: 7px !important;
+                   -webkit-print-color-adjust: exact !important;
+                   print-color-adjust: exact !important;
+                   color-adjust: exact !important;
+                 }
+              
+              .print-invoice-bg {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              
+              /* Spacing for Subtotal, VAT labels and values */
+              .grid.grid-cols-2 > div:last-child .flex.justify-between {
+                display: flex !important;
+                justify-content: space-between !important;
+                width: 100% !important;
+                gap: 1rem !important;
+              }
+              
+              /* Total row spacing - reduce gap to match Subtotal/VAT visual spacing */
+              #invoice-total-amount.flex.justify-between {
+                display: flex !important;
+                justify-content: space-between !important;
+                
+                gap: 0.5rem !important;
+              }
+              
+              /* Total amount div with gray background - specific ID for PDF print */
+              #invoice-total-amount {
+                position: absolute !important;
+                width: 286px !important;
+                padding-left: 50px !important;
+                padding-right: 48px !important;
+                padding-top: 2px !important;
+                height: 30px !important;
+                right: -50px !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              
+              /* VAT Exemption Statement - specific ID for PDF print */
+              #invoice-vat-exemption-statement {
+                position: absolute !important;
+                right: -50px !important;
+                width: 286px !important;
+                padding-left: 0px !important;
+                padding-right: 0px !important;
+                margin-top: 46px !important;
+                text-align: left !important;
+                color: #000000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              
+              /* Signatory - specific ID for PDF print */
+              #invoice-signatory {
+                position: absolute !important;
+                right: -50px !important;
+                width: 286px !important;
+                padding-left: 50px !important;
+                padding-right: 48px !important;
+                text-align: center !important;
+                font-size: 0.7rem !important;
+                /* margin-top is set dynamically based on customer country */
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+            }
+            
+            /* Screen styles for preview */
+            body {
+              margin: 0;
+              padding: 20px;
+              background: #f5f5f5;
+            }
+            
+            .print-invoice-page {
+              width: 210mm;
+              height: 297mm;
+              background: white;
+              margin: 0 auto 20px;
+              padding: 15mm 15mm 10mm 15mm;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+              box-sizing: border-box;
+            }
+          </style>
+        </head>
+        <body>
+          ${pagesHTML.join('')}
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    return printWindow;
+  };
+
+  // Helper function to wait for stylesheets and trigger print
+  const triggerPrintOnWindow = (printWindow: Window, onComplete: () => void) => {
+    const printWhenReady = () => {
+      // Wait for stylesheets to load
+      const stylesheets = printWindow.document.querySelectorAll('link[rel="stylesheet"]');
+      let loadedStylesheets = 0;
       
-      printWindow.document.close();
-      
-      // Wait for content and stylesheets to load, then print
-      const printWhenReady = () => {
-        // Wait for stylesheets to load
-        const stylesheets = printWindow.document.querySelectorAll('link[rel="stylesheet"]');
-        let loadedStylesheets = 0;
+      if (stylesheets.length === 0) {
+        // No external stylesheets, proceed immediately
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+          onComplete();
+          // Close the window after printing (user can cancel)
+          setTimeout(() => {
+            printWindow.close();
+          }, 1000);
+        }, 500);
+      } else {
+        // Wait for all stylesheets to load
+        stylesheets.forEach((link) => {
+          const linkEl = link as HTMLLinkElement;
+          if (linkEl.sheet || linkEl.href === '') {
+            loadedStylesheets++;
+          } else {
+            linkEl.onload = () => {
+              loadedStylesheets++;
+              if (loadedStylesheets === stylesheets.length) {
+                setTimeout(() => {
+                  printWindow.focus();
+                  printWindow.print();
+                  onComplete();
+                  setTimeout(() => {
+                    printWindow.close();
+                  }, 1000);
+                }, 500);
+              }
+            };
+            linkEl.onerror = () => {
+              loadedStylesheets++;
+              if (loadedStylesheets === stylesheets.length) {
+                setTimeout(() => {
+                  printWindow.focus();
+                  printWindow.print();
+                  onComplete();
+                  setTimeout(() => {
+                    printWindow.close();
+                  }, 1000);
+                }, 500);
+              }
+            };
+          }
+        });
         
-        if (stylesheets.length === 0) {
-          // No external stylesheets, proceed immediately
+        // If all stylesheets are already loaded
+        if (loadedStylesheets === stylesheets.length) {
           setTimeout(() => {
             printWindow.focus();
             printWindow.print();
-            setPrintingInvoice(false);
-            // Close the window after printing (user can cancel)
+            onComplete();
             setTimeout(() => {
               printWindow.close();
             }, 1000);
           }, 500);
-        } else {
-          // Wait for all stylesheets to load
-          stylesheets.forEach((link) => {
-            const linkEl = link as HTMLLinkElement;
-            if (linkEl.sheet || linkEl.href === '') {
-              loadedStylesheets++;
-            } else {
-              linkEl.onload = () => {
-                loadedStylesheets++;
-                if (loadedStylesheets === stylesheets.length) {
-                  setTimeout(() => {
-                    printWindow.focus();
-                    printWindow.print();
-                    setPrintingInvoice(false);
-                    setTimeout(() => {
-                      printWindow.close();
-                    }, 1000);
-                  }, 500);
-                }
-              };
-              linkEl.onerror = () => {
-                loadedStylesheets++;
-                if (loadedStylesheets === stylesheets.length) {
-                  setTimeout(() => {
-                    printWindow.focus();
-                    printWindow.print();
-                    setPrintingInvoice(false);
-                    setTimeout(() => {
-                      printWindow.close();
-                    }, 1000);
-                  }, 500);
-                }
-              };
-            }
-          });
-          
-          // If all stylesheets are already loaded
-          if (loadedStylesheets === stylesheets.length) {
-            setTimeout(() => {
-              printWindow.focus();
-              printWindow.print();
-              setPrintingInvoice(false);
-              setTimeout(() => {
-                printWindow.close();
-              }, 1000);
-            }, 500);
-          }
         }
-      };
-      
-      // Wait for window to be ready
-      if (printWindow.document.readyState === 'complete') {
-        printWhenReady();
-      } else {
-        printWindow.onload = printWhenReady;
       }
+    };
+    
+    // Wait for window to be ready
+    if (printWindow.document.readyState === 'complete') {
+      printWhenReady();
+    } else {
+      printWindow.onload = printWhenReady;
+    }
+  };
+
+  const printInvoiceWithMediaPrint = () => {
+    setPrintingInvoice(true);
+    try {
+      const printWindow = prepareInvoicePrintWindow();
+      if (!printWindow) {
+        setPrintingInvoice(false);
+        return;
+      }
+
+      triggerPrintOnWindow(printWindow, () => {
+        setPrintingInvoice(false);
+      });
       
     } catch (error) {
       console.error('Error printing invoice with media print:', error);
@@ -2611,6 +2626,64 @@ ${cssVariables}
         variant: "destructive"
       });
       setPrintingInvoice(false);
+    }
+  };
+
+  const downloadInvoiceAsPDF = async () => {
+    if (!selectedInvoice) {
+      toast({
+        title: "Error",
+        description: "Invoice not found. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setDownloadingInvoice(true);
+    try {
+      // Call server endpoint to generate PDF
+      const API_URL = import.meta.env.VITE_PDF_SERVER_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/invoice/${selectedInvoice.id}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/pdf',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to generate PDF' }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+
+      // Get PDF blob
+      const blob = await response.blob();
+      
+      // Create download link and trigger download
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${selectedInvoice.invoice_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up URL object
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      
+      toast({
+        title: "Success",
+        description: "Invoice PDF downloaded successfully.",
+      });
+      
+    } catch (error) {
+      console.error('Error downloading invoice as PDF:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to download invoice. Make sure the PDF server is running.",
+        variant: "destructive"
+      });
+    } finally {
+      setDownloadingInvoice(false);
     }
   };
 
@@ -3256,7 +3329,6 @@ ${cssVariables}
                                   // Prevent scroll from propagating to parent dialog/page
                                   e.stopPropagation();
                                 }}
-                                style={{ overscrollBehavior: 'contain' }}
                               >
                                 <CommandEmpty>No products found.</CommandEmpty>
                                 <CommandGroup>
@@ -4997,9 +5069,13 @@ ${cssVariables}
               
               {/* Buttons outside the white paper page - Always visible after scrolling */}
               <div className="flex gap-2 pt-4 pb-4 print:hidden justify-center w-full">
-                <Button onClick={printInvoiceWithMediaPrint} disabled={printingInvoice || generatingPDF} variant="secondary">
+                <Button onClick={printInvoiceWithMediaPrint} disabled={printingInvoice || generatingPDF || downloadingInvoice} variant="secondary">
                   <Printer className="w-4 h-4 mr-2" />
                   {printingInvoice ? 'Preparing Print...' : 'Print Invoice'}
+                </Button>
+                <Button onClick={downloadInvoiceAsPDF} disabled={printingInvoice || generatingPDF || downloadingInvoice} variant="secondary">
+                  <Download className="w-4 h-4 mr-2" />
+                  {downloadingInvoice ? 'Preparing Download...' : 'Download'}
                 </Button>
                 <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
                   Close

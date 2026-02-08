@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { InvoicePrintDocument } from "@/components/InvoicePrintDocument";
 
-
-export default function InvoiceView() {
+export default function InvoicePrint() {
   const { id } = useParams<{ id: string }>();
   const [invoice, setInvoice] = useState<any>(null);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -20,8 +16,7 @@ export default function InvoiceView() {
     signatory: ''
   });
   const [loading, setLoading] = useState(true);
-  const [downloadingPDF, setDownloadingPDF] = useState(false);
-  const { toast } = useToast();
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -84,79 +79,36 @@ export default function InvoiceView() {
       }
     } catch (error) {
       console.error('Error fetching invoice data:', error);
+      // Set ready flag even on error so Playwright doesn't hang
+      // The error state will be shown in the UI
+      setLoading(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const downloadPDF = async () => {
-    if (!invoice || !id) {
-      toast({
-        title: "Error",
-        description: "Invoice not found. Please try again.",
-        variant: "destructive"
+  // Set ready flag when all data is loaded and rendered
+  useEffect(() => {
+    if (!loading) {
+      // Set ready flag even if invoice is missing (so Playwright doesn't hang)
+      // Use requestAnimationFrame to ensure DOM has updated, then setTimeout for React to finish
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          (window as any).__INVOICE_PRINT_READY__ = true;
+          setIsReady(true);
+          console.log('Invoice print ready flag set. Invoice:', !!invoice, 'CompanyInfo:', !!companyInfo);
+        }, 500); // Increased delay to ensure rendering
       });
-      return;
+    } else {
+      (window as any).__INVOICE_PRINT_READY__ = false;
+      setIsReady(false);
     }
-
-    setDownloadingPDF(true);
-    try {
-      // Call server endpoint to generate PDF
-      const API_URL = import.meta.env.VITE_PDF_SERVER_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/invoice/${id}/pdf`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/pdf',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to generate PDF' }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      }
-
-      // Get PDF blob
-      const blob = await response.blob();
-      
-      // Create download link and trigger download
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `invoice-${invoice.invoice_number}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up URL object
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      
-      toast({
-        title: "Success",
-        description: "Invoice PDF downloaded successfully.",
-      });
-      
-    } catch (error) {
-      console.error('Error downloading invoice as PDF:', error);
-      const API_URL = import.meta.env.VITE_PDF_SERVER_URL || 'http://localhost:3001';
-      const errorMessage = error instanceof Error && error.message.includes('fetch')
-        ? `Cannot connect to PDF server at ${API_URL}. Make sure the server is running (npm run pdf-server).`
-        : error instanceof Error ? error.message : "Failed to download invoice. Make sure the PDF server is running.";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setDownloadingPDF(false);
-    }
-  };
-
-  const printInvoice = () => {
-    if (!id) return;
-    // Open print route in new window for printing
-    const printUrl = `/invoices/${id}/print`;
-    window.open(printUrl, '_blank')?.print();
-  };
+    
+    // Cleanup: reset flag on unmount
+    return () => {
+      (window as any).__INVOICE_PRINT_READY__ = false;
+    };
+  }, [loading, invoice, companyInfo]);
 
   if (loading) {
     return (
@@ -182,17 +134,6 @@ export default function InvoiceView() {
         companyInfo={companyInfo}
         invoiceSettings={invoiceSettings}
       />
-      
-      {/* Download PDF and Print Buttons - Always visible after scrolling */}
-      <div className="flex gap-2 pt-4 pb-4 print:hidden justify-center w-full">
-        <Button onClick={downloadPDF} disabled={downloadingPDF}>
-          <Download className="w-4 h-4 mr-2" />
-          {downloadingPDF ? 'Downloading PDF...' : 'Download PDF'}
-        </Button>
-        <Button onClick={printInvoice} variant="secondary">
-          Print Invoice
-        </Button>
-      </div>
     </div>
   );
 }

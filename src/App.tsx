@@ -23,6 +23,7 @@ import DeliveryNoteView from "./pages/DeliveryNoteView";
 import OrderConfirmationView from "./pages/OrderConfirmationView";
 import Settings from "./pages/Settings";
 import StaffAndLocation from "./pages/StaffAndLocation";
+import InvoicePrint from "./pages/InvoicePrint";
 import NotFound from "./pages/NotFound";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; page?: string }> = ({ children, page }) => {
@@ -165,6 +166,7 @@ const AppContent: React.FC = () => {
                   <Layout><StaffAndLocation /></Layout>
                 </ProtectedRoute>
               } />
+              <Route path="/invoices/:id/print" element={<InvoicePrint />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
       </Routes>

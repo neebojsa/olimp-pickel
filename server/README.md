@@ -1,90 +1,104 @@
-# PDF Generator Server (wkhtmltopdf)
+# PDF Generation Server
 
-This server provides an API endpoint to generate PDFs using wkhtmltopdf.
+Server-side PDF generation for invoices using Playwright (vector-quality output).
 
 ## Setup
 
 1. **Install dependencies:**
    ```bash
-   npm install express cors
+   npm install
    ```
 
-2. **Start the server:**
+2. **Install Playwright browser:**
    ```bash
-   node server/pdf-generator.js
+   npm run install-playwright
    ```
-
-   The server will run on `http://localhost:3001`
-
-3. **Optional: Set custom wkhtmltopdf path:**
+   Or manually:
    ```bash
-   set WKHTMLTOPDF_PATH=C:\Custom\Path\to\wkhtmltopdf.exe
-   node server/pdf-generator.js
+   npx playwright install chromium
    ```
+
+3. **Set environment variables:**
+   Create a `.env` file in the project root (or set environment variables):
+   ```env
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   PORT=3001
+   ```
+   
+   **Important:** You need the Supabase Service Role Key (not the anon key) to fetch invoice data server-side.
+   - Find it in: Supabase Dashboard → Settings → API → Service Role Key
+
+4. **Start the server:**
+   ```bash
+   npm run pdf-server
+   ```
+
+   The server will run on `http://localhost:3001` by default.
 
 ## API Endpoints
 
-### POST /generate-pdf
-
-Generates a PDF from HTML content.
-
-**Request:**
-```json
-{
-  "html": "<html><body><h1>Invoice</h1></body></html>"
-}
-```
+### `GET /api/invoice/:id/pdf`
+Generate PDF for an invoice by ID.
 
 **Response:**
 - Content-Type: `application/pdf`
-- Returns PDF file as binary data
+- Content-Disposition: `attachment; filename="invoice-{invoice_number}.pdf"`
 
-### GET /health
+**Example:**
+```bash
+curl http://localhost:3001/api/invoice/123e4567-e89b-12d3-a456-426614174000/pdf -o invoice.pdf
+```
 
-Check server status and wkhtmltopdf path.
+### `POST /generate-pdf` (Legacy)
+Generate PDF from HTML content (for backward compatibility).
 
-**Response:**
+**Request Body:**
 ```json
 {
-  "status": "ok",
-  "wkhtmltopdf": "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"
+  "html": "<html>...</html>"
 }
 ```
 
-## Usage in React
+### `GET /health`
+Health check endpoint.
 
-```typescript
-const generatePDF = async (htmlContent: string) => {
-  try {
-    const response = await fetch('http://localhost:3001/generate-pdf', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ html: htmlContent }),
-    });
+## How It Works
 
-    if (!response.ok) {
-      throw new Error('Failed to generate PDF');
-    }
+1. Frontend calls `/api/invoice/:id/pdf` with invoice ID
+2. Server fetches invoice data from Supabase (using service role)
+3. Server generates HTML using the same template/styling as frontend print view
+4. Playwright renders HTML with `@media print` styles applied
+5. Playwright exports to PDF (vector-quality, same as browser print-to-PDF)
+6. PDF is returned to frontend and automatically downloaded
 
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'invoice.pdf';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error('Error:', error);
-  }
-};
-```
+## Features
 
-## Notes
+- ✅ Vector-quality PDF output (selectable text, small file size)
+- ✅ Uses same print CSS as frontend (`@media print`)
+- ✅ No browser print dialog required
+- ✅ One-click download
+- ✅ Supports multi-page invoices
+- ✅ Handles fonts, images, and complex layouts
 
-- The server creates temporary files in `server/temp/` directory
-- Temporary files are automatically cleaned up after PDF generation
-- For production, consider adding authentication and rate limiting
+## Troubleshooting
 
+**Error: "Invoice not found"**
+- Check that SUPABASE_SERVICE_ROLE_KEY is set correctly
+- Verify the invoice ID exists in your database
 
+**Error: "Failed to generate PDF"**
+- Ensure Playwright browser is installed: `npx playwright install chromium`
+- Check server logs for detailed error messages
+
+**PDF looks different from print preview**
+- The server uses the same HTML template and CSS as the frontend
+- If there are differences, check that `server/invoiceHtmlTemplate.js` matches the frontend rendering logic
+
+## Production Deployment
+
+For production, you'll need to:
+1. Set environment variables on your hosting platform
+2. Ensure Playwright browser is installed in your deployment environment
+3. Consider using a process manager like PM2 for the server
+4. Set up proper CORS if frontend and server are on different domains
