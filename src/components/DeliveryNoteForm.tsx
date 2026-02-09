@@ -307,7 +307,7 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
     if (items.length === 0) {
       toast({
         title: "Error",
-        description: "Please add at least one product",
+        description: "Please add at least one part",
         variant: "destructive"
       });
       return;
@@ -650,20 +650,20 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
             </div>
           </div>
 
-          {/* Products */}
+          {/* Parts */}
           <div>
             <div className="mb-4">
-              <Label className="text-lg font-semibold">Products</Label>
+              <Label className="text-lg font-semibold">Parts</Label>
             </div>
 
             {/* Headers */}
             <div className="grid grid-cols-[1fr_auto_auto] gap-2 mb-2">
-              <Label className="text-sm font-medium">Product</Label>
+              <Label className="text-sm font-medium">Part</Label>
               <Label className="text-sm font-medium">Quantity</Label>
               <div></div>
             </div>
 
-            {/* Product rows */}
+            {/* Part rows */}
             <div className="space-y-2">
               {items.map((item, index) => {
                 const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
@@ -679,7 +679,7 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
 
                 return (
                   <div key={index} className="space-y-2">
-                    {/* Product, Quantity, and Delete in one line */}
+                    {/* Part, Quantity, and Delete in one line */}
                     <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
                         <Popover
                           open={productSearchOpen[index] || false}
@@ -698,21 +698,21 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                                   <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
                                   )}
                               </span>
-                              ) : "Select product..."}
+                              ) : "Select part..."}
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                             <Command>
                               <CommandInput
-                                placeholder="Search products..."
+                                placeholder="Search parts..."
                                 value={productSearchTerms[index] || ''}
                                 onValueChange={(value) => {
                                   setProductSearchTerms(prev => ({ ...prev, [index]: value }));
                                 }}
                               />
                               <CommandList>
-                                <CommandEmpty>No products found.</CommandEmpty>
+                                <CommandEmpty>No parts found.</CommandEmpty>
                                 <CommandGroup>
                                   {inventoryItems
                                     .filter(invItem => {
@@ -847,11 +847,11 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
               })}
             </div>
 
-            {/* Add Product button below items */}
+            {/* Add Part button below items */}
             <div className="mt-3">
               <Button type="button" onClick={addItem} size="sm" variant="outline">
                 <Plus className="w-4 h-4 mr-1" />
-                Add Product
+                Add Part
               </Button>
             </div>
           </div>

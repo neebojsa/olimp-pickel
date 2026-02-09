@@ -413,7 +413,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
         <DialogHeader>
           <DialogTitle>{isEditMode ? 'Edit Order Confirmation' : 'Create New Order Confirmation'}</DialogTitle>
           <DialogDescription>
-            Fill in the order confirmation details and add products
+            Fill in the order confirmation details and add parts
           </DialogDescription>
         </DialogHeader>
 
@@ -526,22 +526,22 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
             />
           </div>
 
-          {/* Products Section */}
+          {/* Parts Section */}
           <div>
             <div className="mb-4">
-              <Label className="text-lg font-semibold">Products</Label>
+              <Label className="text-lg font-semibold">Parts</Label>
             </div>
 
             {/* Headers */}
             <div className="grid grid-cols-[280px_minmax(80px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_40px] gap-3 mb-2">
-              <Label className="text-sm font-medium">Product</Label>
+              <Label className="text-sm font-medium">Part</Label>
               <Label className="text-sm font-medium">Qty</Label>
               <Label className="text-sm font-medium">Unit Price</Label>
               <Label className="text-sm font-medium">Total</Label>
               <div></div>
             </div>
 
-            {/* Product rows */}
+            {/* Part rows */}
             <div className="space-y-2">
               {formData.items.map((item, index) => {
                 const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
@@ -564,21 +564,21 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
                                 <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
                               )}
                             </span>
-                          ) : "Select product..."}
+                          ) : "Select part..."}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                         <Command>
                           <CommandInput
-                            placeholder="Search products..."
+                            placeholder="Search parts..."
                             value={productSearchTerms[index] || ''}
                             onValueChange={(value) => {
                               setProductSearchTerms(prev => ({ ...prev, [index]: value }));
                             }}
                           />
                           <CommandList>
-                            <CommandEmpty>No products found.</CommandEmpty>
+                            <CommandEmpty>No parts found.</CommandEmpty>
                             <CommandGroup>
                               {inventoryItems
                                 .filter(invItem => {
@@ -655,11 +655,11 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
               })}
             </div>
               
-              {/* Add Product button below items */}
+              {/* Add Part button below items */}
               <div className="mt-3">
                 <Button type="button" onClick={addItem} size="sm" variant="outline">
                   <Plus className="w-4 h-4 mr-1" />
-                  Add Product
+                  Add Part
                 </Button>
             </div>
 
