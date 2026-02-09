@@ -12,8 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { FileText, Plus, Search, DollarSign, Calendar as CalendarIcon, Send, Trash2, Edit, Settings, Check, ChevronsUpDown, Printer, Filter, X, ExternalLink, Tag, Download } from "lucide-react";
+import { FileText, Plus, Search, DollarSign, Calendar as CalendarIcon, Send, Trash2, Edit, Settings, Check, Printer, Filter, X, ExternalLink, Tag, Download } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -203,9 +202,6 @@ export default function Invoicing() {
     quantity: 1,
     unitPrice: 0
   }]);
-  const [productSearchOpen, setProductSearchOpen] = useState<Record<number, boolean>>({});
-  const [productSearchTerms, setProductSearchTerms] = useState<Record<number, string>>({});
-  const productInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [orderConfirmations, setOrderConfirmations] = useState<any[]>([]);
   const [selectedOrderConfirmationId, setSelectedOrderConfirmationId] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -3193,165 +3189,28 @@ ${cssVariables}
                   {invoiceItems.map((item, index) => <div key={index} className="grid gap-2 p-3 rounded-lg shadow-sm grid-cols-1 sm:grid-cols-[2fr_0.8fr_0.8fr_0.8fr_0.8fr]">
                       <div>
                         <Label className="text-xs">Product</Label>
-                        <Popover 
-                          open={productSearchOpen[index] || false} 
-                          onOpenChange={(open) => {
-                            // Single source of truth - only set state, don't toggle
-                            setProductSearchOpen(prev => ({ ...prev, [index]: open }));
-                            // Auto-focus input when popover opens
-                            if (open && productInputRefs.current[index]) {
-                              setTimeout(() => {
-                                productInputRefs.current[index]?.focus();
-                              }, 0);
-                            }
-                            // Clear search term when closing if no product selected
-                            if (!open && !item.inventoryId) {
-                              setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
-                            }
+                        <Select
+                          value={item.inventoryId || ''}
+                          onValueChange={(value) => {
+                            updateInvoiceItem(index, 'inventoryId', value);
                           }}
                         >
-                          <PopoverTrigger asChild>
-                            <div className="relative w-full" style={{ pointerEvents: 'auto' }}>
-                              <Input
-                                ref={(el) => {
-                                  productInputRefs.current[index] = el;
-                                }}
-                                placeholder={productSearchOpen[index] ? "Search products..." : "Select product..."}
-                                value={(() => {
-                                  // When popover is open, show search term
-                                  if (productSearchOpen[index]) {
-                                    return productSearchTerms[index] || '';
-                                  }
-                                  // When closed and product selected, show product name
-                                  if (item.inventoryId) {
-                                    const selectedItem = inventoryItems.find(invItem => invItem.id === item.inventoryId);
-                                    if (selectedItem) {
-                                      return selectedItem.part_number 
-                                        ? `${selectedItem.name} (Part #: ${selectedItem.part_number})`
-                                        : selectedItem.name;
-                                    }
-                                  }
-                                  return '';
-                                })()}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  setProductSearchTerms(prev => ({ ...prev, [index]: value }));
-                                  // Open popover when user starts typing (only if closed)
-                                  if (!productSearchOpen[index]) {
-                                    setProductSearchOpen(prev => ({ ...prev, [index]: true }));
-                                  }
-                                }}
-                                onFocus={() => {
-                                  // Only clear selected product text to start searching
-                                  // Don't open here - let onPointerDown handle opening to avoid double-open
-                                  if (item.inventoryId && !productSearchTerms[index] && productSearchOpen[index]) {
-                                    setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                  }
-                                }}
-                                onPointerDown={(e) => {
-                                  // SINGLE event handler for opening - prevent default to avoid blur
-                                  // Stop propagation to prevent PopoverTrigger from also handling it
-                                  e.stopPropagation();
-                                  if (!productSearchOpen[index]) {
-                                    e.preventDefault();
-                                    // Only set open state here - single source of truth
-                                    setProductSearchOpen(prev => ({ ...prev, [index]: true }));
-                                    // Focus after opening
-                                    setTimeout(() => {
-                                      productInputRefs.current[index]?.focus();
-                                    }, 0);
-                                  }
-                                }}
-                                onClick={(e) => {
-                                  // Prevent PopoverTrigger's onClick from toggling
-                                  e.stopPropagation();
-                                }}
-                                className="w-full pr-8 cursor-text"
-                                readOnly={!productSearchOpen[index] && !!item.inventoryId}
-                              />
-                              <ChevronsUpDown 
-                                className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 shrink-0 opacity-50 pointer-events-none" 
-                              />
-                            </div>
-                          </PopoverTrigger>
-                          <PopoverContent 
-                            className="w-[var(--radix-popover-trigger-width)] p-0" 
-                            align="start"
-                            onInteractOutside={(e) => {
-                              // Prevent closing when clicking on the input field
-                              const target = e.target as HTMLElement;
-                              const inputElement = productInputRefs.current[index];
-                              const triggerElement = inputElement?.closest('.relative');
-                              if (inputElement && (inputElement === target || inputElement.contains(target) || (triggerElement && triggerElement.contains(target)))) {
-                                e.preventDefault();
-                                return;
-                              }
-                            }}
-                            onEscapeKeyDown={() => {
-                              setProductSearchOpen(prev => ({ ...prev, [index]: false }));
-                            }}
-                            onPointerDownOutside={(e) => {
-                              // Prevent closing when clicking on the input field
-                              const target = e.target as HTMLElement;
-                              const inputElement = productInputRefs.current[index];
-                              const triggerElement = inputElement?.closest('.relative');
-                              if (inputElement && (inputElement === target || inputElement.contains(target) || (triggerElement && triggerElement.contains(target)))) {
-                                e.preventDefault();
-                                return;
-                              }
-                            }}
-                            onWheel={(e) => {
-                              // Prevent scroll chaining to parent when scrolling inside popover
-                              e.stopPropagation();
-                            }}
-                          >
-                            <Command shouldFilter={false}>
-                              <CommandList 
-                                className="max-h-[280px] sm:max-h-[360px]"
-                                onWheel={(e) => {
-                                  // Prevent scroll from propagating to parent dialog/page
-                                  e.stopPropagation();
-                                }}
-                              >
-                                <CommandEmpty>No products found.</CommandEmpty>
-                                <CommandGroup>
-                                  {inventoryItems
-                                    .filter(invItem => {
-                                      const searchTerm = (productSearchTerms[index] || '').toLowerCase();
-                                      if (!searchTerm) return true;
-                                      const nameMatch = invItem.name.toLowerCase().includes(searchTerm);
-                                      const partNumberMatch = (invItem.part_number || '').toLowerCase().includes(searchTerm);
-                                      return nameMatch || partNumberMatch;
-                                    })
-                                    .map((invItem) => (
-                                      <CommandItem
-                                        key={invItem.id}
-                                        value={`${invItem.name} ${invItem.part_number || ''}`}
-                                        onSelect={() => {
-                                          updateInvoiceItem(index, 'inventoryId', invItem.id);
-                                          setProductSearchOpen(prev => ({ ...prev, [index]: false }));
-                                          setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                        }}
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4",
-                                            item.inventoryId === invItem.id ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                        <div className="flex flex-col">
-                                          <span>{invItem.name}</span>
-                                          {invItem.part_number && (
-                                            <span className="text-xs text-muted-foreground">Part #: {invItem.part_number}</span>
-                                          )}
-                                        </div>
-                                      </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select product..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[280px] sm:max-h-[360px]">
+                            {inventoryItems.map((invItem) => (
+                              <SelectItem key={invItem.id} value={invItem.id}>
+                                <div className="flex flex-col">
+                                  <span>{invItem.name}</span>
+                                  {invItem.part_number && (
+                                    <span className="text-xs text-muted-foreground">Part #: {invItem.part_number}</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div>
