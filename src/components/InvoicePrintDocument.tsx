@@ -296,8 +296,8 @@ export function InvoicePrintDocument({
           
           .invoice-items-table th:nth-child(1),
           .invoice-items-table td:nth-child(1) {
-            width: 35% !important;
-            max-width: 35% !important;
+            width: 33% !important;
+            max-width: 33% !important;
           }
           
           .invoice-items-table th:nth-child(2),
@@ -326,8 +326,8 @@ export function InvoicePrintDocument({
           
           .invoice-items-table th:nth-child(6),
           .invoice-items-table td:nth-child(6) {
-            width: 10% !important;
-            max-width: 10% !important;
+            width: 12% !important;
+            max-width: 12% !important;
           }
           
           .invoice-items-table th:nth-child(7),
@@ -526,8 +526,8 @@ export function InvoicePrintDocument({
           
           .invoice-items-table th:nth-child(1),
           .invoice-items-table td:nth-child(1) {
-            width: 25% !important;
-            max-width: 25% !important;
+            width: 23% !important;
+            max-width: 23% !important;
           }
           
           .invoice-items-table th:nth-child(2),
@@ -556,8 +556,8 @@ export function InvoicePrintDocument({
           
           .invoice-items-table th:nth-child(6),
           .invoice-items-table td:nth-child(6) {
-            width: 12% !important;
-            max-width: 12% !important;
+            width: 14% !important;
+            max-width: 14% !important;
           }
           
           .invoice-items-table th:nth-child(7),

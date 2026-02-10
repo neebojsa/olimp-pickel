@@ -2368,8 +2368,8 @@ ${cssVariables}
               /* Column widths for proper wrapping - match screen widths */
               .invoice-items-table th:nth-child(1),
               .invoice-items-table td:nth-child(1) {
-                width: 35% !important;
-                max-width: 35% !important;
+                width: 33% !important;
+                max-width: 33% !important;
               }
               
               .invoice-items-table th:nth-child(2),
@@ -2398,8 +2398,8 @@ ${cssVariables}
               
               .invoice-items-table th:nth-child(6),
               .invoice-items-table td:nth-child(6) {
-                width: 10% !important;
-                max-width: 10% !important;
+                width: 12% !important;
+                max-width: 12% !important;
               }
               
               .invoice-items-table th:nth-child(7),
@@ -3228,7 +3228,7 @@ ${cssVariables}
                                     <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
                                   )}
                                 </span>
-                              ) : "Select part"}
+                              ) : "Select part..."}
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
@@ -3850,9 +3850,19 @@ ${cssVariables}
               </TableHeader>
               <TableBody>
                 {sortedInvoices.map(invoice => (
-                  <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
+                  <TableRow
+                    key={invoice.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleViewInvoice(invoice)}
+                  >
                     <TableCell className="font-medium">
-                      <button onClick={() => handleViewInvoice(invoice)} className="text-primary hover:underline text-left">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewInvoice(invoice);
+                        }}
+                        className="text-primary hover:underline text-left"
+                      >
                         {invoice.invoice_number}
                       </button>
                     </TableCell>
@@ -3860,7 +3870,13 @@ ${cssVariables}
                     <TableCell>{invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</TableCell>
                     <TableCell>{invoice.customers?.name}</TableCell>
                     <TableCell>
-                      <InvoiceStatusBadge invoice={invoice} onStatusChange={async (newStatus) => {
+                      <div
+                        onClick={(e) => {
+                          // Prevent row click when interacting with status
+                          e.stopPropagation();
+                        }}
+                      >
+                        <InvoiceStatusBadge invoice={invoice} onStatusChange={async (newStatus) => {
                         const oldStatus = invoice.status;
                         const { error } = await supabase
                           .from('invoices')
@@ -3922,6 +3938,7 @@ ${cssVariables}
                           });
                         }
                       }} />
+                      </div>
                     </TableCell>
                     <TableCell className="font-medium">
                       {formatCurrency(invoice.amount || 0, invoice.currency)}
@@ -3942,14 +3959,20 @@ ${cssVariables}
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEditInvoice(invoice)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditInvoice(invoice);
+                          }}
                         >
                           Edit
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setDeletingInvoice(invoice)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingInvoice(invoice);
+                          }}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -4266,8 +4289,8 @@ ${cssVariables}
                   /* Column widths for proper wrapping - screen */
                   .invoice-items-table th:nth-child(1),
                   .invoice-items-table td:nth-child(1) {
-                    width: 35% !important;
-                    max-width: 35% !important;
+                    width: 33% !important;
+                    max-width: 33% !important;
                   }
                   
                   .invoice-items-table th:nth-child(2),
@@ -4296,8 +4319,8 @@ ${cssVariables}
                   
                   .invoice-items-table th:nth-child(6),
                   .invoice-items-table td:nth-child(6) {
-                    width: 10% !important;
-                    max-width: 10% !important;
+                    width: 12% !important;
+                    max-width: 12% !important;
                   }
                   
                   .invoice-items-table th:nth-child(7),
@@ -4566,8 +4589,8 @@ ${cssVariables}
                     /* Column widths for proper wrapping - match screen widths */
                     .invoice-items-table th:nth-child(1),
                     .invoice-items-table td:nth-child(1) {
-                      width: 35% !important;
-                      max-width: 35% !important;
+                      width: 33% !important;
+                      max-width: 33% !important;
                     }
                     
                     .invoice-items-table th:nth-child(2),
@@ -4596,8 +4619,8 @@ ${cssVariables}
                     
                     .invoice-items-table th:nth-child(6),
                     .invoice-items-table td:nth-child(6) {
-                      width: 10% !important;
-                      max-width: 10% !important;
+                      width: 12% !important;
+                      max-width: 12% !important;
                     }
                     
                     .invoice-items-table th:nth-child(7),
@@ -4831,7 +4854,7 @@ ${cssVariables}
                         {/* Invoice Summary - Only on last page */}
                         {isLastPage && (
                           <>
-                            <div className="grid grid-cols-2 gap-6 no-page-break print:mt-2">
+                            <div className="grid grid-cols-2 gap-6 no-page-break mt-2 print:mt-2">
                            
                               <div style={{ width: '420px' }}>
                                 <h3 className="font-semibold mb-2 print-text-base">{translations.summary}</h3>

@@ -199,6 +199,7 @@ export type Database = {
           id: string
           location: string | null
           materials_used: Json | null
+          components_used: Json | null
           minimum_stock: number | null
           name: string
           part_number: string | null
@@ -222,6 +223,7 @@ export type Database = {
           id?: string
           location?: string | null
           materials_used?: Json | null
+          components_used?: Json | null
           minimum_stock?: number | null
           name: string
           part_number?: string | null
@@ -245,6 +247,7 @@ export type Database = {
           id?: string
           location?: string | null
           materials_used?: Json | null
+          components_used?: Json | null
           minimum_stock?: number | null
           name?: string
           part_number?: string | null
