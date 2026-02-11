@@ -922,6 +922,7 @@ export type Database = {
           inventory_id: string | null
           part_name: string | null
           part_number: string | null
+          percentage_completion: number
           priority: string
           status: string
           title: string
@@ -940,6 +941,7 @@ export type Database = {
           inventory_id?: string | null
           part_name?: string | null
           part_number?: string | null
+          percentage_completion?: number
           priority?: string
           status?: string
           title: string
@@ -958,6 +960,7 @@ export type Database = {
           inventory_id?: string | null
           part_name?: string | null
           part_number?: string | null
+          percentage_completion?: number
           priority?: string
           status?: string
           title?: string

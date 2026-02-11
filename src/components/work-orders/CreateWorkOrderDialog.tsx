@@ -14,25 +14,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { NumericInput } from "@/components/NumericInput";
+import { formatToolName } from "@/lib/toolSpecUtils";
 
-// Predefined tools and machines for suggestions
-const toolsList = [
-  "CNC Mill", "Drill Press", "Precision Vise", "Laser Cutter", "Press Brake", 
-  "Precision Lathe", "CMM Machine", "Carbide Inserts", "5-Axis CNC Mill", 
-  "Boring Bar Set", "Go/No-Go Gauges", "Horizontal Boring Machine", 
-  "Carbide Tooling Set", "Surface Finish Gauge"
-];
-
-const machinesList = [
-  "CNC Machine #1", "CNC Machine #2", "CNC Machine #3", "Laser Cutting Machine #1",
-  "CNC Lathe #2", "5-Axis CNC Machine #1", "Horizontal Boring Machine #2"
-];
+export type EditingWorkOrder = {
+  id: string;
+  work_order_number?: string | null;
+  inventory_id?: string | null;
+  part_name?: string | null;
+  part_number?: string | null;
+  description?: string | null;
+  estimated_hours?: number | null;
+  due_date?: string | null;
+  priority?: string | null;
+};
 
 interface CreateWorkOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultPartId?: string;
   defaultMaterials?: Array<{ name: string; notes?: string; lengthPerPiece?: string }>;
+  editingWorkOrder?: EditingWorkOrder | null;
   onSuccess?: () => void;
 }
 
@@ -41,12 +42,16 @@ export function CreateWorkOrderDialog({
   onOpenChange, 
   defaultPartId,
   defaultMaterials,
+  editingWorkOrder,
   onSuccess 
 }: CreateWorkOrderDialogProps) {
+  const isEditMode = !!editingWorkOrder;
   const { toast } = useToast();
   const [tools, setTools] = useState([{ name: "", quantity: "" }]);
   const [operatorsAndMachines, setOperatorsAndMachines] = useState([{ name: "", type: "operator" as "operator" | "machine" }]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [toolLibraryItems, setToolLibraryItems] = useState<any[]>([]);
+  const [machineLibraryItems, setMachineLibraryItems] = useState<any[]>([]);
   const [staffMembers, setStaffMembers] = useState<any[]>([]);
   const [selectedPartId, setSelectedPartId] = useState(defaultPartId || "");
   const [selectedPartNumber, setSelectedPartNumber] = useState("");
@@ -74,29 +79,62 @@ export function CreateWorkOrderDialog({
   const [componentSearchOpen, setComponentSearchOpen] = useState<Record<number, boolean>>({});
   const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
   const [workOrderDueDate, setWorkOrderDueDate] = useState<Date | undefined>(undefined);
+  const [priority, setPriority] = useState("medium");
 
   useEffect(() => {
     if (open) {
       fetchInventoryItems();
+      fetchToolLibrary();
+      fetchMachineLibrary();
       fetchStaffMembers();
       fetchMaterialItems();
       fetchComponentItems();
       
-      // Initialize materials with defaultMaterials when dialog opens
-      if (defaultMaterials && defaultMaterials.length > 0) {
+      if (editingWorkOrder) {
+        setSelectedPartId(editingWorkOrder.inventory_id || "");
+        setSelectedPartNumber(
+          [editingWorkOrder.part_name, editingWorkOrder.part_number].filter(Boolean).join(" - ") || ""
+        );
+        setWorkOrderDueDate(
+          editingWorkOrder.due_date ? new Date(editingWorkOrder.due_date) : undefined
+        );
+        setPriority(editingWorkOrder.priority || "medium");
+        setTimeout(() => {
+          const descEl = document.getElementById("description") as HTMLTextAreaElement | null;
+          const timeEl = document.getElementById("productionTime") as HTMLInputElement | null;
+          if (descEl) descEl.value = editingWorkOrder.description || "";
+          if (timeEl) timeEl.value = editingWorkOrder.estimated_hours != null ? String(editingWorkOrder.estimated_hours) : "";
+        }, 0);
+      } else {
+        setSelectedPartId(defaultPartId || "");
+        setSelectedPartNumber("");
+        setWorkOrderDueDate(undefined);
+        setPriority("medium");
+        setTools([{ name: "", quantity: "" }]);
+        setComponents([{ name: "", quantity: 1 }]);
+        setTimeout(() => {
+          const descEl = document.getElementById("description") as HTMLTextAreaElement | null;
+          const timeEl = document.getElementById("productionTime") as HTMLInputElement | null;
+          if (descEl) descEl.value = "";
+          if (timeEl) timeEl.value = "";
+        }, 0);
+      }
+      
+      // Initialize materials with defaultMaterials when dialog opens (create mode)
+      if (!editingWorkOrder && defaultMaterials && defaultMaterials.length > 0) {
         setMaterials(defaultMaterials.map(m => ({
           name: m.name || "",
           notes: m.notes || "",
           lengthPerPiece: m.lengthPerPiece ?? ""
         })));
-      } else {
+      } else if (!editingWorkOrder) {
         setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
         setMaterialSearchTerms({});
         setMaterialSearchOpen({});
       }
       fetchMaterialStockMm();
     }
-  }, [open, defaultMaterials]);
+  }, [open, defaultMaterials, editingWorkOrder]);
 
   // Set default part when inventoryItems are loaded and defaultPartId is provided
   useEffect(() => {
@@ -172,6 +210,20 @@ export function CreateWorkOrderDialog({
     }
   };
 
+  const fetchToolLibrary = async () => {
+    const { data } = await supabase.from('inventory').select('id, name, part_number, materials_used').eq('category', 'Tools');
+    if (data) {
+      setToolLibraryItems(data);
+    }
+  };
+
+  const fetchMachineLibrary = async () => {
+    const { data } = await supabase.from('inventory').select('id, name, part_number').eq('category', 'Machines');
+    if (data) {
+      setMachineLibraryItems(data);
+    }
+  };
+
   const fetchStaffMembers = async () => {
     const { data } = await supabase.from('staff').select('id, name, position, department');
     if (data) {
@@ -212,8 +264,6 @@ export function CreateWorkOrderDialog({
   };
 
   const handleCreateWorkOrder = async () => {
-    // Get form values
-    const quantity = workOrderQuantity;
     const productionTime = (document.getElementById('productionTime') as HTMLInputElement)?.value;
     const dueDate = workOrderDueDate ? format(workOrderDueDate, 'yyyy-MM-dd') : null;
     const description = (document.getElementById('description') as HTMLTextAreaElement)?.value;
@@ -227,7 +277,40 @@ export function CreateWorkOrderDialog({
       return;
     }
 
-    // Generate work order number
+    const selectedPart = inventoryItems.find(item => item.id === selectedPartId);
+
+    if (editingWorkOrder) {
+      const { error } = await supabase
+        .from('work_orders')
+        .update({
+          description,
+          estimated_hours: productionTime ? parseFloat(productionTime) : null,
+          due_date: dueDate || null,
+          priority: priority || 'medium',
+          inventory_id: selectedPartId,
+          part_name: selectedPart?.name,
+          part_number: selectedPart?.part_number
+        })
+        .eq('id', editingWorkOrder.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update work order",
+          variant: "destructive"
+        });
+      } else {
+        onOpenChange(false);
+        if (onSuccess) onSuccess();
+        toast({
+          title: "Work Order Updated",
+          description: "Work order has been successfully updated.",
+        });
+      }
+      return;
+    }
+
+    // Create new
     const { data: workOrderNumber, error: numberError } = await supabase
       .rpc('generate_work_order_number');
 
@@ -240,9 +323,6 @@ export function CreateWorkOrderDialog({
       return;
     }
 
-    // Get selected part details
-    const selectedPart = inventoryItems.find(item => item.id === selectedPartId);
-    
     const { data, error } = await supabase
       .from('work_orders')
       .insert([{
@@ -251,7 +331,7 @@ export function CreateWorkOrderDialog({
         description: description,
         estimated_hours: productionTime ? parseFloat(productionTime) : null,
         due_date: dueDate || null,
-        priority: 'medium',
+        priority: priority || 'medium',
         status: 'pending',
         inventory_id: selectedPartId,
         part_name: selectedPart?.name,
@@ -292,19 +372,15 @@ export function CreateWorkOrderDialog({
       }
       setWorkOrderDueDate(undefined);
       setWorkOrderQuantity(0);
+      setPriority("medium");
       
-      // Clear form inputs
       const productionTimeInput = document.getElementById('productionTime') as HTMLInputElement;
       const descriptionInput = document.getElementById('description') as HTMLTextAreaElement;
       if (productionTimeInput) productionTimeInput.value = "";
       if (descriptionInput) descriptionInput.value = "";
       
       onOpenChange(false);
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-      
+      if (onSuccess) onSuccess();
       toast({
         title: "Work Order Created",
         description: "New work order has been successfully created.",
@@ -335,6 +411,7 @@ export function CreateWorkOrderDialog({
     setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
     setWorkOrderDueDate(undefined);
     setWorkOrderQuantity(0);
+    setPriority("medium");
     onOpenChange(false);
   };
 
@@ -342,7 +419,7 @@ export function CreateWorkOrderDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto thin-scrollbar">
         <DialogHeader>
-          <DialogTitle>Create New Work Order</DialogTitle>
+          <DialogTitle>{isEditMode ? "Edit Work Order" : "Create New Work Order"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -350,7 +427,8 @@ export function CreateWorkOrderDialog({
               <Label htmlFor="workOrderNumber">Work Order Number</Label>
               <Input 
                 id="workOrderNumber" 
-                placeholder="Auto-generated (e.g., 259-01)" 
+                placeholder={isEditMode ? "" : "Auto-generated (e.g., 259-01)"}
+                value={isEditMode ? (editingWorkOrder?.work_order_number || "") : ""}
                 disabled 
                 className="bg-muted"
               />
@@ -437,7 +515,7 @@ export function CreateWorkOrderDialog({
             </div>
             <div>
               <Label htmlFor="priority">Priority</Label>
-              <Select>
+              <Select value={priority} onValueChange={setPriority}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
@@ -515,7 +593,10 @@ export function CreateWorkOrderDialog({
             </Label>
             <div className="space-y-3">
               {tools.map((tool, index) => {
-                const selectedToolName = tool.name;
+                const selectedToolItem = toolLibraryItems.find(t => t.name === tool.name);
+                const selectedToolDisplayName = selectedToolItem
+                  ? formatToolName(selectedToolItem.materials_used, selectedToolItem.name)
+                  : tool.name;
                 return (
                   <div key={index} className="flex gap-2 items-end">
                     <div className="flex-1">
@@ -529,9 +610,12 @@ export function CreateWorkOrderDialog({
                             role="combobox"
                             className="w-full justify-between text-left font-normal h-auto min-h-[40px] py-2 whitespace-normal"
                           >
-                            {selectedToolName ? (
+                            {tool.name ? (
                               <span className="flex-1 break-words pr-2">
-                                {selectedToolName}
+                                {selectedToolDisplayName}
+                                {selectedToolItem?.part_number && (
+                                  <span className="text-muted-foreground"> | {selectedToolItem.part_number}</span>
+                                )}
                               </span>
                             ) : "Select tool"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -554,34 +638,46 @@ export function CreateWorkOrderDialog({
                             <CommandList>
                               <CommandEmpty>No tools found.</CommandEmpty>
                               <CommandGroup>
-                                {toolsList
-                                  .filter(toolName => {
+                                {toolLibraryItems
+                                  .filter(item => {
                                     const searchTerm = (toolSearchTerms[index] || '').toLowerCase();
                                     if (!searchTerm) return true;
-                                    return toolName.toLowerCase().includes(searchTerm);
+                                    const displayName = formatToolName(item.materials_used, item.name);
+                                    const nameMatch = (item.name || '').toLowerCase().includes(searchTerm);
+                                    const partMatch = (item.part_number || '').toLowerCase().includes(searchTerm);
+                                    const displayMatch = displayName.toLowerCase().includes(searchTerm);
+                                    return nameMatch || partMatch || displayMatch;
                                   })
-                                  .map((toolName) => (
-                                    <CommandItem
-                                      key={toolName}
-                                      value={toolName}
-                                      onSelect={() => {
-                                        const newTools = [...tools];
-                                        newTools[index].name = toolName;
-                                        setTools(newTools);
-                                        setToolSearchOpen(prev => ({ ...prev, [index]: false }));
-                                        setToolSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                      }}
-                                      className="items-start py-2"
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4 mt-1 shrink-0",
-                                          tool.name === toolName ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      <span className="break-words">{toolName}</span>
-                                    </CommandItem>
-                                  ))}
+                                  .map((item) => {
+                                    const displayName = formatToolName(item.materials_used, item.name);
+                                    return (
+                                      <CommandItem
+                                        key={item.id}
+                                        value={`${displayName} ${item.part_number || ''}`}
+                                        onSelect={() => {
+                                          const newTools = [...tools];
+                                          newTools[index].name = item.name;
+                                          setTools(newTools);
+                                          setToolSearchOpen(prev => ({ ...prev, [index]: false }));
+                                          setToolSearchTerms(prev => ({ ...prev, [index]: '' }));
+                                        }}
+                                        className="items-start py-2"
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4 mt-1 shrink-0",
+                                            tool.name === item.name ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        <div className="flex flex-col flex-1 min-w-0">
+                                          <span className="break-words">{displayName}</span>
+                                          {item.part_number && (
+                                            <span className="text-xs text-muted-foreground">Part #: {item.part_number}</span>
+                                          )}
+                                        </div>
+                                      </CommandItem>
+                                    );
+                                  })}
                               </CommandGroup>
                             </CommandList>
                           </Command>
@@ -604,9 +700,15 @@ export function CreateWorkOrderDialog({
                         variant="outline" 
                         size="sm"
                         onClick={() => {
-                          if (tools.length > 1) {
+                          if (index === 0) {
+                            // First row: reset selection only
+                            const newTools = [...tools];
+                            newTools[0] = { name: "", quantity: "" };
+                            setTools(newTools);
+                            setToolSearchTerms(prev => ({ ...prev, 0: '' }));
+                            setToolSearchOpen(prev => ({ ...prev, 0: false }));
+                          } else {
                             setTools(tools.filter((_, i) => i !== index));
-                            // Clean up search state for removed item and reindex remaining items
                             const newSearchTerms: Record<number, string> = {};
                             const newSearchOpen: Record<number, boolean> = {};
                             tools.forEach((_, i) => {
@@ -747,9 +849,14 @@ export function CreateWorkOrderDialog({
                       variant="outline" 
                       size="sm"
                       onClick={() => {
-                        if (components.length > 1) {
+                        if (index === 0) {
+                          const newComponents = [...components];
+                          newComponents[0] = { name: "", quantity: 1 };
+                          setComponents(newComponents);
+                          setComponentSearchTerms(prev => ({ ...prev, 0: '' }));
+                          setComponentSearchOpen(prev => ({ ...prev, 0: false }));
+                        } else {
                           setComponents(components.filter((_, i) => i !== index));
-                          // Clean up search state for removed item and reindex remaining items
                           const newSearchTerms: Record<number, string> = {};
                           const newSearchOpen: Record<number, boolean> = {};
                           components.forEach((_, i) => {
@@ -882,9 +989,14 @@ export function CreateWorkOrderDialog({
                         variant="outline" 
                         size="sm"
                         onClick={() => {
-                          if (materials.length > 1) {
+                          if (index === 0) {
+                            const newMaterials = [...materials];
+                            newMaterials[0] = { name: "", notes: "", lengthPerPiece: "" };
+                            setMaterials(newMaterials);
+                            setMaterialSearchTerms(prev => ({ ...prev, 0: '' }));
+                            setMaterialSearchOpen(prev => ({ ...prev, 0: false }));
+                          } else {
                             setMaterials(materials.filter((_, i) => i !== index));
-                            // Clean up search state for removed item and reindex remaining items
                             const newSearchTerms: Record<number, string> = {};
                             const newSearchOpen: Record<number, boolean> = {};
                             materials.forEach((_, i) => {
@@ -990,9 +1102,12 @@ export function CreateWorkOrderDialog({
                             </SelectItem>
                           ))
                         ) : (
-                          machinesList.map((machine) => (
-                            <SelectItem key={machine} value={machine}>
-                              {machine}
+                          machineLibraryItems.map((machine) => (
+                            <SelectItem key={machine.id} value={machine.name}>
+                              {machine.name}
+                              {machine.part_number && (
+                                <span className="text-muted-foreground"> | {machine.part_number}</span>
+                              )}
                             </SelectItem>
                           ))
                         )}
@@ -1022,7 +1137,11 @@ export function CreateWorkOrderDialog({
                     variant="outline" 
                     size="sm"
                     onClick={() => {
-                      if (operatorsAndMachines.length > 1) {
+                      if (index === 0) {
+                        const newItems = [...operatorsAndMachines];
+                        newItems[0] = { name: "", type: "operator" };
+                        setOperatorsAndMachines(newItems);
+                      } else {
                         setOperatorsAndMachines(operatorsAndMachines.filter((_, i) => i !== index));
                       }
                     }}
@@ -1048,7 +1167,7 @@ export function CreateWorkOrderDialog({
               Cancel
             </Button>
             <Button onClick={handleCreateWorkOrder}>
-              Create Work Order
+              {isEditMode ? "Update Work Order" : "Create Work Order"}
             </Button>
           </div>
         </div>

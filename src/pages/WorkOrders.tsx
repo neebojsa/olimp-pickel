@@ -336,6 +336,7 @@ export default function WorkOrders() {
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
   const [isWorkOrderDetailsOpen, setIsWorkOrderDetailsOpen] = useState(false);
   const [isAddWorkOrderOpen, setIsAddWorkOrderOpen] = useState(false);
+  const [editingWorkOrderForForm, setEditingWorkOrderForForm] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -361,7 +362,7 @@ export default function WorkOrders() {
         workOrderNumber: wo.work_order_number || 'Pending',
         partName: wo.part_name || 'No Part Selected',
         partNumber: wo.part_number || 'N/A',
-        percentageCompletion: 50, // Placeholder
+        percentageCompletion: wo.percentage_completion ?? 0,
         productionTime: "3.5 hours", // Placeholder
         setupInstructions: "", // Placeholder
         qualityRequirements: "", // Placeholder
@@ -408,6 +409,9 @@ export default function WorkOrders() {
       setWorkOrders(prev => prev.map(wo => 
         wo.id === workOrderId ? { ...wo, status: newStatus } : wo
       ));
+      if (selectedWorkOrder?.id === workOrderId) {
+        setSelectedWorkOrder(prev => prev ? { ...prev, status: newStatus } : null);
+      }
       toast({
         title: "Status Updated",
         description: `Work order status changed to ${newStatus}`,
@@ -416,6 +420,36 @@ export default function WorkOrders() {
       toast({
         title: "Error",
         description: "Failed to update work order status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  /** Click on completion bar: set percentage from position, rounded to nearest 10%. */
+  const handleCompletionBarClick = async (workOrderId: string, e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.round((x / rect.width) * 100 / 10) * 10;
+    const value = Math.min(100, Math.max(0, pct));
+
+    const { error } = await supabase
+      .from('work_orders')
+      .update({ percentage_completion: value })
+      .eq('id', workOrderId);
+
+    if (!error) {
+      setWorkOrders(prev => prev.map(wo =>
+        wo.id === workOrderId ? { ...wo, percentageCompletion: value } : wo
+      ));
+      if (selectedWorkOrder?.id === workOrderId) {
+        setSelectedWorkOrder(prev => prev ? { ...prev, percentageCompletion: value } : null);
+      }
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update completion",
         variant: "destructive"
       });
     }
@@ -674,17 +708,35 @@ export default function WorkOrders() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          <Progress 
-                            value={workOrder.percentageCompletion} 
-                            className="w-20"
-                          />
+                          <div
+                            className="w-20 cursor-pointer"
+                            onClick={(e) => handleCompletionBarClick(workOrder.id, e)}
+                            title="Click to set completion %"
+                          >
+                            <Progress 
+                              value={workOrder.percentageCompletion} 
+                              className="w-full"
+                            />
+                          </div>
                           <span className="text-sm text-muted-foreground min-w-[3rem]">
                             {workOrder.percentageCompletion}%
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>{workOrder.productionTime}</TableCell>
-                      <TableCell>
+                      <TableCell className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingWorkOrderForForm(workOrder);
+                            setIsAddWorkOrderOpen(true);
+                          }}
+                          title="Edit work order"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button 
@@ -780,10 +832,19 @@ export default function WorkOrders() {
                     <div className="flex flex-col space-y-1">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Completion</span>
                       <div className="flex items-center space-x-2">
-                        <Progress 
-                          value={workOrder.percentageCompletion} 
-                          className="flex-1"
-                        />
+                        <div
+                          className="flex-1 min-w-0 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCompletionBarClick(workOrder.id, e);
+                          }}
+                          title="Click to set completion %"
+                        >
+                          <Progress 
+                            value={workOrder.percentageCompletion} 
+                            className="w-full"
+                          />
+                        </div>
                         <span className="text-sm text-muted-foreground min-w-[3rem]">
                           {workOrder.percentageCompletion}%
                         </span>
@@ -793,10 +854,22 @@ export default function WorkOrders() {
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Production Time</span>
                       <div className="text-sm font-medium">{workOrder.productionTime}</div>
                     </div>
-                    <div className="pt-2 border-t" onClick={(e) => e.stopPropagation()}>
+                    <div className="pt-2 border-t flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          setEditingWorkOrderForForm(workOrder);
+                          setIsAddWorkOrderOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="w-full">
+                          <Button variant="ghost" size="sm" className="flex-1">
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </Button>
@@ -1377,11 +1450,18 @@ export default function WorkOrders() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Work Order Dialog */}
+      {/* Add / Edit Work Order Dialog */}
       <CreateWorkOrderDialog
         open={isAddWorkOrderOpen}
-        onOpenChange={setIsAddWorkOrderOpen}
-        onSuccess={fetchWorkOrders}
+        onOpenChange={(open) => {
+          if (!open) setEditingWorkOrderForForm(null);
+          setIsAddWorkOrderOpen(open);
+        }}
+        editingWorkOrder={editingWorkOrderForForm}
+        onSuccess={() => {
+          fetchWorkOrders();
+          setEditingWorkOrderForForm(null);
+        }}
       />
     </div>
   );
