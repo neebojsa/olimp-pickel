@@ -12,7 +12,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, FileText, Filter, X } from "lucide-react";
+import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, FileText, Filter, X, Pencil } from "lucide-react";
+import { DragDropImageUpload } from "@/components/DragDropImageUpload";
 import jsPDF from 'jspdf';
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -54,7 +55,7 @@ export default function Customers() {
     phone: '',
     address: '',
     city: '',
-    industry: '',
+    customerCategory: '',
     country: '',
     currency: 'EUR',
     webpage: '',
@@ -72,6 +73,21 @@ export default function Customers() {
   const [isCountryFilterOpen, setIsCountryFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  const [customerPhoto, setCustomerPhoto] = useState<File | null>(null);
+  const [customerPhotoPreview, setCustomerPhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const uploadCustomerPhoto = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage.from('customer-photos').upload(fileName, file);
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return null;
+    }
+    const { data } = supabase.storage.from('customer-photos').getPublicUrl(fileName);
+    return data.publicUrl;
+  };
 
   useEffect(() => {
     fetchCustomers();
@@ -91,7 +107,7 @@ export default function Customers() {
       const formattedCustomers = data.map(customer => ({
         ...customer,
         contactPerson: customer.contact_person || customer.name,
-        industry: customer.industry || "General",
+        customerCategory: customer.customer_category || "",
         status: "Active", // Placeholder
         totalOrders: 0, // Would calculate from invoices
         totalValue: 0, // Would calculate from invoices
@@ -147,6 +163,21 @@ export default function Customers() {
       return;
     }
 
+    setIsUploadingPhoto(true);
+    let photoUrl: string | null = null;
+    if (customerPhoto) {
+      photoUrl = await uploadCustomerPhoto(customerPhoto);
+      if (!photoUrl) {
+        toast({
+          title: "Error",
+          description: "Failed to upload photo. Please try again.",
+          variant: "destructive"
+        });
+        setIsUploadingPhoto(false);
+        return;
+      }
+    }
+
     const declarationNumbersArray = newCustomer.declarationNumbers
       .split(',')
       .map(num => num.trim())
@@ -163,16 +194,18 @@ export default function Customers() {
         country: newCustomer.country,
         currency: newCustomer.currency,
         contact_person: newCustomer.contactPerson,
-        industry: newCustomer.industry,
+        customer_category: newCustomer.customerCategory,
         webpage: newCustomer.webpage,
         vat_number: newCustomer.vatNumber,
         payment_terms: newCustomer.dueDate ? parseInt(newCustomer.dueDate) : null,
         declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null,
         dap_address: newCustomer.dapAddress || null,
-        fco_address: newCustomer.fcoAddress || null
+        fco_address: newCustomer.fcoAddress || null,
+        photo_url: photoUrl
       }])
       .select();
 
+    setIsUploadingPhoto(false);
     if (error) {
       console.error('Save customer error:', error);
       toast({
@@ -190,7 +223,7 @@ export default function Customers() {
         phone: '',
         address: '',
         city: '',
-        industry: '',
+        customerCategory: '',
         country: '',
         currency: 'EUR',
         webpage: '',
@@ -201,6 +234,8 @@ export default function Customers() {
         dapAddress: '',
         fcoAddress: ''
       });
+      setCustomerPhoto(null);
+      setCustomerPhotoPreview(null);
       toast({
         title: "Success",
         description: "Customer saved successfully"
@@ -213,26 +248,28 @@ export default function Customers() {
     setIsCustomerDialogOpen(true);
   };
 
-  const handleEditCustomer = () => {
+  const handleEditCustomer = (customer: any) => {
+    setSelectedCustomer(customer);
     setNewCustomer({
-      name: selectedCustomer.name,
-      contactPerson: selectedCustomer.contactPerson || '',
-      email: selectedCustomer.email || '',
-      phone: selectedCustomer.phone || '',
-      address: selectedCustomer.address || '',
-      city: selectedCustomer.city || '',
-      industry: selectedCustomer.industry || '',
-      country: selectedCustomer.country || '',
-      currency: selectedCustomer.currency || 'EUR',
-      webpage: selectedCustomer.webpage || '',
-      vatNumber: selectedCustomer.vat_number || '',
-      notes: selectedCustomer.notes || '',
-      declarationNumbers: selectedCustomer.declaration_numbers?.join(', ') || '',
-      dueDate: selectedCustomer.payment_terms?.toString() || '',
-      dapAddress: selectedCustomer.dap_address || '',
-      fcoAddress: selectedCustomer.fco_address || ''
+      name: customer.name,
+      contactPerson: customer.contactPerson || customer.contact_person || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address: customer.address || '',
+      city: customer.city || '',
+      customerCategory: customer.customerCategory || customer.customer_category || '',
+      country: customer.country || '',
+      currency: customer.currency || 'EUR',
+      webpage: customer.webpage || '',
+      vatNumber: customer.vat_number || '',
+      notes: customer.notes || '',
+      declarationNumbers: customer.declaration_numbers?.join(', ') || '',
+      dueDate: customer.payment_terms?.toString() || '',
+      dapAddress: customer.dap_address || '',
+      fcoAddress: customer.fco_address || ''
     });
-    setIsCustomerDialogOpen(false);
+    setCustomerPhoto(null);
+    setCustomerPhotoPreview(customer.photo_url || null);
     setIsEditCustomerOpen(true);
   };
 
@@ -244,6 +281,23 @@ export default function Customers() {
         variant: "destructive"
       });
       return;
+    }
+
+    setIsUploadingPhoto(true);
+    let photoUrl: string | null = selectedCustomer.photo_url || null;
+    if (customerPhoto) {
+      photoUrl = await uploadCustomerPhoto(customerPhoto);
+      if (!photoUrl) {
+        toast({
+          title: "Error",
+          description: "Failed to upload photo. Please try again.",
+          variant: "destructive"
+        });
+        setIsUploadingPhoto(false);
+        return;
+      }
+    } else if (!customerPhotoPreview) {
+      photoUrl = null;
     }
 
     const declarationNumbersArray = newCustomer.declarationNumbers
@@ -262,16 +316,18 @@ export default function Customers() {
         country: newCustomer.country,
         currency: newCustomer.currency,
         contact_person: newCustomer.contactPerson,
-        industry: newCustomer.industry,
+        customer_category: newCustomer.customerCategory,
         webpage: newCustomer.webpage,
         vat_number: newCustomer.vatNumber,
         payment_terms: newCustomer.dueDate ? parseInt(newCustomer.dueDate) : null,
         declaration_numbers: declarationNumbersArray.length > 0 ? declarationNumbersArray : null,
         dap_address: newCustomer.dapAddress || null,
-        fco_address: newCustomer.fcoAddress || null
+        fco_address: newCustomer.fcoAddress || null,
+        photo_url: photoUrl
       })
       .eq('id', selectedCustomer.id);
 
+    setIsUploadingPhoto(false);
     if (!error) {
       toast({
         title: "Customer Updated",
@@ -286,7 +342,7 @@ export default function Customers() {
         phone: '',
         address: '',
         city: '',
-        industry: '',
+        customerCategory: '',
         country: '',
         currency: 'EUR',
         webpage: '',
@@ -297,6 +353,8 @@ export default function Customers() {
         dapAddress: '',
         fcoAddress: ''
       });
+      setCustomerPhoto(null);
+      setCustomerPhotoPreview(null);
       setIsEditCustomerOpen(false);
     } else {
       console.error('Update customer error:', error);
@@ -812,7 +870,13 @@ export default function Customers() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Customers</h1>
-        <Dialog open={isAddCustomerOpen} onOpenChange={setIsAddCustomerOpen}>
+        <Dialog open={isAddCustomerOpen} onOpenChange={(open) => {
+          setIsAddCustomerOpen(open);
+          if (open) {
+            setCustomerPhoto(null);
+            setCustomerPhotoPreview(null);
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -824,6 +888,22 @@ export default function Customers() {
               <DialogTitle>Add New Customer</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <Label>Photo</Label>
+                <DragDropImageUpload
+                  value={customerPhoto}
+                  onChange={(file) => {
+                    setCustomerPhoto(file);
+                    if (file) setCustomerPhotoPreview(URL.createObjectURL(file));
+                    else setCustomerPhotoPreview(null);
+                  }}
+                  onRemove={() => {
+                    setCustomerPhoto(null);
+                    setCustomerPhotoPreview(null);
+                  }}
+                  previewClassName="h-24 w-24"
+                />
+              </div>
               <div>
                 <Label>Company Name</Label>
                 <Input 
@@ -898,12 +978,19 @@ export default function Customers() {
                 </Select>
               </div>
               <div>
-                <Label>Industry</Label>
-                <Input 
-                  placeholder="Enter industry" 
-                  value={newCustomer.industry}
-                  onChange={(e) => setNewCustomer({...newCustomer, industry: e.target.value})}
-                />
+                <Label>Customer Category</Label>
+                <Select value={["Energy Production", "Metal Products", "Metalworking Tools", "Raw Materials"].includes(newCustomer.customerCategory) ? newCustomer.customerCategory : "__none__"} onValueChange={(value) => setNewCustomer({...newCustomer, customerCategory: value === "__none__" ? "" : value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Select category</SelectItem>
+                    <SelectItem value="Energy Production">Energy Production</SelectItem>
+                    <SelectItem value="Metal Products">Metal Products</SelectItem>
+                    <SelectItem value="Metalworking Tools">Metalworking Tools</SelectItem>
+                    <SelectItem value="Raw Materials">Raw Materials</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>VAT Number</Label>
@@ -992,7 +1079,9 @@ export default function Customers() {
               </div>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleSaveCustomer}>Save Customer</Button>
+              <Button className="flex-1" onClick={handleSaveCustomer} disabled={isUploadingPhoto}>
+                {isUploadingPhoto ? "Saving..." : "Save Customer"}
+              </Button>
               <Button variant="outline" onClick={() => setIsAddCustomerOpen(false)}>
                 Cancel
               </Button>
@@ -1011,6 +1100,7 @@ export default function Customers() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[120px]"></TableHead>
                   <TableHead>Company Name</TableHead>
                   <TableHead>Contact Person</TableHead>
                 <TableHead>
@@ -1065,10 +1155,7 @@ export default function Customers() {
                     </Popover>
                   </div>
                 </TableHead>
-                  <TableHead>Currency</TableHead>
-                  <TableHead>Industry</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
+                  <TableHead>Customer Category</TableHead>
                 <TableHead>
                   <div className="flex items-center gap-2">
                     Status
@@ -1115,6 +1202,15 @@ export default function Customers() {
               <TableBody>
                 {paginatedCustomers.map((customer) => (
                   <TableRow key={customer.id}>
+                    <TableCell className="w-[120px]">
+                      <div className="h-10 w-[120px] flex-shrink-0 flex items-center justify-center">
+                        {customer.photo_url ? (
+                          <img src={customer.photo_url} alt={customer.name} className="max-h-full max-w-full w-auto h-auto object-contain" />
+                        ) : (
+                          <Building2 className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <button 
                         onClick={() => handleCustomerClick(customer)}
@@ -1125,14 +1221,7 @@ export default function Customers() {
                     </TableCell>
                     <TableCell>{customer.contactPerson}</TableCell>
                     <TableCell>{customer.country}</TableCell>
-                    <TableCell>{customer.currency || 'EUR'}</TableCell>
-                    <TableCell>{customer.industry}</TableCell>
-                    <TableCell className="text-sm">
-                      <a href={`mailto:${customer.email}`} className="hover:underline">
-                        {customer.email}
-                      </a>
-                    </TableCell>
-                    <TableCell className="text-sm">{customer.phone}</TableCell>
+                    <TableCell>{customer.customerCategory}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
@@ -1147,6 +1236,17 @@ export default function Customers() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditCustomer(customer);
+                          }}
+                          title="Edit Customer"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="icon"
@@ -1193,17 +1293,26 @@ export default function Customers() {
                 onClick={() => handleCustomerClick(customer)}
               >
                 <div className="space-y-3">
-                  <div className="flex flex-col space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Name</span>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCustomerClick(customer);
-                      }}
-                      className="text-sm font-medium text-primary hover:underline text-left"
-                    >
-                      {customer.name}
-                    </button>
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-[120px] flex-shrink-0 flex items-center justify-center">
+                        {customer.photo_url ? (
+                          <img src={customer.photo_url} alt={customer.name} className="max-h-full max-w-full w-auto h-auto object-contain" />
+                        ) : (
+                          <Building2 className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Name</span>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCustomerClick(customer);
+                        }}
+                        className="block text-sm font-medium text-primary hover:underline text-left"
+                      >
+                        {customer.name}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-col space-y-1">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact Person</span>
@@ -1214,22 +1323,8 @@ export default function Customers() {
                     <div className="text-sm font-medium">{customer.country}</div>
                   </div>
                   <div className="flex flex-col space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency</span>
-                    <div className="text-sm font-medium">{customer.currency || 'EUR'}</div>
-                  </div>
-                  <div className="flex flex-col space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Industry</span>
-                    <div className="text-sm font-medium">{customer.industry}</div>
-                  </div>
-                  <div className="flex flex-col space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</span>
-                    <a href={`mailto:${customer.email}`} className="text-sm font-medium hover:underline break-all" onClick={(e) => e.stopPropagation()}>
-                      {customer.email}
-                    </a>
-                  </div>
-                  <div className="flex flex-col space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</span>
-                    <div className="text-sm font-medium">{customer.phone}</div>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer Category</span>
+                    <div className="text-sm font-medium">{customer.customerCategory}</div>
                   </div>
                   <div className="flex flex-col space-y-1">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
@@ -1249,6 +1344,15 @@ export default function Customers() {
                     <div className="text-sm font-medium">${customer.totalValue.toLocaleString()}</div>
                   </div>
                   <div className="pt-2 border-t flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleEditCustomer(customer)}
+                      className="flex-1"
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
                     <Button 
                       variant="ghost" 
                       size="sm"
@@ -1328,7 +1432,16 @@ export default function Customers() {
       <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl">{selectedCustomer?.name}</DialogTitle>
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center">
+                {selectedCustomer?.photo_url ? (
+                  <img src={selectedCustomer.photo_url} alt={selectedCustomer.name} className="h-full w-full object-contain" />
+                ) : (
+                  <Building2 className="h-8 w-8 text-muted-foreground" />
+                )}
+              </div>
+              <DialogTitle className="text-2xl">{selectedCustomer?.name}</DialogTitle>
+            </div>
           </DialogHeader>
           
           {selectedCustomer && (
@@ -1348,8 +1461,8 @@ export default function Customers() {
                       <p className="font-medium">{selectedCustomer.contactPerson}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Industry</p>
-                      <p className="font-medium">{selectedCustomer.industry}</p>
+                      <p className="text-sm text-muted-foreground">Customer Category</p>
+                      <p className="font-medium">{selectedCustomer.customerCategory}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Address</p>
@@ -1362,6 +1475,10 @@ export default function Customers() {
                     <div>
                       <p className="text-sm text-muted-foreground">Country</p>
                       <p className="font-medium">{selectedCustomer.country}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Currency</p>
+                      <p className="font-medium">{selectedCustomer.currency || 'EUR'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Payment Terms</p>
@@ -1475,9 +1592,6 @@ export default function Customers() {
 
               {/* Actions */}
               <div className="flex gap-2 pt-4">
-                <Button variant="outline" className="flex-1" onClick={handleEditCustomer}>
-                  Edit Customer
-                </Button>
                 <Button variant="outline" className="flex-1">
                   View Order History
                 </Button>
@@ -1494,6 +1608,21 @@ export default function Customers() {
             <DialogTitle>Edit Customer</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Photo</Label>
+              <DragDropImageUpload
+                value={customerPhoto || customerPhotoPreview}
+                onChange={(file) => {
+                  setCustomerPhoto(file);
+                  if (file) setCustomerPhotoPreview(URL.createObjectURL(file));
+                  else setCustomerPhotoPreview(selectedCustomer?.photo_url || null);
+                }}
+                onRemove={() => {
+                  setCustomerPhoto(null);
+                  setCustomerPhotoPreview(null);
+                }}
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-name">Company Name *</Label>
               <Input
@@ -1550,13 +1679,19 @@ export default function Customers() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-industry">Industry</Label>
-              <Input
-                id="edit-industry"
-                value={newCustomer.industry}
-                onChange={(e) => setNewCustomer(prev => ({ ...prev, industry: e.target.value }))}
-                placeholder="Enter industry"
-              />
+              <Label htmlFor="edit-customer-category">Customer Category</Label>
+              <Select value={["Energy Production", "Metal Products", "Metalworking Tools", "Raw Materials"].includes(newCustomer.customerCategory) ? newCustomer.customerCategory : "__none__"} onValueChange={(value) => setNewCustomer(prev => ({ ...prev, customerCategory: value === "__none__" ? "" : value }))}>
+                <SelectTrigger id="edit-customer-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select category</SelectItem>
+                  <SelectItem value="Energy Production">Energy Production</SelectItem>
+                  <SelectItem value="Metal Products">Metal Products</SelectItem>
+                  <SelectItem value="Metalworking Tools">Metalworking Tools</SelectItem>
+                  <SelectItem value="Raw Materials">Raw Materials</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-country">Country</Label>
@@ -1680,8 +1815,8 @@ export default function Customers() {
             <Button variant="outline" onClick={() => setIsEditCustomerOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateCustomer}>
-              Update Customer
+            <Button onClick={handleUpdateCustomer} disabled={isUploadingPhoto}>
+              {isUploadingPhoto ? "Updating..." : "Update Customer"}
             </Button>
           </div>
         </DialogContent>

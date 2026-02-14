@@ -188,18 +188,29 @@ export default function Settings() {
 
   const handleLogoUpload = async (file: File) => {
     try {
-      // Validate file type
-      if (!validateImageFile(file)) {
+      // Validate file type - JPG, PNG, or SVG (SVG stays vector, no resize needed)
+      const validLogoTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'];
+      if (!validLogoTypes.includes(file.type)) {
         toast({
           title: "Invalid file type",
-          description: "Please upload a JPG or PNG image.",
+          description: "Please upload a JPG, PNG, or SVG image.",
           variant: "destructive",
         });
         return null;
       }
 
-      // Resize image while maintaining aspect ratio
-      const resizedFile = await resizeImageFile(file, 200, 200, 0.8);
+      // SVG: pass through without resizing (vector stays perfect at any size)
+      if (file.type === 'image/svg+xml') {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // Raster: resize with high resolution for crisp display in header and print-quality invoices
+      const resizedFile = await resizeImageFile(file, 1024, 1024, 0.95, { preservePng: true });
       
       // Convert to base64
       return new Promise<string>((resolve, reject) => {

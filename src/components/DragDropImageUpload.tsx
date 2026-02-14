@@ -17,14 +17,14 @@ interface DragDropImageUploadProps {
   label?: string;
 }
 
-const ACCEPTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const ACCEPTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export function DragDropImageUpload({
   value,
   onChange,
   onRemove,
-  accept = 'image/jpeg,image/jpg,image/png,image/webp',
+  accept = 'image/jpeg,image/jpg,image/png,image/webp,image/svg+xml',
   maxSizeMB = 10,
   className,
   previewClassName,
@@ -43,7 +43,7 @@ export function DragDropImageUpload({
     if (!ACCEPTED_TYPES.includes(file.type)) {
       toast({
         title: "Invalid file type",
-        description: "Please upload a JPG, PNG, or WEBP image.",
+        description: "Please upload a JPG, PNG, WEBP, or SVG image.",
         variant: "destructive",
       });
       return false;
@@ -219,7 +219,7 @@ export function DragDropImageUpload({
                   <p className="text-xs text-muted-foreground">or click to select</p>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  JPG, PNG, WEBP (max {maxSizeMB}MB)
+                  JPG, PNG, WEBP, SVG (max {maxSizeMB}MB)
                 </p>
               </>
             )}

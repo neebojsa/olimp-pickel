@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Wrench, Clock, Plus, Edit, Printer, Filter, X, Trash2, Package, Settings, Users } from "lucide-react";
+import { FileText, Wrench, Clock, Plus, Edit, Printer, Filter, X, Trash2, Package, Settings, Users, ClipboardCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -341,6 +341,9 @@ export default function WorkOrders() {
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [materialStockMm, setMaterialStockMm] = useState<Record<string, number>>({});
+  const [materialItems, setMaterialItems] = useState<any[]>([]);
+  const [staffMembers, setStaffMembers] = useState<any[]>([]);
   // Column header filters
   const [workOrderNumberFilter, setWorkOrderNumberFilter] = useState({ search: "", from: "", to: "" });
   const [isWorkOrderNumberFilterOpen, setIsWorkOrderNumberFilterOpen] = useState(false);
@@ -354,6 +357,35 @@ export default function WorkOrders() {
     fetchWorkOrders();
   }, []);
 
+  useEffect(() => {
+    const fetchStaff = async () => {
+      const { data } = await supabase.from('staff').select('id, name, position, department');
+      if (data) setStaffMembers(data);
+    };
+    fetchStaff();
+  }, []);
+
+  useEffect(() => {
+    if (isWorkOrderDetailsOpen && selectedWorkOrder) {
+      const fetchMaterialData = async () => {
+        const { data: materialsData } = await supabase.from('inventory').select('id, name, part_number').eq('category', 'Materials');
+        if (materialsData) setMaterialItems(materialsData);
+        const { data: adjustments } = await supabase.from('material_adjustments' as any).select('inventory_id, adjustment_type, length_mm, quantity_pieces');
+        if (adjustments) {
+          const stockByMaterial: Record<string, number> = {};
+          (adjustments as any[]).forEach((adj: any) => {
+            const totalMm = (adj.length_mm || 0) * (adj.quantity_pieces || 0);
+            if (!stockByMaterial[adj.inventory_id]) stockByMaterial[adj.inventory_id] = 0;
+            if (adj.adjustment_type === 'add') stockByMaterial[adj.inventory_id] += totalMm;
+            else if (adj.adjustment_type === 'subtract') stockByMaterial[adj.inventory_id] -= totalMm;
+          });
+          setMaterialStockMm(stockByMaterial);
+        }
+      };
+      fetchMaterialData();
+    }
+  }, [isWorkOrderDetailsOpen, selectedWorkOrder?.id]);
+
   const fetchWorkOrders = async () => {
     const { data } = await supabase.from('work_orders').select('*');
     if (data) {
@@ -364,11 +396,15 @@ export default function WorkOrders() {
         partNumber: wo.part_number || 'N/A',
         percentageCompletion: wo.percentage_completion ?? 0,
         productionTime: "3.5 hours", // Placeholder
-        setupInstructions: "", // Placeholder
-        qualityRequirements: "", // Placeholder
-        productionNotes: wo.description || "",
-        tools: [], // Placeholder
-        operatorsAndMachines: [] // Placeholder
+        quantity: wo.quantity ?? 0,
+        setupInstructions: wo.setup_instructions || "",
+        qualityRequirements: wo.quality_requirements || "",
+        productionNotes: wo.production_notes || "",
+        tools: wo.tools_used && Array.isArray(wo.tools_used) ? wo.tools_used : [],
+        components: wo.components_used && Array.isArray(wo.components_used) ? wo.components_used : [],
+        materials: wo.materials_used && Array.isArray(wo.materials_used) ? wo.materials_used : [],
+        operatorsAndMachines: wo.operators_and_machines && Array.isArray(wo.operators_and_machines) ? wo.operators_and_machines : [],
+        controlInChargeId: wo.control_in_charge_id || null
       }));
       setWorkOrders(formattedWorkOrders);
     }
@@ -1346,6 +1382,52 @@ export default function WorkOrders() {
                 )}
               </div>
 
+              {/* Materials Section */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                  <Package className="w-5 h-5" />
+                  Materials
+                </h3>
+                {(selectedWorkOrder.materials?.length ?? 0) > 0 ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2 text-sm font-medium text-muted-foreground pb-2 border-b">
+                      <div>Material</div>
+                      <div className="text-right">Per piece (mm)</div>
+                      <div className="text-right">Total required (mm)</div>
+                      <div className="text-right">Available (mm)</div>
+                      <div className="text-right">Status</div>
+                    </div>
+                    {selectedWorkOrder.materials.map((material: any, index: number) => {
+                      const lengthPerPieceMm = material.lengthPerPiece ? parseFloat(material.lengthPerPiece) || 0 : 0;
+                      const workOrderQty = selectedWorkOrder.quantity ?? 0;
+                      const totalRequiredMm = lengthPerPieceMm * workOrderQty;
+                      const matchedMaterial = materialItems.find(m => m.name === material.name);
+                      const stockMm = matchedMaterial ? (materialStockMm[matchedMaterial.id] ?? 0) : 0;
+                      const hasEnough = totalRequiredMm > 0 ? stockMm >= totalRequiredMm : true;
+                      return (
+                        <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center p-3 bg-muted rounded">
+                          <div className="font-medium">{material.name}</div>
+                          <div className="text-right">{lengthPerPieceMm > 0 ? lengthPerPieceMm.toLocaleString() : "—"}</div>
+                          <div className="text-right">{totalRequiredMm > 0 ? totalRequiredMm.toLocaleString() : "—"}</div>
+                          <div className="text-right">{matchedMaterial ? stockMm.toLocaleString() : "—"}</div>
+                          <div className="text-right">
+                            {totalRequiredMm > 0 && matchedMaterial ? (
+                              <Badge variant={hasEnough ? "default" : "destructive"}>
+                                {hasEnough ? "OK" : "Short"}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground p-3 bg-muted rounded">No materials specified for this work order.</p>
+                )}
+              </div>
+
               {/* Operators and Machines Section */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
@@ -1392,6 +1474,43 @@ export default function WorkOrders() {
                         </Badge>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Control Section */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                  <ClipboardCheck className="w-5 h-5" />
+                  Person in Charge of Control
+                </h3>
+                {isEditMode ? (
+                  <div>
+                    <Label>Control</Label>
+                    <Select defaultValue={selectedWorkOrder.controlInChargeId || "__none__"}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select staff member for control" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None</SelectItem>
+                        {staffMembers.map((staff) => (
+                          <SelectItem key={staff.id} value={staff.id}>
+                            {staff.name} {staff.position && `- ${staff.position}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <p className="text-sm p-3 bg-muted rounded">
+                      {selectedWorkOrder.controlInChargeId
+                        ? (() => {
+                            const controlPerson = staffMembers.find(s => s.id === selectedWorkOrder.controlInChargeId);
+                            return controlPerson ? `${controlPerson.name}${controlPerson.position ? ` - ${controlPerson.position}` : ""}` : "—";
+                          })()
+                        : "Not assigned"}
+                    </p>
                   </div>
                 )}
               </div>

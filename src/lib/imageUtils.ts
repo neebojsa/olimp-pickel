@@ -1,4 +1,21 @@
-export const resizeImageFile = (file: File, maxWidth: number = 200, maxHeight: number = 200, quality: number = 0.8): Promise<File> => {
+export interface ResizeImageOptions {
+  maxWidth?: number;
+  maxHeight?: number;
+  quality?: number;
+  /** Preserve PNG format for transparency. When true and input is PNG, outputs PNG. */
+  preservePng?: boolean;
+}
+
+export const resizeImageFile = (
+  file: File,
+  maxWidth: number = 200,
+  maxHeight: number = 200,
+  quality: number = 0.8,
+  options?: ResizeImageOptions
+): Promise<File> => {
+  const preservePng = options?.preservePng ?? false;
+  const isPng = file.type === 'image/png';
+
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -26,12 +43,16 @@ export const resizeImageFile = (file: File, maxWidth: number = 200, maxHeight: n
       // Draw and resize image
       ctx?.drawImage(img, 0, 0, width, height);
 
+      const usePng = preservePng && isPng;
+      const mimeType = usePng ? 'image/png' : 'image/jpeg';
+      const outputQuality = usePng ? undefined : quality;
+
       // Convert canvas to blob
       canvas.toBlob(
         (blob) => {
           if (blob) {
             const resizedFile = new File([blob], file.name, {
-              type: 'image/jpeg',
+              type: mimeType,
               lastModified: Date.now(),
             });
             resolve(resizedFile);
@@ -39,8 +60,8 @@ export const resizeImageFile = (file: File, maxWidth: number = 200, maxHeight: n
             reject(new Error('Failed to resize image'));
           }
         },
-        'image/jpeg',
-        quality
+        mimeType,
+        outputQuality
       );
     };
 

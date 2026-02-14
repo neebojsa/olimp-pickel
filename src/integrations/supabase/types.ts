@@ -118,9 +118,10 @@ export type Database = {
           declaration_numbers: string[] | null
           email: string | null
           id: string
-          industry: string | null
+          customer_category: string | null
           name: string
           phone: string | null
+          photo_url: string | null
           updated_at: string
           vat_number: string | null
           webpage: string | null
@@ -135,9 +136,10 @@ export type Database = {
           declaration_numbers?: string[] | null
           email?: string | null
           id?: string
-          industry?: string | null
+          customer_category?: string | null
           name: string
           phone?: string | null
+          photo_url?: string | null
           updated_at?: string
           vat_number?: string | null
           webpage?: string | null
@@ -152,9 +154,10 @@ export type Database = {
           declaration_numbers?: string[] | null
           email?: string | null
           id?: string
-          industry?: string | null
+          customer_category?: string | null
           name?: string
           phone?: string | null
+          photo_url?: string | null
           updated_at?: string
           vat_number?: string | null
           webpage?: string | null
@@ -634,6 +637,7 @@ export type Database = {
           notes: string | null
           payment_terms: string | null
           phone: string | null
+          photo_url: string | null
           tax_id: string | null
           updated_at: string
           website: string | null
@@ -651,6 +655,7 @@ export type Database = {
           notes?: string | null
           payment_terms?: string | null
           phone?: string | null
+          photo_url?: string | null
           tax_id?: string | null
           updated_at?: string
           website?: string | null
@@ -668,6 +673,7 @@ export type Database = {
           notes?: string | null
           payment_terms?: string | null
           phone?: string | null
+          photo_url?: string | null
           tax_id?: string | null
           updated_at?: string
           website?: string | null
@@ -913,6 +919,8 @@ export type Database = {
         Row: {
           actual_hours: number | null
           assigned_to: string | null
+          components_used: Json | null
+          control_in_charge_id: string | null
           created_at: string
           customer_id: string | null
           description: string | null
@@ -920,18 +928,27 @@ export type Database = {
           estimated_hours: number | null
           id: string
           inventory_id: string | null
+          materials_used: Json | null
+          operators_and_machines: Json | null
           part_name: string | null
           part_number: string | null
           percentage_completion: number
           priority: string
+          production_notes: string | null
+          quality_requirements: string | null
+          quantity: number | null
+          setup_instructions: string | null
           status: string
           title: string
+          tools_used: Json | null
           updated_at: string
           work_order_number: string | null
         }
         Insert: {
           actual_hours?: number | null
           assigned_to?: string | null
+          components_used?: Json | null
+          control_in_charge_id?: string | null
           created_at?: string
           customer_id?: string | null
           description?: string | null
@@ -939,18 +956,27 @@ export type Database = {
           estimated_hours?: number | null
           id?: string
           inventory_id?: string | null
+          materials_used?: Json | null
+          operators_and_machines?: Json | null
           part_name?: string | null
           part_number?: string | null
           percentage_completion?: number
           priority?: string
+          production_notes?: string | null
+          quality_requirements?: string | null
+          quantity?: number | null
+          setup_instructions?: string | null
           status?: string
           title: string
+          tools_used?: Json | null
           updated_at?: string
           work_order_number?: string | null
         }
         Update: {
           actual_hours?: number | null
           assigned_to?: string | null
+          components_used?: Json | null
+          control_in_charge_id?: string | null
           created_at?: string
           customer_id?: string | null
           description?: string | null
@@ -958,12 +984,19 @@ export type Database = {
           estimated_hours?: number | null
           id?: string
           inventory_id?: string | null
+          materials_used?: Json | null
+          operators_and_machines?: Json | null
           part_name?: string | null
           part_number?: string | null
           percentage_completion?: number
           priority?: string
+          production_notes?: string | null
+          quality_requirements?: string | null
+          quantity?: number | null
+          setup_instructions?: string | null
           status?: string
           title?: string
+          tools_used?: Json | null
           updated_at?: string
           work_order_number?: string | null
         }

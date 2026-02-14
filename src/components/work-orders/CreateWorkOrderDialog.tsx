@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
-import { Package, Settings, Users, Plus, Trash2, Calendar as CalendarIcon, ChevronsUpDown, Check } from "lucide-react";
+import { Package, Settings, Users, Plus, Trash2, Calendar as CalendarIcon, ChevronsUpDown, Check, ClipboardCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -26,6 +26,15 @@ export type EditingWorkOrder = {
   estimated_hours?: number | null;
   due_date?: string | null;
   priority?: string | null;
+  setup_instructions?: string | null;
+  quality_requirements?: string | null;
+  production_notes?: string | null;
+  tools_used?: Array<{ name: string; quantity?: number }> | null;
+  components_used?: Array<{ name: string; quantity?: number }> | null;
+  materials_used?: Array<{ name: string; notes?: string; lengthPerPiece?: string }> | null;
+  quantity?: number | null;
+  operators_and_machines?: Array<{ name: string; type: "operator" | "machine" }> | null;
+  control_in_charge_id?: string | null;
 };
 
 interface CreateWorkOrderDialogProps {
@@ -79,7 +88,8 @@ export function CreateWorkOrderDialog({
   const [componentSearchOpen, setComponentSearchOpen] = useState<Record<number, boolean>>({});
   const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
   const [workOrderDueDate, setWorkOrderDueDate] = useState<Date | undefined>(undefined);
-  const [priority, setPriority] = useState("medium");
+  const [priority, setPriority] = useState("Medium");
+  const [controlInChargeId, setControlInChargeId] = useState<string>("__none__");
 
   useEffect(() => {
     if (open) {
@@ -98,25 +108,65 @@ export function CreateWorkOrderDialog({
         setWorkOrderDueDate(
           editingWorkOrder.due_date ? new Date(editingWorkOrder.due_date) : undefined
         );
-        setPriority(editingWorkOrder.priority || "medium");
+        setPriority(editingWorkOrder.priority || "Medium");
+        if (editingWorkOrder.tools_used && Array.isArray(editingWorkOrder.tools_used) && editingWorkOrder.tools_used.length > 0) {
+          setTools(editingWorkOrder.tools_used.map((t: any) => ({
+            name: t.name || "",
+            quantity: t.quantity != null ? String(t.quantity) : ""
+          })));
+        }
+        if (editingWorkOrder.components_used && Array.isArray(editingWorkOrder.components_used) && editingWorkOrder.components_used.length > 0) {
+          setComponents(editingWorkOrder.components_used.map((c: any) => ({
+            name: c.name || "",
+            quantity: c.quantity ?? 1
+          })));
+        }
+        if (editingWorkOrder.materials_used && Array.isArray(editingWorkOrder.materials_used) && editingWorkOrder.materials_used.length > 0) {
+          setMaterials(editingWorkOrder.materials_used.map((m: any) => ({
+            name: m.name || "",
+            notes: m.notes || "",
+            lengthPerPiece: m.lengthPerPiece != null ? String(m.lengthPerPiece) : ""
+          })));
+        }
+        setWorkOrderQuantity(editingWorkOrder.quantity ?? 0);
+        setControlInChargeId(editingWorkOrder.control_in_charge_id || "__none__");
+        if (editingWorkOrder.operators_and_machines && Array.isArray(editingWorkOrder.operators_and_machines) && editingWorkOrder.operators_and_machines.length > 0) {
+          setOperatorsAndMachines(editingWorkOrder.operators_and_machines.map((o: any) => ({
+            name: o.name || "",
+            type: (o.type === "machine" ? "machine" : "operator") as "operator" | "machine"
+          })));
+        }
         setTimeout(() => {
           const descEl = document.getElementById("description") as HTMLTextAreaElement | null;
           const timeEl = document.getElementById("productionTime") as HTMLInputElement | null;
+          const setupEl = document.getElementById("setupInstructions") as HTMLTextAreaElement | null;
+          const qualityEl = document.getElementById("qualityRequirements") as HTMLTextAreaElement | null;
+          const prodNotesEl = document.getElementById("productionNotes") as HTMLTextAreaElement | null;
           if (descEl) descEl.value = editingWorkOrder.description || "";
           if (timeEl) timeEl.value = editingWorkOrder.estimated_hours != null ? String(editingWorkOrder.estimated_hours) : "";
+          if (setupEl) setupEl.value = editingWorkOrder.setup_instructions || "";
+          if (qualityEl) qualityEl.value = editingWorkOrder.quality_requirements || "";
+          if (prodNotesEl) prodNotesEl.value = editingWorkOrder.production_notes || "";
         }, 0);
       } else {
         setSelectedPartId(defaultPartId || "");
         setSelectedPartNumber("");
         setWorkOrderDueDate(undefined);
-        setPriority("medium");
+        setPriority("Medium");
+        setControlInChargeId("__none__");
         setTools([{ name: "", quantity: "" }]);
         setComponents([{ name: "", quantity: 1 }]);
         setTimeout(() => {
           const descEl = document.getElementById("description") as HTMLTextAreaElement | null;
           const timeEl = document.getElementById("productionTime") as HTMLInputElement | null;
+          const setupEl = document.getElementById("setupInstructions") as HTMLTextAreaElement | null;
+          const qualityEl = document.getElementById("qualityRequirements") as HTMLTextAreaElement | null;
+          const prodNotesEl = document.getElementById("productionNotes") as HTMLTextAreaElement | null;
           if (descEl) descEl.value = "";
           if (timeEl) timeEl.value = "";
+          if (setupEl) setupEl.value = "";
+          if (qualityEl) qualityEl.value = "";
+          if (prodNotesEl) prodNotesEl.value = "";
         }, 0);
       }
       
@@ -148,60 +198,56 @@ export function CreateWorkOrderDialog({
   }, [defaultPartId, inventoryItems]);
 
   // Update selectedPartNumber and load tools/components/materials when selectedPartId changes
+  // When editing: use saved work order data if present; otherwise fall back to part presets
   useEffect(() => {
     if (selectedPartId && inventoryItems.length > 0) {
       const selectedPart = inventoryItems.find(item => item.id === selectedPartId);
       if (selectedPart) {
         setSelectedPartNumber(`${selectedPart.name} - ${selectedPart.part_number || 'N/A'}`);
         
-        // Load tools from the part
-        if (selectedPart.tools_used && Array.isArray(selectedPart.tools_used) && selectedPart.tools_used.length > 0) {
-          const toolsData = selectedPart.tools_used.filter((t: any) => t.name).map((t: any) => ({
-            name: t.name || "",
-            quantity: t.quantity ? t.quantity.toString() : ""
-          }));
-          if (toolsData.length > 0) {
+        const hasSavedTools = editingWorkOrder?.tools_used && Array.isArray(editingWorkOrder.tools_used) && editingWorkOrder.tools_used.length > 0;
+        const hasSavedComponents = editingWorkOrder?.components_used && Array.isArray(editingWorkOrder.components_used) && editingWorkOrder.components_used.length > 0;
+        const hasSavedMaterials = editingWorkOrder?.materials_used && Array.isArray(editingWorkOrder.materials_used) && editingWorkOrder.materials_used.length > 0;
+        
+        if (!hasSavedTools) {
+          if (selectedPart.tools_used && Array.isArray(selectedPart.tools_used) && selectedPart.tools_used.length > 0) {
+            const toolsData = selectedPart.tools_used.filter((t: any) => t.name).map((t: any) => ({
+              name: t.name || "",
+              quantity: t.quantity ? t.quantity.toString() : ""
+            }));
             setTools(toolsData);
+          } else {
+            setTools([{ name: "", quantity: "" }]);
           }
-        } else {
-          // Reset to empty if no tools
-          setTools([{ name: "", quantity: "" }]);
         }
         
-        // Load components from the part
-        if (selectedPart.components_used && Array.isArray(selectedPart.components_used) && selectedPart.components_used.length > 0) {
-          const componentsData = selectedPart.components_used.filter((c: any) => c.name).map((c: any) => ({
-            name: c.name || "",
-            quantity: c.quantity || 1
-          }));
-          if (componentsData.length > 0) {
+        if (!hasSavedComponents) {
+          if (selectedPart.components_used && Array.isArray(selectedPart.components_used) && selectedPart.components_used.length > 0) {
+            const componentsData = selectedPart.components_used.filter((c: any) => c.name).map((c: any) => ({
+              name: c.name || "",
+              quantity: c.quantity || 1
+            }));
             setComponents(componentsData);
+          } else {
+            setComponents([{ name: "", quantity: 1 }]);
           }
-        } else {
-          // Reset to empty if no components
-          setComponents([{ name: "", quantity: 1 }]);
         }
         
-        // Load materials from the part (only if not already set via defaultMaterials)
-        if (!defaultMaterials || (defaultMaterials && defaultMaterials.length === 0)) {
+        if (!hasSavedMaterials && (!defaultMaterials || defaultMaterials.length === 0)) {
           if (selectedPart.materials_used && Array.isArray(selectedPart.materials_used) && selectedPart.materials_used.length > 0) {
             const materialsData = selectedPart.materials_used.filter((m: any) => m.name).map((m: any) => ({
               name: m.name || "",
               notes: m.notes || "",
               lengthPerPiece: m.lengthPerPiece != null ? String(m.lengthPerPiece) : ""
             }));
-            if (materialsData.length > 0) {
-              setMaterials(materialsData);
-            } else {
-              setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
-            }
+            setMaterials(materialsData);
           } else {
             setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
           }
         }
       }
     }
-  }, [selectedPartId, inventoryItems]);
+  }, [selectedPartId, inventoryItems, editingWorkOrder, defaultMaterials]);
 
   const fetchInventoryItems = async () => {
     const { data } = await supabase.from('inventory').select('id, name, description, part_number, category, tools_used, materials_used, components_used').eq('category', 'Parts');
@@ -267,6 +313,9 @@ export function CreateWorkOrderDialog({
     const productionTime = (document.getElementById('productionTime') as HTMLInputElement)?.value;
     const dueDate = workOrderDueDate ? format(workOrderDueDate, 'yyyy-MM-dd') : null;
     const description = (document.getElementById('description') as HTMLTextAreaElement)?.value;
+    const setupInstructions = (document.getElementById('setupInstructions') as HTMLTextAreaElement)?.value ?? "";
+    const qualityRequirements = (document.getElementById('qualityRequirements') as HTMLTextAreaElement)?.value ?? "";
+    const productionNotes = (document.getElementById('productionNotes') as HTMLTextAreaElement)?.value ?? "";
 
     if (!description || !selectedPartId) {
       toast({
@@ -279,6 +328,24 @@ export function CreateWorkOrderDialog({
 
     const selectedPart = inventoryItems.find(item => item.id === selectedPartId);
 
+    const toolsPayload = tools.filter(t => t.name).map(t => ({
+      name: t.name,
+      quantity: t.quantity ? parseFloat(t.quantity) || 0 : 0
+    }));
+    const componentsPayload = components.filter(c => c.name).map(c => ({
+      name: c.name,
+      quantity: c.quantity ?? 1
+    }));
+    const materialsPayload = materials.filter(m => m.name).map(m => ({
+      name: m.name,
+      notes: m.notes || undefined,
+      lengthPerPiece: m.lengthPerPiece || undefined
+    }));
+    const operatorsPayload = operatorsAndMachines.filter(o => o.name).map(o => ({
+      name: o.name,
+      type: o.type
+    }));
+
     if (editingWorkOrder) {
       const { error } = await supabase
         .from('work_orders')
@@ -286,10 +353,19 @@ export function CreateWorkOrderDialog({
           description,
           estimated_hours: productionTime ? parseFloat(productionTime) : null,
           due_date: dueDate || null,
-          priority: priority || 'medium',
+          priority: priority || 'Medium',
           inventory_id: selectedPartId,
           part_name: selectedPart?.name,
-          part_number: selectedPart?.part_number
+          part_number: selectedPart?.part_number,
+          setup_instructions: setupInstructions || null,
+          quality_requirements: qualityRequirements || null,
+          production_notes: productionNotes || null,
+          tools_used: toolsPayload.length > 0 ? toolsPayload : null,
+          components_used: componentsPayload.length > 0 ? componentsPayload : null,
+          materials_used: materialsPayload.length > 0 ? materialsPayload : null,
+          quantity: workOrderQuantity || null,
+          operators_and_machines: operatorsPayload.length > 0 ? operatorsPayload : null,
+          control_in_charge_id: controlInChargeId && controlInChargeId !== "__none__" ? controlInChargeId : null
         })
         .eq('id', editingWorkOrder.id);
 
@@ -335,7 +411,16 @@ export function CreateWorkOrderDialog({
         status: 'pending',
         inventory_id: selectedPartId,
         part_name: selectedPart?.name,
-        part_number: selectedPart?.part_number
+        part_number: selectedPart?.part_number,
+        setup_instructions: setupInstructions || null,
+        quality_requirements: qualityRequirements || null,
+        production_notes: productionNotes || null,
+        tools_used: toolsPayload.length > 0 ? toolsPayload : null,
+        components_used: componentsPayload.length > 0 ? componentsPayload : null,
+        materials_used: materialsPayload.length > 0 ? materialsPayload : null,
+        quantity: workOrderQuantity || null,
+        operators_and_machines: operatorsPayload.length > 0 ? operatorsPayload : null,
+        control_in_charge_id: controlInChargeId && controlInChargeId !== "__none__" ? controlInChargeId : null
       }])
       .select();
 
@@ -358,6 +443,7 @@ export function CreateWorkOrderDialog({
       setComponentSearchTerms({});
       setComponentSearchOpen({});
       setOperatorsAndMachines([{ name: "", type: "operator" }]);
+      setControlInChargeId("__none__");
       // Reset materials to defaultMaterials if provided, otherwise empty
       if (defaultMaterials && defaultMaterials.length > 0) {
         setMaterials(defaultMaterials.map(m => ({
@@ -372,7 +458,7 @@ export function CreateWorkOrderDialog({
       }
       setWorkOrderDueDate(undefined);
       setWorkOrderQuantity(0);
-      setPriority("medium");
+      setPriority("Medium");
       
       const productionTimeInput = document.getElementById('productionTime') as HTMLInputElement;
       const descriptionInput = document.getElementById('description') as HTMLTextAreaElement;
@@ -408,10 +494,11 @@ export function CreateWorkOrderDialog({
       setComponentSearchTerms({});
       setComponentSearchOpen({});
     setOperatorsAndMachines([{ name: "", type: "operator" }]);
+    setControlInChargeId("__none__");
     setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
     setWorkOrderDueDate(undefined);
     setWorkOrderQuantity(0);
-    setPriority("medium");
+    setPriority("Medium");
     onOpenChange(false);
   };
 
@@ -435,9 +522,10 @@ export function CreateWorkOrderDialog({
             </div>
             <div>
               <Label htmlFor="partName">Part</Label>
-              <Select value={selectedPartId} onValueChange={(value) => {
-                setSelectedPartId(value);
-                const selectedPart = inventoryItems.find(item => item.id === value);
+              <Select value={selectedPartId && inventoryItems.some(i => i.id === selectedPartId) ? selectedPartId : "__none__"} onValueChange={(value) => {
+                const partId = value === "__none__" ? "" : value;
+                setSelectedPartId(partId);
+                const selectedPart = partId ? inventoryItems.find(item => item.id === partId) : undefined;
                 setSelectedPartNumber(selectedPart ? `${selectedPart.name} - ${selectedPart.part_number || 'N/A'}` : "");
                 
                 // Load tools from the selected part
@@ -492,6 +580,7 @@ export function CreateWorkOrderDialog({
                   <SelectValue placeholder="Select part" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">Select part</SelectItem>
                   {inventoryItems.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.name} - {item.part_number || 'N/A'}
@@ -1160,6 +1249,27 @@ export function CreateWorkOrderDialog({
                 Add Operator/Machine
               </Button>
             </div>
+          </div>
+
+          {/* Control Section */}
+          <div>
+            <Label className="flex items-center gap-2 mb-3">
+              <ClipboardCheck className="w-4 h-4" />
+              Person in Charge of Control
+            </Label>
+              <Select value={controlInChargeId} onValueChange={setControlInChargeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select staff member for control" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                {staffMembers.map((staff) => (
+                  <SelectItem key={staff.id} value={staff.id}>
+                    {staff.name} {staff.position && `- ${staff.position}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

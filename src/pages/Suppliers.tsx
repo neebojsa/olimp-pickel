@@ -13,7 +13,8 @@ import { ResponsiveTable } from "@/components/ResponsiveTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, CreditCard, Filter, X } from "lucide-react";
+import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, CreditCard, Filter, X, Pencil } from "lucide-react";
+import { DragDropImageUpload } from "@/components/DragDropImageUpload";
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,6 +67,21 @@ export default function Suppliers() {
   const [isCountryFilterOpen, setIsCountryFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  const [supplierPhoto, setSupplierPhoto] = useState<File | null>(null);
+  const [supplierPhotoPreview, setSupplierPhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const uploadSupplierPhoto = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage.from('supplier-photos').upload(fileName, file);
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return null;
+    }
+    const { data } = supabase.storage.from('supplier-photos').getPublicUrl(fileName);
+    return data.publicUrl;
+  };
 
   useEffect(() => {
     fetchSuppliers();
@@ -111,6 +127,21 @@ export default function Suppliers() {
       return;
     }
 
+    setIsUploadingPhoto(true);
+    let photoUrl: string | null = null;
+    if (supplierPhoto) {
+      photoUrl = await uploadSupplierPhoto(supplierPhoto);
+      if (!photoUrl) {
+        toast({
+          title: "Error",
+          description: "Failed to upload photo. Please try again.",
+          variant: "destructive"
+        });
+        setIsUploadingPhoto(false);
+        return;
+      }
+    }
+
     const { data, error } = await supabase
       .from('suppliers')
       .insert([{
@@ -125,10 +156,12 @@ export default function Suppliers() {
         payment_terms: newSupplier.payment_terms,
         notes: newSupplier.notes,
         country: newSupplier.country,
-        currency: newSupplier.currency
+        currency: newSupplier.currency,
+        photo_url: photoUrl
       }])
       .select();
 
+    setIsUploadingPhoto(false);
     if (error) {
       toast({
         title: "Error",
@@ -152,6 +185,8 @@ export default function Suppliers() {
         country: '',
         currency: 'EUR'
       });
+      setSupplierPhoto(null);
+      setSupplierPhotoPreview(null);
       toast({
         title: "Success",
         description: "Supplier saved successfully"
@@ -164,22 +199,24 @@ export default function Suppliers() {
     setIsSupplierDialogOpen(true);
   };
 
-  const handleEditSupplier = () => {
+  const handleEditSupplier = (supplier: any) => {
+    setSelectedSupplier(supplier);
     setNewSupplier({
-      name: selectedSupplier.name,
-      contact_person: selectedSupplier.contact_person || '',
-      email: selectedSupplier.email || '',
-      phone: selectedSupplier.phone || '',
-      address: selectedSupplier.address || '',
-      city: selectedSupplier.city || '',
-      website: selectedSupplier.website || '',
-      tax_id: selectedSupplier.tax_id || '',
-      payment_terms: selectedSupplier.payment_terms || 'Net 30',
-      notes: selectedSupplier.notes || '',
-      country: selectedSupplier.country || '',
-      currency: selectedSupplier.currency || 'EUR'
+      name: supplier.name,
+      contact_person: supplier.contact_person || '',
+      email: supplier.email || '',
+      phone: supplier.phone || '',
+      address: supplier.address || '',
+      city: supplier.city || '',
+      website: supplier.website || '',
+      tax_id: supplier.tax_id || '',
+      payment_terms: supplier.payment_terms || 'Net 30',
+      notes: supplier.notes || '',
+      country: supplier.country || '',
+      currency: supplier.currency || 'EUR'
     });
-    setIsSupplierDialogOpen(false);
+    setSupplierPhoto(null);
+    setSupplierPhotoPreview(supplier.photo_url || null);
     setIsEditSupplierOpen(true);
   };
 
@@ -191,6 +228,23 @@ export default function Suppliers() {
         variant: "destructive"
       });
       return;
+    }
+
+    setIsUploadingPhoto(true);
+    let photoUrl: string | null = selectedSupplier.photo_url || null;
+    if (supplierPhoto) {
+      photoUrl = await uploadSupplierPhoto(supplierPhoto);
+      if (!photoUrl) {
+        toast({
+          title: "Error",
+          description: "Failed to upload photo. Please try again.",
+          variant: "destructive"
+        });
+        setIsUploadingPhoto(false);
+        return;
+      }
+    } else if (!supplierPhotoPreview) {
+      photoUrl = null;
     }
 
     const { error } = await supabase
@@ -207,10 +261,12 @@ export default function Suppliers() {
         payment_terms: newSupplier.payment_terms,
         notes: newSupplier.notes,
         country: newSupplier.country,
-        currency: newSupplier.currency
+        currency: newSupplier.currency,
+        photo_url: photoUrl
       })
       .eq('id', selectedSupplier.id);
 
+    setIsUploadingPhoto(false);
     if (!error) {
       toast({
         title: "Supplier Updated",
@@ -232,6 +288,8 @@ export default function Suppliers() {
         country: '',
         currency: 'EUR'
       });
+      setSupplierPhoto(null);
+      setSupplierPhotoPreview(null);
       setIsEditSupplierOpen(false);
     } else {
       toast({
@@ -268,7 +326,13 @@ export default function Suppliers() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Suppliers</h1>
-        <Dialog open={isAddSupplierOpen} onOpenChange={setIsAddSupplierOpen}>
+        <Dialog open={isAddSupplierOpen} onOpenChange={(open) => {
+          setIsAddSupplierOpen(open);
+          if (open) {
+            setSupplierPhoto(null);
+            setSupplierPhotoPreview(null);
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -280,6 +344,21 @@ export default function Suppliers() {
               <DialogTitle>Add New Supplier</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <Label>Photo</Label>
+                <DragDropImageUpload
+                  value={supplierPhoto}
+                  onChange={(file) => {
+                    setSupplierPhoto(file);
+                    if (file) setSupplierPhotoPreview(URL.createObjectURL(file));
+                    else setSupplierPhotoPreview(null);
+                  }}
+                  onRemove={() => {
+                    setSupplierPhoto(null);
+                    setSupplierPhotoPreview(null);
+                  }}
+                />
+              </div>
               <div>
                 <Label>Company Name</Label>
                 <Input 
@@ -379,7 +458,9 @@ export default function Suppliers() {
               </div>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleSaveSupplier}>Save Supplier</Button>
+              <Button className="flex-1" onClick={handleSaveSupplier} disabled={isUploadingPhoto}>
+                {isUploadingPhoto ? "Saving..." : "Save Supplier"}
+              </Button>
               <Button variant="outline" onClick={() => setIsAddSupplierOpen(false)}>
                 Cancel
               </Button>
@@ -398,10 +479,8 @@ export default function Suppliers() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[120px]"></TableHead>
                     <TableHead>Company Name</TableHead>
-                    <TableHead>Contact Person</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
                     <TableHead>
                       <div className="flex items-center gap-2">
                         Country
@@ -495,12 +574,21 @@ export default function Suppliers() {
                     </TableHead>
                     <TableHead>Total Orders</TableHead>
                     <TableHead>Total Value</TableHead>
-                    <TableHead className="w-20">Actions</TableHead>
+                    <TableHead className="w-32">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedSuppliers.map((supplier) => (
                     <TableRow key={supplier.id}>
+                      <TableCell className="w-[120px]">
+                        <div className="h-10 w-[120px] flex-shrink-0 flex items-center justify-center">
+                          {supplier.photo_url ? (
+                            <img src={supplier.photo_url} alt={supplier.name} className="max-h-full max-w-full w-auto h-auto object-contain" />
+                          ) : (
+                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <button 
                           onClick={() => handleSupplierClick(supplier)}
@@ -509,13 +597,6 @@ export default function Suppliers() {
                           {supplier.name}
                         </button>
                       </TableCell>
-                      <TableCell>{supplier.contact_person}</TableCell>
-                      <TableCell className="text-sm">
-                        <a href={`mailto:${supplier.email}`} className="hover:underline">
-                          {supplier.email}
-                        </a>
-                      </TableCell>
-                      <TableCell className="text-sm">{supplier.phone}</TableCell>
                       <TableCell className="text-sm">{supplier.country || '-'}</TableCell>
                       <TableCell>{supplier.payment_terms}</TableCell>
                       <TableCell>
@@ -531,12 +612,24 @@ export default function Suppliers() {
                         ${supplier.totalValue.toLocaleString()}
                       </TableCell>
                       <TableCell>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditSupplier(supplier);
+                            }}
+                            title="Edit Supplier"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Supplier</AlertDialogTitle>
@@ -552,6 +645,7 @@ export default function Suppliers() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -568,31 +662,26 @@ export default function Suppliers() {
                   onClick={() => handleSupplierClick(supplier)}
                 >
                   <div className="space-y-3">
-                    <div className="flex flex-col space-y-1">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Name</span>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSupplierClick(supplier);
-                        }}
-                        className="text-sm font-medium text-primary hover:underline text-left"
-                      >
-                        {supplier.name}
-                      </button>
-                    </div>
-                    <div className="flex flex-col space-y-1">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact Person</span>
-                      <div className="text-sm font-medium">{supplier.contact_person}</div>
-                    </div>
-                    <div className="flex flex-col space-y-1">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</span>
-                      <a href={`mailto:${supplier.email}`} className="text-sm font-medium hover:underline break-all" onClick={(e) => e.stopPropagation()}>
-                        {supplier.email}
-                      </a>
-                    </div>
-                    <div className="flex flex-col space-y-1">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</span>
-                      <div className="text-sm font-medium">{supplier.phone}</div>
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-[120px] flex-shrink-0 flex items-center justify-center">
+                        {supplier.photo_url ? (
+                          <img src={supplier.photo_url} alt={supplier.name} className="max-h-full max-w-full w-auto h-auto object-contain" />
+                        ) : (
+                          <Building2 className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Name</span>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSupplierClick(supplier);
+                          }}
+                          className="block text-sm font-medium text-primary hover:underline text-left"
+                        >
+                          {supplier.name}
+                        </button>
+                      </div>
                     </div>
                     <div className="flex flex-col space-y-1">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</span>
@@ -619,10 +708,19 @@ export default function Suppliers() {
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Value</span>
                       <div className="text-sm font-medium">${supplier.totalValue.toLocaleString()}</div>
                     </div>
-                    <div className="pt-2 border-t" onClick={(e) => e.stopPropagation()}>
+                    <div className="pt-2 border-t flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleEditSupplier(supplier)}
+                        className="flex-1"
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="w-full">
+                          <Button variant="ghost" size="sm" className="flex-1">
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </Button>
@@ -690,7 +788,16 @@ export default function Suppliers() {
       <Dialog open={isSupplierDialogOpen} onOpenChange={setIsSupplierDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl">{selectedSupplier?.name}</DialogTitle>
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center">
+                {selectedSupplier?.photo_url ? (
+                  <img src={selectedSupplier.photo_url} alt={selectedSupplier.name} className="h-full w-full object-contain" />
+                ) : (
+                  <Building2 className="h-8 w-8 text-muted-foreground" />
+                )}
+              </div>
+              <DialogTitle className="text-2xl">{selectedSupplier?.name}</DialogTitle>
+            </div>
           </DialogHeader>
           
           {selectedSupplier && (
@@ -818,9 +925,6 @@ export default function Suppliers() {
                   <CreditCard className="w-4 h-4 mr-2" />
                   Create Purchase Order
                 </Button>
-                <Button variant="outline" className="flex-1" onClick={handleEditSupplier}>
-                  Edit Supplier
-                </Button>
                 <Button variant="outline" className="flex-1">
                   View Purchase History
                 </Button>
@@ -837,6 +941,21 @@ export default function Suppliers() {
             <DialogTitle>Edit Supplier</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Photo</Label>
+              <DragDropImageUpload
+                value={supplierPhoto || supplierPhotoPreview}
+                onChange={(file) => {
+                  setSupplierPhoto(file);
+                  if (file) setSupplierPhotoPreview(URL.createObjectURL(file));
+                  else setSupplierPhotoPreview(selectedSupplier?.photo_url || null);
+                }}
+                onRemove={() => {
+                  setSupplierPhoto(null);
+                  setSupplierPhotoPreview(null);
+                }}
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-name">Company Name *</Label>
               <Input
@@ -950,8 +1069,8 @@ export default function Suppliers() {
             <Button variant="outline" onClick={() => setIsEditSupplierOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateSupplier}>
-              Update Supplier
+            <Button onClick={handleUpdateSupplier} disabled={isUploadingPhoto}>
+              {isUploadingPhoto ? "Updating..." : "Update Supplier"}
             </Button>
           </div>
         </DialogContent>
