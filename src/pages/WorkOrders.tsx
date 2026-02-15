@@ -586,8 +586,7 @@ export default function WorkOrders() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Active Work Orders</CardTitle>
+        <CardHeader>          
         </CardHeader>
         <CardContent>
             {/* Desktop Table */}

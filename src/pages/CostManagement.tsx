@@ -37,7 +37,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 import { getCurrencyForCountry } from "@/lib/currencyUtils";
-import { compressImageForStorage, formatFileSize } from "@/lib/imageUtils";
+import { compressImageForStorage } from "@/lib/imageUtils";
+
+// Helper to format file size for display
+const formatFileSize = (bytes: number | undefined | null): string => {
+  if (bytes == null || bytes === 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 // Helper function to get status color classes
 const getStatusColor = (status: string): string => {
@@ -164,6 +172,7 @@ interface CostEntry {
   created_at: string;
   updated_at: string;
   document_url?: string;
+  document_size_bytes?: number;
 }
 
 interface Supplier {
@@ -365,7 +374,8 @@ export default function CostManagement() {
           status: ((entry as any).status || 'pending') as 'pending' | 'paid' | 'overdue',
           created_at: entry.created_at,
           updated_at: entry.updated_at,
-          document_url: (entry as any).document_url || ''
+          document_url: (entry as any).document_url || '',
+          document_size_bytes: (entry as any).document_size_bytes ?? undefined
         };
         // Auto-calculate effective status based on due_date
         const effectiveStatus = getEffectiveStatus(costEntry);
@@ -454,17 +464,15 @@ export default function CostManagement() {
     }
   };
 
-  const uploadDocument = async (file: File): Promise<string | null> => {
+  const uploadDocument = async (file: File): Promise<{ url: string; sizeBytes: number } | null> => {
     try {
       setIsUploadingDocument(true);
-      // Compress images before upload to save storage space
-      const fileToUpload = await compressImageForStorage(file);
-      const fileName = `${Date.now()}_${fileToUpload.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('cost-documents')
-        .upload(filePath, fileToUpload);
+        .upload(filePath, file);
 
       if (uploadError) {
         console.error('Document upload error:', uploadError);
@@ -477,7 +485,7 @@ export default function CostManagement() {
       }
 
       const { data } = supabase.storage.from('cost-documents').getPublicUrl(filePath);
-      return data.publicUrl;
+      return { url: data.publicUrl, sizeBytes: file.size };
     } catch (error) {
       console.error('Error uploading document:', error);
       toast({
@@ -510,21 +518,31 @@ export default function CostManagement() {
       const isSupabaseUrl = documentUrl?.includes('supabase.co') || documentUrl?.includes('supabase');
       
       // If documentUrl is a blob URL (local) or Vercel temp URL, or we have a file but no valid URL, upload to Supabase
+      let uploadedDocumentSizeBytes: number | null = null;
       if (fileToUpload && (isBlobUrl || isVercelTempUrl || (!documentUrl && fileToUpload))) {
         console.log('Uploading document to Supabase storage...');
-        const url = await uploadDocument(fileToUpload);
-        if (url) {
-          uploadedDocumentUrl = url;
-          // Update the documentUrl state to the Supabase URL
-          setDocumentUrl(url);
-          // Clean up blob URL if it was a blob URL
+        // Compress images BEFORE upload (after AI scan - we keep original for OCR). PDFs pass through unchanged.
+        let fileForUpload = fileToUpload;
+        const imageTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        if (imageTypes.includes(fileToUpload.type)) {
+          try {
+            fileForUpload = await compressImageForStorage(fileToUpload);
+            console.log(`Compressed image: ${(fileToUpload.size / 1024).toFixed(1)} KB -> ${(fileForUpload.size / 1024).toFixed(1)} KB`);
+          } catch (err) {
+            console.warn('Image compression failed, uploading original:', err);
+          }
+        }
+        const result = await uploadDocument(fileForUpload);
+        if (result) {
+          uploadedDocumentUrl = result.url;
+          uploadedDocumentSizeBytes = result.sizeBytes;
+          setDocumentUrl(result.url);
           if (isBlobUrl && documentUrl) {
             URL.revokeObjectURL(documentUrl);
           }
         } else {
-          // User can still save without document if upload fails
           console.warn('Document upload failed, but continuing with save');
-          uploadedDocumentUrl = null; // Don't save blob URLs or failed uploads
+          uploadedDocumentUrl = null;
         }
       } else if (isSupabaseUrl) {
         // Already a Supabase URL, use it as-is
@@ -577,6 +595,7 @@ export default function CostManagement() {
           category: entryData.document_type || 'invoice',
           type: 'expense',
           document_url: uploadedDocumentUrl || null,
+          ...(uploadedDocumentSizeBytes != null && { document_size_bytes: uploadedDocumentSizeBytes }),
           status: entryData.status || 'pending',
           due_date: entryData.due_date || null
         };
@@ -618,6 +637,7 @@ export default function CostManagement() {
             category: entryData.document_type || 'invoice',
             type: 'expense',
             document_url: uploadedDocumentUrl || null,
+            document_size_bytes: uploadedDocumentSizeBytes ?? null,
             status: entryData.status || 'pending',
             due_date: entryData.due_date || null
           };
@@ -651,6 +671,7 @@ export default function CostManagement() {
             category: entryData.document_type || 'quote',
             type: 'expense',
             document_url: uploadedDocumentUrl || null,
+            document_size_bytes: uploadedDocumentSizeBytes ?? null,
             status: entryData.status || 'pending',
             due_date: entryData.due_date || null
           };
@@ -2154,15 +2175,22 @@ export default function CostManagement() {
                       </TableCell>
                       <TableCell>
                         {entry.document_url ? (
-                          <a
-                            href={entry.document_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline flex items-center gap-1"
-                          >
-                            <FileText className="w-4 h-4" />
-                            View
-                          </a>
+                          <span className="flex items-center gap-1.5">
+                            <a
+                              href={entry.document_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline flex items-center gap-1"
+                            >
+                              <FileText className="w-4 h-4" />
+                              View
+                            </a>
+                            {entry.document_size_bytes != null && (
+                              <span className="text-muted-foreground text-sm">
+                                ({formatFileSize(entry.document_size_bytes)})
+                              </span>
+                            )}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground text-sm">-</span>
                         )}
@@ -2328,16 +2356,23 @@ export default function CostManagement() {
                               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Document</span>
                               <div className="text-sm font-medium">
                                 {entry.document_url ? (
-                                  <a
-                                    href={entry.document_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline flex items-center gap-1 break-words"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <FileText className="w-4 h-4 flex-shrink-0" />
-                                    <span className="break-words">View Document</span>
-                                  </a>
+                                  <span className="flex items-center gap-1.5 flex-wrap">
+                                    <a
+                                      href={entry.document_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline flex items-center gap-1 break-words"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <FileText className="w-4 h-4 flex-shrink-0" />
+                                      <span className="break-words">View Document</span>
+                                    </a>
+                                    {entry.document_size_bytes != null && (
+                                      <span className="text-muted-foreground text-xs">
+                                        ({formatFileSize(entry.document_size_bytes)})
+                                      </span>
+                                    )}
+                                  </span>
                                 ) : (
                                   <span className="text-muted-foreground">-</span>
                                 )}
@@ -2506,28 +2541,19 @@ export default function CostManagement() {
                       isPDF = true;
                     }
                     
-                    return (
-                      <>
-                        {isPDF ? (
-                          <iframe
-                            src={`${url}#toolbar=0&navpanes=0`}
-                            className="w-full min-h-[400px] sm:min-h-[800px] rounded-lg shadow-sm border-0"
-                            title="Document Preview"
-                            style={{ border: 'none' }}
-                          />
-                        ) : (
-                          <img
-                            src={url}
-                            alt="Document Preview"
-                            className="max-w-full h-auto rounded-lg shadow-sm object-contain"
-                          />
-                        )}
-                        {file && (
-                          <p className="text-sm text-muted-foreground mt-2 text-center">
-                            Size: {formatFileSize(file.size)}
-                          </p>
-                        )}
-                      </>
+                    return isPDF ? (
+                      <iframe
+                        src={`${url}#toolbar=0&navpanes=0`}
+                        className="w-full min-h-[400px] sm:min-h-[800px] rounded-lg shadow-sm border-0"
+                        title="Document Preview"
+                        style={{ border: 'none' }}
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt="Document Preview"
+                        className="max-w-full h-auto rounded-lg shadow-sm object-contain"
+                      />
                     );
                   })()}
                 </div>
@@ -3034,27 +3060,18 @@ export default function CostManagement() {
                       isPDF = true;
                     }
                     
-                    return (
-                      <>
-                        {isPDF ? (
-                          <iframe
-                            src={url}
-                            className="w-full min-h-[800px] rounded-lg shadow-sm"
-                            title="Document Preview"
-                          />
-                        ) : (
-                          <img
-                            src={url}
-                            alt="Document Preview"
-                            className="max-w-full h-auto rounded-lg shadow-sm"
-                          />
-                        )}
-                        {file && (
-                          <p className="text-sm text-muted-foreground mt-2 text-center">
-                            Size: {formatFileSize(file.size)}
-                          </p>
-                        )}
-                      </>
+                    return isPDF ? (
+                      <iframe
+                        src={url}
+                        className="w-full min-h-[800px] rounded-lg shadow-sm"
+                        title="Document Preview"
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt="Document Preview"
+                        className="max-w-full h-auto rounded-lg shadow-sm"
+                      />
                     );
                   })()}
                 </div>

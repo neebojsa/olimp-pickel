@@ -175,6 +175,8 @@ export default function Invoicing() {
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [amountFilter, setAmountFilter] = useState({ from: "", to: "" });
   const [isAmountFilterOpen, setIsAmountFilterOpen] = useState(false);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
@@ -252,7 +254,7 @@ export default function Invoicing() {
         error
     } = await supabase.from('invoices').select(`
         *,
-        customers!inner(id, name, country, address, city, phone, dap_address, fco_address),
+        customers!inner(id, name, country, address, city, phone, dap_address, fco_address, photo_url),
         invoice_items!fk_invoice_items_invoice(*)
       `).order('created_at', {
       ascending: false
@@ -953,6 +955,11 @@ export default function Invoicing() {
   const filteredInvoices = invoices.filter(invoice => {
     const effectiveStatus = getEffectiveStatus(invoice);
     
+    // Top search bar: invoice number + customer name
+    const matchesSearch = !searchTerm || 
+      invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      invoice.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    
     // Column header filters
     const matchesInvoiceNumber = !invoiceNumberFilter.search || invoice.invoice_number?.toLowerCase().includes(invoiceNumberFilter.search.toLowerCase());
     const invoiceNumberMatch = invoiceNumberFilter.from && invoiceNumberFilter.to 
@@ -994,7 +1001,7 @@ export default function Invoicing() {
     const amountTo = amountFilter.to ? parseFloat(amountFilter.to) : undefined;
     const matchesAmount = (!amountFrom || amount >= amountFrom) && (!amountTo || amount <= amountTo);
     
-    return matchesInvoiceNumber && invoiceNumberMatch && matchesIssueDate && matchesDueDate &&
+    return matchesSearch && matchesInvoiceNumber && invoiceNumberMatch && matchesIssueDate && matchesDueDate &&
       matchesCustomerFilter && matchesStatusFilter && matchesAmount;
   });
   
@@ -1022,11 +1029,6 @@ export default function Invoicing() {
       return dateB - dateA;
     });
   }
-  const totalRevenue = invoices.reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
-  const paidInvoices = invoices.filter(inv => getEffectiveStatus(inv) === "paid");
-  const pendingInvoices = invoices.filter(inv => getEffectiveStatus(inv) === "pending");
-  const overdueInvoices = invoices.filter(inv => getEffectiveStatus(inv) === "overdue");
-  
   const sortOptions: SortOption[] = [
     { id: "created_at:desc", label: "Recently added (Newest → Oldest)", field: "created_at", direction: "desc" },
     { id: "created_at:asc", label: "Recently added (Oldest → Newest)", field: "created_at", direction: "asc" },
@@ -1045,6 +1047,18 @@ export default function Invoicing() {
     const pref = sortPreference.sortPreference;
     return pref ? `${pref.field}:${pref.direction}` : "";
   };
+
+  const totalPages = Math.max(1, Math.ceil(sortedInvoices.length / itemsPerPage));
+  const effectivePage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedInvoices = sortedInvoices.slice(
+    (effectivePage - 1) * itemsPerPage,
+    effectivePage * itemsPerPage
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, customerFilter.selectedId, invoiceNumberFilter.search, invoiceNumberFilter.from, invoiceNumberFilter.to, issueDateFilter.from, issueDateFilter.to, dueDateFilter.from, dueDateFilter.to, amountFilter.from, amountFilter.to, itemsPerPage]);
+
   const totals = calculateTotals();
   const selectedCustomer = getSelectedCustomer();
 
@@ -2848,17 +2862,22 @@ ${cssVariables}
     }
   };
 
-  return <div className="p-6 space-y-6">
+  return (
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Invoicing</h1>
-          
+      <div className="flex flex-row items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">Invoicing</h1>
+        <div className="flex items-center gap-2 md:hidden">
+          <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(true)} title="Invoice Settings">
+            <Settings className="w-4 h-4" />
+          </Button>
+          <Button onClick={() => setIsAddInvoiceOpen(true)}>
+            + Add Invoice
+          </Button>
         </div>
-        <Button size="icon" onClick={() => setIsSettingsOpen(true)}>
-          <Settings className="w-4 h-4" />
-        </Button>
-        <Dialog open={isAddInvoiceOpen} onOpenChange={open => {
+      </div>
+
+      <Dialog open={isAddInvoiceOpen} onOpenChange={open => {
         setIsAddInvoiceOpen(open);
         if (!open) resetForm();
       }}>
@@ -3432,91 +3451,56 @@ ${cssVariables}
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-
-      {/* Sort dropdown */}
-      <div className="flex justify-end">
-        <div className="w-full sm:w-auto min-w-[200px]">
-          <SortSelect
-            value={getCurrentSortValue()}
-            onChange={handleSortChange}
-            options={sortOptions}
-            placeholder="Sort"
-            className="w-full"
-          />
-        </div>
-      </div>
-
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              All time invoiced amount
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paid Invoices</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{paidInvoices.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {paidInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0).toLocaleString()} collected
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{pendingInvoices.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {pendingInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0).toLocaleString()} pending
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
-            <Send className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{overdueInvoices.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {overdueInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0).toLocaleString()} overdue
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
 
       {/* Invoices List */}
       <Card className="rounded-none bg-transparent text-foreground shadow-none md:rounded-lg md:bg-card md:text-card-foreground md:shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between md:p-6 p-4">
-          <CardTitle>Invoices</CardTitle>
-          <Button onClick={() => setIsAddInvoiceOpen(true)}>
-            + Add Invoice
-          </Button>
+        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 px-0 min-[1430px]:p-6 min-[1430px]:pb-3">
+          <div className="flex flex-wrap items-center gap-3 min-w-0 flex-1">
+            <div className="relative flex-1 min-w-0 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by invoice or customer..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 text-sm"
+              />
+            </div>
+            <div className="w-[120px]">
+              <SortSelect
+                value={getCurrentSortValue()}
+                onChange={handleSortChange}
+                options={sortOptions}
+                placeholder="Sort"
+                className="w-full"
+              />
+            </div>
+            <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Per page" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="25">25 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+            <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(true)} title="Invoice Settings">
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button onClick={() => setIsAddInvoiceOpen(true)}>
+              + Add Invoice
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="p-0 md:p-6">
+        <CardContent className="p-0 md:p-6 md:pt-3">
           {/* Desktop Table */}
           <div className="hidden md:block w-full max-w-full min-w-0">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead style={{ width: 80, minWidth: 80 }} className="p-2"></TableHead>
                   <TableHead>
                     <div className="flex items-center gap-2">
                       Invoice Number
@@ -3767,12 +3751,24 @@ ${cssVariables}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedInvoices.map(invoice => (
+                {paginatedInvoices.map(invoice => (
                   <TableRow
                     key={invoice.id}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => handleViewInvoice(invoice)}
                   >
+                    <TableCell style={{ width: 80, minWidth: 80 }} className="p-2 shrink-0">
+                      {invoice.customers?.photo_url ? (
+                        <img
+                          src={invoice.customers.photo_url}
+                          alt=""
+                          style={{ width: 80, height: 50, minWidth: 80, minHeight: 50, maxWidth: 80, maxHeight: 50 }}
+                          className="object-contain rounded"
+                        />
+                      ) : (
+                        <div style={{ width: 80, height: 50, minWidth: 80, minHeight: 50 }} className="rounded bg-muted flex items-center justify-center" />
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
                       <button
                         onClick={(e) => {
@@ -3904,14 +3900,26 @@ ${cssVariables}
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
-            {sortedInvoices.map(invoice => (
+            {paginatedInvoices.map(invoice => (
               <Card
                 key={invoice.id}
-                className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors rounded-lg"
+                className="p-4 border cursor-pointer hover:bg-muted/50 transition-colors rounded-lg relative"
                 onClick={() => handleViewInvoice(invoice)}
               >
-                <div className="space-y-3">
-                  <div className="flex flex-col space-y-1">
+                <div className="absolute top-4 right-4">
+                  {invoice.customers?.photo_url ? (
+                    <img
+                      src={invoice.customers.photo_url}
+                      alt=""
+                      style={{ width: 80, height: 50, minWidth: 80, minHeight: 50, maxWidth: 80, maxHeight: 50 }}
+                      className="object-contain rounded"
+                    />
+                  ) : (
+                    <div style={{ width: 80, height: 50, minWidth: 80, minHeight: 50 }} className="rounded bg-muted" />
+                  )}
+                </div>
+                <div className="space-y-3 pr-[88px]">
+                  <div className="flex flex-col space-y-1 min-w-0">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Invoice Number</span>
                     <button 
                       onClick={(e) => {
@@ -3936,75 +3944,74 @@ ${cssVariables}
                     <div className="text-sm font-medium">{invoice.customers?.name}</div>
                   </div>
                   <div className="flex flex-col space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <InvoiceStatusBadge invoice={invoice} onStatusChange={async (newStatus) => {
-                        const oldStatus = invoice.status;
-                        const { error } = await supabase
-                          .from('invoices')
-                          .update({ status: newStatus })
-                          .eq('id', invoice.id);
-                        
-                        if (error) {
-                          toast({
-                            title: "Error",
-                            description: "Failed to update invoice status",
-                            variant: "destructive"
-                          });
-                        } else {
-                          // If status changed to "paid" and it wasn't "paid" before, create accounting entry
-                          if (newStatus === "paid" && oldStatus !== "paid") {
-                            // Check if accounting entry already exists for this invoice
-                            const { data: existingEntry } = await supabase
-                              .from('accounting_entries')
-                              .select('id')
-                              .eq('reference', invoice.invoice_number)
-                              .eq('type', 'income')
-                              .maybeSingle();
-                            
-                            if (!existingEntry) {
-                              // Convert amount to BAM if currency is EUR (1 EUR = 1.955 BAM)
-                              const invoiceAmount = invoice.amount || 0;
-                              const invoiceCurrency = invoice.currency || 'BAM';
-                              const amountInBAM = invoiceCurrency.toUpperCase() === 'EUR' 
-                                ? invoiceAmount * 1.955 
-                                : invoiceAmount;
-                              
-                              // Create accounting entry as income
-                              const { error: accountingError } = await supabase
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{formatCurrency(invoice.amount || 0, invoice.currency)}</span>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <InvoiceStatusBadge invoice={invoice} onStatusChange={async (newStatus) => {
+                          const oldStatus = invoice.status;
+                          const { error } = await supabase
+                            .from('invoices')
+                            .update({ status: newStatus })
+                            .eq('id', invoice.id);
+                          
+                          if (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to update invoice status",
+                              variant: "destructive"
+                            });
+                          } else {
+                            // If status changed to "paid" and it wasn't "paid" before, create accounting entry
+                            if (newStatus === "paid" && oldStatus !== "paid") {
+                              // Check if accounting entry already exists for this invoice
+                              const { data: existingEntry } = await supabase
                                 .from('accounting_entries')
-                                .insert([{
-                                  type: 'income',
-                                  category: 'invoice',
-                                  amount: amountInBAM,
-                                  description: `Invoice Payment - ${invoice.invoice_number}${invoice.customers?.name ? ` (${invoice.customers.name})` : ''}`,
-                                  date: new Date().toISOString().split('T')[0],
-                                  reference: invoice.invoice_number
-                                }]);
+                                .select('id')
+                                .eq('reference', invoice.invoice_number)
+                                .eq('type', 'income')
+                                .maybeSingle();
                               
-                              if (accountingError) {
-                                console.error('Error creating accounting entry:', accountingError);
-                                toast({
-                                  title: "Warning",
-                                  description: "Invoice status updated, but failed to create accounting entry",
-                                  variant: "destructive"
-                                });
+                              if (!existingEntry) {
+                                // Convert amount to BAM if currency is EUR (1 EUR = 1.955 BAM)
+                                const invoiceAmount = invoice.amount || 0;
+                                const invoiceCurrency = invoice.currency || 'BAM';
+                                const amountInBAM = invoiceCurrency.toUpperCase() === 'EUR' 
+                                  ? invoiceAmount * 1.955 
+                                  : invoiceAmount;
+                                
+                                // Create accounting entry as income
+                                const { error: accountingError } = await supabase
+                                  .from('accounting_entries')
+                                  .insert([{
+                                    type: 'income',
+                                    category: 'invoice',
+                                    amount: amountInBAM,
+                                    description: `Invoice Payment - ${invoice.invoice_number}${invoice.customers?.name ? ` (${invoice.customers.name})` : ''}`,
+                                    date: new Date().toISOString().split('T')[0],
+                                    reference: invoice.invoice_number
+                                  }]);
+                                
+                                if (accountingError) {
+                                  console.error('Error creating accounting entry:', accountingError);
+                                  toast({
+                                    title: "Warning",
+                                    description: "Invoice status updated, but failed to create accounting entry",
+                                    variant: "destructive"
+                                  });
+                                }
                               }
                             }
+                            
+                            await fetchInvoices();
+                            toast({
+                              title: "Status Updated",
+                              description: `Invoice status changed to ${newStatus}${newStatus === "paid" && oldStatus !== "paid" ? " - Added to accounting as income" : ""}`
+                            });
                           }
-                          
-                          await fetchInvoices();
-                          toast({
-                            title: "Status Updated",
-                            description: `Invoice status changed to ${newStatus}${newStatus === "paid" && oldStatus !== "paid" ? " - Added to accounting as income" : ""}`
-                          });
-                        }
-                      }} />
+                        }} />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</span>
-                    <div className="text-sm font-medium">{formatCurrency(invoice.amount || 0, invoice.currency)}</div>
                   </div>
                   <div className="pt-2 border-t flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                     <Button
@@ -4041,6 +4048,33 @@ ${cssVariables}
               </Card>
             ))}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between gap-4 px-4 md:px-6 py-3 border-t">
+              <span className="text-sm text-muted-foreground">
+                Showing {(effectivePage - 1) * itemsPerPage + 1}-{Math.min(effectivePage * itemsPerPage, sortedInvoices.length)} of {sortedInvoices.length}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={effectivePage <= 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={effectivePage >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -5139,5 +5173,6 @@ ${cssVariables}
           </div>
         </DialogContent>
       </Dialog>
-    </div>;
+    </div>
+  );
 }

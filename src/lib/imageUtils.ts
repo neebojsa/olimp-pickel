@@ -75,24 +75,22 @@ export const validateImageFile = (file: File): boolean => {
   return validTypes.includes(file.type);
 };
 
-/** Image MIME types that can be compressed for storage (cost documents, etc.) */
-const COMPRESSIBLE_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-
 /**
- * Compresses an image file for storage (e.g. cost document photos).
- * Reduces file size while keeping documents readable. PDFs and non-image files are returned unchanged.
+ * Compress an image file for storage. Use AFTER AI/OCR scanning (which needs original quality).
+ * Only compresses images (jpg, png) - PDFs and other formats are returned unchanged.
+ * Max 1920px on longest side, quality 0.85 - keeps documents readable while reducing size.
  */
-export const compressImageForStorage = async (file: File): Promise<File> => {
-  if (!COMPRESSIBLE_IMAGE_TYPES.includes(file.type)) {
-    return file;
+export const compressImageForStorage = (
+  file: File,
+  maxDimension: number = 1920,
+  quality: number = 0.85
+): Promise<File> => {
+  const imageTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+  if (!imageTypes.includes(file.type)) {
+    return Promise.resolve(file);
   }
-  // Max 1920px, quality 0.82 - good balance for document photos
-  return resizeImageFile(file, 1920, 1920, 0.82);
-};
 
-/** Format file size for display (e.g. "1.25 MB") */
-export const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return resizeImageFile(file, maxDimension, maxDimension, quality, {
+    preservePng: file.type === 'image/png',
+  });
 };

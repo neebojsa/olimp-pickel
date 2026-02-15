@@ -21,8 +21,12 @@ export type Database = {
           created_at: string
           date: string
           description: string
+          document_size_bytes: number | null
+          document_url: string | null
+          due_date: string | null
           id: string
           reference: string | null
+          status: string | null
           type: string
           updated_at: string
         }
@@ -32,8 +36,12 @@ export type Database = {
           created_at?: string
           date?: string
           description: string
+          document_size_bytes?: number | null
+          document_url?: string | null
+          due_date?: string | null
           id?: string
           reference?: string | null
+          status?: string | null
           type: string
           updated_at?: string
         }
@@ -43,8 +51,12 @@ export type Database = {
           created_at?: string
           date?: string
           description?: string
+          document_size_bytes?: number | null
+          document_url?: string | null
+          due_date?: string | null
           id?: string
           reference?: string | null
+          status?: string | null
           type?: string
           updated_at?: string
         }
