@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { FileText, Plus, Search, DollarSign, Calendar as CalendarIcon, Send, Trash2, Edit, Settings, Check, Printer, Filter, X, ExternalLink, Tag, Download, ChevronsUpDown } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -198,8 +198,6 @@ export default function Invoicing() {
     dueDate: '',
     contactPersonReference: ''
   });
-  const [partSearchTerms, setPartSearchTerms] = useState<Record<number, string>>({});
-  const [partSearchOpen, setPartSearchOpen] = useState<Record<number, boolean>>({});
   const [invoiceItems, setInvoiceItems] = useState([{
     inventoryId: '',
     quantity: 1,
@@ -757,8 +755,6 @@ export default function Invoicing() {
       quantity: 1,
       unitPrice: 0
     }]);
-    setPartSearchTerms({});
-    setPartSearchOpen({});
     setSelectedOrderConfirmationId('');
     setIsEditMode(false);
   };
@@ -825,20 +821,6 @@ export default function Invoicing() {
   };
   const removeInvoiceItem = (index: number) => {
     setInvoiceItems(invoiceItems.filter((_, i) => i !== index));
-    // Clean up search state for removed item and reindex remaining items
-    const newSearchTerms: Record<number, string> = {};
-    const newSearchOpen: Record<number, boolean> = {};
-    invoiceItems.forEach((_, i) => {
-      if (i < index) {
-        newSearchTerms[i] = partSearchTerms[i] || '';
-        newSearchOpen[i] = partSearchOpen[i] || false;
-      } else if (i > index) {
-        newSearchTerms[i - 1] = partSearchTerms[i] || '';
-        newSearchOpen[i - 1] = partSearchOpen[i] || false;
-      }
-    });
-    setPartSearchTerms(newSearchTerms);
-    setPartSearchOpen(newSearchOpen);
   };
   const updateInvoiceItem = (index: number, field: string, value: any) => {
     const updated = [...invoiceItems];
@@ -3211,82 +3193,18 @@ ${cssVariables}
                       <div key={index} className="grid gap-2 p-3 rounded-lg shadow-sm grid-cols-1 sm:grid-cols-[2fr_0.8fr_0.8fr_0.8fr_0.8fr]">
                       <div>
                         <Label className="text-xs">Part</Label>
-                        <Popover
-                          open={partSearchOpen[index] || false}
-                          onOpenChange={(open) => setPartSearchOpen(prev => ({ ...prev, [index]: open }))}
-                        >
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between text-left font-normal h-auto min-h-[40px] py-2 whitespace-normal"
-                            >
-                              {inventoryItem ? (
-                                <span className="flex-1 break-words pr-2">
-                                  {inventoryItem.name}
-                                  {inventoryItem.part_number && (
-                                    <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
-                                  )}
-                                </span>
-                              ) : "Select part..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent 
-                            className="w-[var(--radix-popover-trigger-width)] p-0" 
-                            align="start"
-                            onWheel={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                          >
-                            <Command>
-                              <CommandInput
-                                placeholder="Search parts..."
-                                value={partSearchTerms[index] || ''}
-                                onValueChange={(value) => {
-                                  setPartSearchTerms(prev => ({ ...prev, [index]: value }));
-                                }}
-                              />
-                              <CommandList>
-                                <CommandEmpty>No parts found.</CommandEmpty>
-                                <CommandGroup>
-                                  {inventoryItems
-                                    .filter(invItem => {
-                                      const searchTerm = (partSearchTerms[index] || '').toLowerCase();
-                                      if (!searchTerm) return true;
-                                      const nameMatch = (invItem.name || '').toLowerCase().includes(searchTerm);
-                                      const partNumberMatch = (invItem.part_number || '').toLowerCase().includes(searchTerm);
-                                      return nameMatch || partNumberMatch;
-                                    })
-                                    .map((invItem) => (
-                                      <CommandItem
-                                        key={invItem.id}
-                                        value={`${invItem.name} ${invItem.part_number || ''}`}
-                                        onSelect={() => {
-                                          updateInvoiceItem(index, 'inventoryId', invItem.id);
-                                          setPartSearchOpen(prev => ({ ...prev, [index]: false }));
-                                          setPartSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                        }}
-                                        className="items-start py-2"
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4 mt-1 shrink-0",
-                                            item.inventoryId === invItem.id ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                        <div className="flex flex-col flex-1 min-w-0">
-                                          <span className="break-words">{invItem.name}</span>
-                                          {invItem.part_number && (
-                                            <span className="text-xs text-muted-foreground">Part #: {invItem.part_number}</span>
-                                          )}
-                                        </div>
-                                      </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                        <SearchableSelect
+                          items={inventoryItems}
+                          value={item.inventoryId}
+                          onSelect={(invItem) => updateInvoiceItem(index, 'inventoryId', invItem.id)}
+                          placeholder="Select part..."
+                          searchPlaceholder="Search parts..."
+                          emptyMessage="No parts found."
+                          getItemValue={(inv) => inv.id}
+                          getItemLabel={(inv) => inv.name}
+                          getItemSearchText={(inv) => `${inv.name} ${inv.part_number || ''}`}
+                          getItemPartNumber={(inv) => inv.part_number}
+                        />
                       </div>
 
                       <div>

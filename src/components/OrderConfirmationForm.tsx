@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { FileText, Plus, Calendar as CalendarIcon, Trash2, ChevronsUpDown, Check } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { FileText, Plus, Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { formatDateForInput } from "@/lib/dateUtils";
@@ -39,9 +39,6 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-  const [productSearchTerms, setProductSearchTerms] = useState<Record<number, string>>({});
-  const [productSearchOpen, setProductSearchOpen] = useState<Record<number, boolean>>({});
-
   const [formData, setFormData] = useState({
     orderConfirmationNumber: '',
     customerId: '',
@@ -107,8 +104,6 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
       notes: '',
       items: [],
     });
-    setProductSearchTerms({});
-    setProductSearchOpen({});
   };
 
   const loadEditingOrderConfirmation = () => {
@@ -177,31 +172,6 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
   };
 
   const removeItem = (index: number) => {
-    // Clean up search term and open state for removed item
-    // Reindex remaining items: items after removed index shift down by 1
-    const newSearchTerms: Record<number, string> = {};
-    const newSearchOpen: Record<number, boolean> = {};
-    
-    Object.keys(productSearchTerms).forEach(key => {
-      const oldIndex = parseInt(key);
-      if (oldIndex < index) {
-        newSearchTerms[oldIndex] = productSearchTerms[oldIndex];
-      } else if (oldIndex > index) {
-        newSearchTerms[oldIndex - 1] = productSearchTerms[oldIndex];
-      }
-      // Skip oldIndex === index (removed item)
-    });
-    
-    Object.keys(productSearchOpen).forEach(key => {
-      const oldIndex = parseInt(key);
-      if (oldIndex < index) {
-        newSearchOpen[oldIndex] = productSearchOpen[oldIndex];
-      } else if (oldIndex > index) {
-        newSearchOpen[oldIndex - 1] = productSearchOpen[oldIndex];
-      }
-      // Skip oldIndex === index (removed item)
-    });
-    
     setFormData(prev => {
       const newItems = prev.items.filter((_, i) => i !== index);
       const { totalQuantity, netWeight, totalWeight } = recalcTotals(newItems, 0);
@@ -213,9 +183,6 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
         totalQuantity,
       };
     });
-    
-    setProductSearchTerms(newSearchTerms);
-    setProductSearchOpen(newSearchOpen);
   };
 
   const recalcTotals = (items: OrderConfirmationItem[], taraWeight: number) => {
@@ -547,82 +514,18 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
                 const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
                 return (
                   <div key={index} className="grid grid-cols-[280px_minmax(80px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_40px] gap-3 items-start">
-                    <Popover
-                      open={productSearchOpen[index] || false}
-                      onOpenChange={(open) => setProductSearchOpen(prev => ({ ...prev, [index]: open }))}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className="w-full justify-between text-left font-normal h-auto min-h-[40px] py-2 whitespace-normal"
-                        >
-                          {inventoryItem ? (
-                            <span className="flex-1 break-words pr-2">
-                              {inventoryItem.name || inventoryItem.part_name}
-                              {inventoryItem.part_number && (
-                                <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
-                              )}
-                            </span>
-                          ) : "Select part..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent 
-                        className="w-[var(--radix-popover-trigger-width)] p-0" 
-                        align="start"
-                        onWheel={(e) => e.stopPropagation()}
-                        onTouchMove={(e) => e.stopPropagation()}
-                      >
-                        <Command>
-                          <CommandInput
-                            placeholder="Search parts..."
-                            value={productSearchTerms[index] || ''}
-                            onValueChange={(value) => {
-                              setProductSearchTerms(prev => ({ ...prev, [index]: value }));
-                            }}
-                          />
-                          <CommandList>
-                            <CommandEmpty>No parts found.</CommandEmpty>
-                            <CommandGroup>
-                              {inventoryItems
-                                .filter(invItem => {
-                                  const searchTerm = (productSearchTerms[index] || '').toLowerCase();
-                                  if (!searchTerm) return true;
-                                  const nameMatch = (invItem.name || invItem.part_name || '').toLowerCase().includes(searchTerm);
-                                  const partNumberMatch = (invItem.part_number || '').toLowerCase().includes(searchTerm);
-                                  return nameMatch || partNumberMatch;
-                                })
-                                .map((inv) => (
-                                  <CommandItem
-                                    key={inv.id}
-                                    value={`${inv.name || inv.part_name} ${inv.part_number || ''}`}
-                                    onSelect={() => {
-                                      updateItem(index, 'inventoryId', inv.id);
-                                      setProductSearchOpen(prev => ({ ...prev, [index]: false }));
-                                      setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                    }}
-                                    className="items-start py-2"
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4 mt-1 shrink-0",
-                                        item.inventoryId === inv.id ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <div className="flex flex-col flex-1 min-w-0">
-                                      <span className="break-words">{inv.name || inv.part_name}</span>
-                                      {inv.part_number && (
-                                        <span className="text-xs text-muted-foreground">Part #: {inv.part_number}</span>
-                                      )}
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                    <SearchableSelect
+                      items={inventoryItems}
+                      value={item.inventoryId || ''}
+                      onSelect={(inv) => updateItem(index, 'inventoryId', inv.id)}
+                      placeholder="Select part..."
+                      searchPlaceholder="Search parts..."
+                      emptyMessage="No parts found."
+                      getItemValue={(inv) => inv.id}
+                      getItemLabel={(inv) => inv.name || inv.part_name || ''}
+                      getItemSearchText={(inv) => `${inv.name || inv.part_name} ${inv.part_number || ''}`}
+                      getItemPartNumber={(inv) => inv.part_number}
+                    />
 
                     <NumericInput
                       value={item.quantity}

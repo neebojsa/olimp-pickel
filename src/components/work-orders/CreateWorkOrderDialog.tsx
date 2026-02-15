@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Calendar } from "@/components/ui/calendar";
-import { Package, Settings, Users, Plus, Trash2, Calendar as CalendarIcon, ChevronsUpDown, Check, ClipboardCheck } from "lucide-react";
+import { Package, Settings, Users, Plus, Trash2, Calendar as CalendarIcon, ClipboardCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -78,14 +78,8 @@ export function CreateWorkOrderDialog({
   const [workOrderQuantity, setWorkOrderQuantity] = useState(0);
   const [materialStockMm, setMaterialStockMm] = useState<Record<string, number>>({});
   const [materialItems, setMaterialItems] = useState<any[]>([]);
-  const [materialSearchTerms, setMaterialSearchTerms] = useState<Record<number, string>>({});
-  const [materialSearchOpen, setMaterialSearchOpen] = useState<Record<number, boolean>>({});
-  const [toolSearchTerms, setToolSearchTerms] = useState<Record<number, string>>({});
-  const [toolSearchOpen, setToolSearchOpen] = useState<Record<number, boolean>>({});
   const [components, setComponents] = useState([{ name: "", quantity: 1 }]);
   const [componentItems, setComponentItems] = useState<any[]>([]);
-  const [componentSearchTerms, setComponentSearchTerms] = useState<Record<number, string>>({});
-  const [componentSearchOpen, setComponentSearchOpen] = useState<Record<number, boolean>>({});
   const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
   const [workOrderDueDate, setWorkOrderDueDate] = useState<Date | undefined>(undefined);
   const [priority, setPriority] = useState("Medium");
@@ -179,8 +173,6 @@ export function CreateWorkOrderDialog({
         })));
       } else if (!editingWorkOrder) {
         setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
-        setMaterialSearchTerms({});
-        setMaterialSearchOpen({});
       }
       fetchMaterialStockMm();
     }
@@ -437,11 +429,7 @@ export function CreateWorkOrderDialog({
         setSelectedPartNumber("");
       }
       setTools([{ name: "", quantity: "" }]);
-      setToolSearchTerms({});
-      setToolSearchOpen({});
       setComponents([{ name: "", quantity: 1 }]);
-      setComponentSearchTerms({});
-      setComponentSearchOpen({});
       setOperatorsAndMachines([{ name: "", type: "operator" }]);
       setControlInChargeId("__none__");
       // Reset materials to defaultMaterials if provided, otherwise empty
@@ -453,8 +441,6 @@ export function CreateWorkOrderDialog({
         })));
       } else {
         setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
-        setMaterialSearchTerms({});
-        setMaterialSearchOpen({});
       }
       setWorkOrderDueDate(undefined);
       setWorkOrderQuantity(0);
@@ -488,11 +474,7 @@ export function CreateWorkOrderDialog({
       }
     }
       setTools([{ name: "", quantity: "" }]);
-      setToolSearchTerms({});
-      setToolSearchOpen({});
       setComponents([{ name: "", quantity: 1 }]);
-      setComponentSearchTerms({});
-      setComponentSearchOpen({});
     setOperatorsAndMachines([{ name: "", type: "operator" }]);
     setControlInChargeId("__none__");
     setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
@@ -522,72 +504,52 @@ export function CreateWorkOrderDialog({
             </div>
             <div>
               <Label htmlFor="partName">Part</Label>
-              <Select value={selectedPartId && inventoryItems.some(i => i.id === selectedPartId) ? selectedPartId : "__none__"} onValueChange={(value) => {
-                const partId = value === "__none__" ? "" : value;
-                setSelectedPartId(partId);
-                const selectedPart = partId ? inventoryItems.find(item => item.id === partId) : undefined;
-                setSelectedPartNumber(selectedPart ? `${selectedPart.name} - ${selectedPart.part_number || 'N/A'}` : "");
-                
-                // Load tools from the selected part
-                if (selectedPart?.tools_used && Array.isArray(selectedPart.tools_used) && selectedPart.tools_used.length > 0) {
-                  const toolsData = selectedPart.tools_used.filter((t: any) => t.name).map((t: any) => ({
-                    name: t.name || "",
-                    quantity: t.quantity ? t.quantity.toString() : ""
-                  }));
-                  if (toolsData.length > 0) {
-                    setTools(toolsData);
+              <SearchableSelect
+                items={inventoryItems}
+                value={selectedPartId}
+                onSelect={(part) => {
+                  const selectedPart = part ?? undefined;
+                  const partId = selectedPart?.id ?? "";
+                  setSelectedPartId(partId);
+                  setSelectedPartNumber(selectedPart ? `${selectedPart.name} - ${selectedPart.part_number || 'N/A'}` : "");
+                  
+                  if (selectedPart?.tools_used && Array.isArray(selectedPart.tools_used) && selectedPart.tools_used.length > 0) {
+                    setTools(selectedPart.tools_used.filter((t: any) => t.name).map((t: any) => ({
+                      name: t.name || "",
+                      quantity: t.quantity ? t.quantity.toString() : ""
+                    })));
                   } else {
                     setTools([{ name: "", quantity: "" }]);
                   }
-                } else {
-                  setTools([{ name: "", quantity: "" }]);
-                }
-                
-                // Load components from the selected part
-                if (selectedPart?.components_used && Array.isArray(selectedPart.components_used) && selectedPart.components_used.length > 0) {
-                  const componentsData = selectedPart.components_used.filter((c: any) => c.name).map((c: any) => ({
-                    name: c.name || "",
-                    quantity: c.quantity || 1
-                  }));
-                  if (componentsData.length > 0) {
-                    setComponents(componentsData);
+                  
+                  if (selectedPart?.components_used && Array.isArray(selectedPart.components_used) && selectedPart.components_used.length > 0) {
+                    setComponents(selectedPart.components_used.filter((c: any) => c.name).map((c: any) => ({
+                      name: c.name || "",
+                      quantity: c.quantity || 1
+                    })));
                   } else {
                     setComponents([{ name: "", quantity: 1 }]);
                   }
-                } else {
-                  setComponents([{ name: "", quantity: 1 }]);
-                }
-                
-                // Load materials from the selected part (only if not already set via defaultMaterials)
-                if (!defaultMaterials || (defaultMaterials && defaultMaterials.length === 0)) {
-                  if (selectedPart?.materials_used && Array.isArray(selectedPart.materials_used) && selectedPart.materials_used.length > 0) {
-                    const materialsData = selectedPart.materials_used.filter((m: any) => m.name).map((m: any) => ({
+                  
+                  if (!defaultMaterials?.length && selectedPart?.materials_used && Array.isArray(selectedPart.materials_used) && selectedPart.materials_used.length > 0) {
+                    setMaterials(selectedPart.materials_used.filter((m: any) => m.name).map((m: any) => ({
                       name: m.name || "",
                       notes: m.notes || "",
                       lengthPerPiece: m.lengthPerPiece != null ? String(m.lengthPerPiece) : ""
-                    }));
-                    if (materialsData.length > 0) {
-                      setMaterials(materialsData);
-                    } else {
-                      setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
-                    }
-                  } else {
+                    })));
+                  } else if (!defaultMaterials?.length) {
                     setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
                   }
-                }
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select part" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Select part</SelectItem>
-                  {inventoryItems.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name} - {item.part_number || 'N/A'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                }}
+                placeholder="Select part"
+                searchPlaceholder="Search parts..."
+                emptyMessage="No parts found."
+                allowClear
+                getItemValue={(item) => item.id}
+                getItemLabel={(item) => item.name}
+                getItemSearchText={(item) => `${item.name} ${item.part_number || ''}`}
+                getItemPartNumber={(item) => item.part_number}
+              />
             </div>
           </div>
 
@@ -681,97 +643,25 @@ export function CreateWorkOrderDialog({
               Tools Required
             </Label>
             <div className="space-y-3">
-              {tools.map((tool, index) => {
-                const selectedToolItem = toolLibraryItems.find(t => t.name === tool.name);
-                const selectedToolDisplayName = selectedToolItem
-                  ? formatToolName(selectedToolItem.materials_used, selectedToolItem.name)
-                  : tool.name;
-                return (
+              {tools.map((tool, index) => (
                   <div key={index} className="flex gap-2 items-end">
                     <div className="flex-1">
-                      <Popover
-                        open={toolSearchOpen[index] || false}
-                        onOpenChange={(open) => setToolSearchOpen(prev => ({ ...prev, [index]: open }))}
-                      >
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className="w-full justify-between text-left font-normal h-auto min-h-[40px] py-2 whitespace-normal"
-                          >
-                            {tool.name ? (
-                              <span className="flex-1 break-words pr-2">
-                                {selectedToolDisplayName}
-                                {selectedToolItem?.part_number && (
-                                  <span className="text-muted-foreground"> | {selectedToolItem.part_number}</span>
-                                )}
-                              </span>
-                            ) : "Select tool"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent 
-                          className="w-[var(--radix-popover-trigger-width)] p-0" 
-                          align="start"
-                          onWheel={(e) => e.stopPropagation()}
-                          onTouchMove={(e) => e.stopPropagation()}
-                        >
-                          <Command>
-                            <CommandInput
-                              placeholder="Search tools..."
-                              value={toolSearchTerms[index] || ''}
-                              onValueChange={(value) => {
-                                setToolSearchTerms(prev => ({ ...prev, [index]: value }));
-                              }}
-                            />
-                            <CommandList>
-                              <CommandEmpty>No tools found.</CommandEmpty>
-                              <CommandGroup>
-                                {toolLibraryItems
-                                  .filter(item => {
-                                    const searchTerm = (toolSearchTerms[index] || '').toLowerCase();
-                                    if (!searchTerm) return true;
-                                    const displayName = formatToolName(item.materials_used, item.name);
-                                    const nameMatch = (item.name || '').toLowerCase().includes(searchTerm);
-                                    const partMatch = (item.part_number || '').toLowerCase().includes(searchTerm);
-                                    const displayMatch = displayName.toLowerCase().includes(searchTerm);
-                                    return nameMatch || partMatch || displayMatch;
-                                  })
-                                  .map((item) => {
-                                    const displayName = formatToolName(item.materials_used, item.name);
-                                    return (
-                                      <CommandItem
-                                        key={item.id}
-                                        value={`${displayName} ${item.part_number || ''}`}
-                                        onSelect={() => {
-                                          const newTools = [...tools];
-                                          newTools[index].name = item.name;
-                                          setTools(newTools);
-                                          setToolSearchOpen(prev => ({ ...prev, [index]: false }));
-                                          setToolSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                        }}
-                                        className="items-start py-2"
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4 mt-1 shrink-0",
-                                            tool.name === item.name ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                        <div className="flex flex-col flex-1 min-w-0">
-                                          <span className="break-words">{displayName}</span>
-                                          {item.part_number && (
-                                            <span className="text-xs text-muted-foreground">Part #: {item.part_number}</span>
-                                          )}
-                                        </div>
-                                      </CommandItem>
-                                    );
-                                  })}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <SearchableSelect
+                        items={toolLibraryItems}
+                        value={tool.name}
+                        onSelect={(item) => {
+                          const newTools = [...tools];
+                          newTools[index].name = item.name;
+                          setTools(newTools);
+                        }}
+                        placeholder="Select tool"
+                        searchPlaceholder="Search tools..."
+                        emptyMessage="No tools found."
+                        getItemValue={(item) => item.name}
+                        getItemLabel={(item) => formatToolName(item.materials_used, item.name)}
+                        getItemSearchText={(item) => `${formatToolName(item.materials_used, item.name)} ${item.part_number || ''}`}
+                        getItemPartNumber={(item) => item.part_number}
+                      />
                     </div>
                   <div className="w-40">
                     <NumericInput
@@ -790,35 +680,18 @@ export function CreateWorkOrderDialog({
                         size="sm"
                         onClick={() => {
                           if (index === 0) {
-                            // First row: reset selection only
                             const newTools = [...tools];
                             newTools[0] = { name: "", quantity: "" };
                             setTools(newTools);
-                            setToolSearchTerms(prev => ({ ...prev, 0: '' }));
-                            setToolSearchOpen(prev => ({ ...prev, 0: false }));
                           } else {
                             setTools(tools.filter((_, i) => i !== index));
-                            const newSearchTerms: Record<number, string> = {};
-                            const newSearchOpen: Record<number, boolean> = {};
-                            tools.forEach((_, i) => {
-                              if (i < index) {
-                                newSearchTerms[i] = toolSearchTerms[i] || '';
-                                newSearchOpen[i] = toolSearchOpen[i] || false;
-                              } else if (i > index) {
-                                newSearchTerms[i - 1] = toolSearchTerms[i] || '';
-                                newSearchOpen[i - 1] = toolSearchOpen[i] || false;
-                              }
-                            });
-                            setToolSearchTerms(newSearchTerms);
-                            setToolSearchOpen(newSearchOpen);
                           }
                         }}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  );
-                })}
+              ))}
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -838,89 +711,25 @@ export function CreateWorkOrderDialog({
               Components Required
             </Label>
             <div className="space-y-3">
-              {components.map((component, index) => {
-                const selectedComponent = componentItems.find(item => item.name === component.name);
-                return (
+              {components.map((component, index) => (
                   <div key={index} className="flex gap-2 items-end">
                     <div className="flex-1">
-                      <Popover
-                        open={componentSearchOpen[index] || false}
-                        onOpenChange={(open) => setComponentSearchOpen(prev => ({ ...prev, [index]: open }))}
-                      >
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className="w-full justify-between text-left font-normal h-auto min-h-[40px] py-2 whitespace-normal"
-                          >
-                            {selectedComponent ? (
-                              <span className="flex-1 break-words pr-2">
-                                {selectedComponent.name}
-                                {selectedComponent.part_number && (
-                                  <span className="text-muted-foreground"> | {selectedComponent.part_number}</span>
-                                )}
-                              </span>
-                            ) : "Select component"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent 
-                          className="w-[var(--radix-popover-trigger-width)] p-0" 
-                          align="start"
-                          onWheel={(e) => e.stopPropagation()}
-                          onTouchMove={(e) => e.stopPropagation()}
-                        >
-                          <Command>
-                            <CommandInput
-                              placeholder="Search components..."
-                              value={componentSearchTerms[index] || ''}
-                              onValueChange={(value) => {
-                                setComponentSearchTerms(prev => ({ ...prev, [index]: value }));
-                              }}
-                            />
-                            <CommandList>
-                              <CommandEmpty>No components found.</CommandEmpty>
-                              <CommandGroup>
-                                {componentItems
-                                  .filter(item => {
-                                    const searchTerm = (componentSearchTerms[index] || '').toLowerCase();
-                                    if (!searchTerm) return true;
-                                    const nameMatch = (item.name || '').toLowerCase().includes(searchTerm);
-                                    const partNumberMatch = (item.part_number || '').toLowerCase().includes(searchTerm);
-                                    return nameMatch || partNumberMatch;
-                                  })
-                                  .map((item) => (
-                                    <CommandItem
-                                      key={item.id}
-                                      value={`${item.name} ${item.part_number || ''}`}
-                                      onSelect={() => {
-                                        const newComponents = [...components];
-                                        newComponents[index].name = item.name;
-                                        setComponents(newComponents);
-                                        setComponentSearchOpen(prev => ({ ...prev, [index]: false }));
-                                        setComponentSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                      }}
-                                      className="items-start py-2"
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4 mt-1 shrink-0",
-                                          component.name === item.name ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      <div className="flex flex-col flex-1 min-w-0">
-                                        <span className="break-words">{item.name}</span>
-                                        {item.part_number && (
-                                          <span className="text-xs text-muted-foreground">Part #: {item.part_number}</span>
-                                        )}
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <SearchableSelect
+                        items={componentItems}
+                        value={component.name}
+                        onSelect={(item) => {
+                          const newComponents = [...components];
+                          newComponents[index].name = item.name;
+                          setComponents(newComponents);
+                        }}
+                        placeholder="Select component"
+                        searchPlaceholder="Search components..."
+                        emptyMessage="No components found."
+                        getItemValue={(item) => item.name}
+                        getItemLabel={(item) => item.name}
+                        getItemSearchText={(item) => `${item.name} ${item.part_number || ''}`}
+                        getItemPartNumber={(item) => item.part_number}
+                      />
                     </div>
                     <div className="w-40">
                       <NumericInput
@@ -942,31 +751,15 @@ export function CreateWorkOrderDialog({
                           const newComponents = [...components];
                           newComponents[0] = { name: "", quantity: 1 };
                           setComponents(newComponents);
-                          setComponentSearchTerms(prev => ({ ...prev, 0: '' }));
-                          setComponentSearchOpen(prev => ({ ...prev, 0: false }));
                         } else {
                           setComponents(components.filter((_, i) => i !== index));
-                          const newSearchTerms: Record<number, string> = {};
-                          const newSearchOpen: Record<number, boolean> = {};
-                          components.forEach((_, i) => {
-                            if (i < index) {
-                              newSearchTerms[i] = componentSearchTerms[i] || '';
-                              newSearchOpen[i] = componentSearchOpen[i] || false;
-                            } else if (i > index) {
-                              newSearchTerms[i - 1] = componentSearchTerms[i] || '';
-                              newSearchOpen[i - 1] = componentSearchOpen[i] || false;
-                            }
-                          });
-                          setComponentSearchTerms(newSearchTerms);
-                          setComponentSearchOpen(newSearchOpen);
                         }
                       }}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
-                );
-              })}
+              ))}
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -995,84 +788,22 @@ export function CreateWorkOrderDialog({
                   <div key={index} className="space-y-2">
                     <div className="flex gap-2 items-end">
                       <div className="flex-1">
-                        <Popover
-                          open={materialSearchOpen[index] || false}
-                          onOpenChange={(open) => setMaterialSearchOpen(prev => ({ ...prev, [index]: open }))}
-                        >
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between text-left font-normal h-auto min-h-[40px] py-2 whitespace-normal"
-                            >
-                              {selectedMaterial ? (
-                                <span className="flex-1 break-words pr-2">
-                                  {selectedMaterial.name}
-                                  {selectedMaterial.part_number && (
-                                    <span className="text-muted-foreground"> | {selectedMaterial.part_number}</span>
-                                  )}
-                                </span>
-                              ) : "Select material"}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent 
-                            className="w-[var(--radix-popover-trigger-width)] p-0" 
-                            align="start"
-                            onWheel={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                          >
-                            <Command>
-                              <CommandInput
-                                placeholder="Search materials..."
-                                value={materialSearchTerms[index] || ''}
-                                onValueChange={(value) => {
-                                  setMaterialSearchTerms(prev => ({ ...prev, [index]: value }));
-                                }}
-                              />
-                              <CommandList>
-                                <CommandEmpty>No materials found.</CommandEmpty>
-                                <CommandGroup>
-                                  {materialItems
-                                    .filter(item => {
-                                      const searchTerm = (materialSearchTerms[index] || '').toLowerCase();
-                                      if (!searchTerm) return true;
-                                      const nameMatch = (item.name || '').toLowerCase().includes(searchTerm);
-                                      const partNumberMatch = (item.part_number || '').toLowerCase().includes(searchTerm);
-                                      return nameMatch || partNumberMatch;
-                                    })
-                                    .map((item) => (
-                                      <CommandItem
-                                        key={item.id}
-                                        value={`${item.name} ${item.part_number || ''}`}
-                                        onSelect={() => {
-                                          const newMaterials = [...materials];
-                                          newMaterials[index].name = item.name;
-                                          setMaterials(newMaterials);
-                                          setMaterialSearchOpen(prev => ({ ...prev, [index]: false }));
-                                          setMaterialSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                        }}
-                                        className="items-start py-2"
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4 mt-1 shrink-0",
-                                            material.name === item.name ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                        <div className="flex flex-col flex-1 min-w-0">
-                                          <span className="break-words">{item.name}</span>
-                                          {item.part_number && (
-                                            <span className="text-xs text-muted-foreground">Part #: {item.part_number}</span>
-                                          )}
-                                        </div>
-                                      </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                        <SearchableSelect
+                          items={materialItems}
+                          value={material.name}
+                          onSelect={(item) => {
+                            const newMaterials = [...materials];
+                            newMaterials[index].name = item.name;
+                            setMaterials(newMaterials);
+                          }}
+                          placeholder="Select material"
+                          searchPlaceholder="Search materials..."
+                          emptyMessage="No materials found."
+                          getItemValue={(item) => item.name}
+                          getItemLabel={(item) => item.name}
+                          getItemSearchText={(item) => `${item.name} ${item.part_number || ''}`}
+                          getItemPartNumber={(item) => item.part_number}
+                        />
                       </div>
                       <Button 
                         variant="outline" 
@@ -1082,23 +813,8 @@ export function CreateWorkOrderDialog({
                             const newMaterials = [...materials];
                             newMaterials[0] = { name: "", notes: "", lengthPerPiece: "" };
                             setMaterials(newMaterials);
-                            setMaterialSearchTerms(prev => ({ ...prev, 0: '' }));
-                            setMaterialSearchOpen(prev => ({ ...prev, 0: false }));
                           } else {
                             setMaterials(materials.filter((_, i) => i !== index));
-                            const newSearchTerms: Record<number, string> = {};
-                            const newSearchOpen: Record<number, boolean> = {};
-                            materials.forEach((_, i) => {
-                              if (i < index) {
-                                newSearchTerms[i] = materialSearchTerms[i] || '';
-                                newSearchOpen[i] = materialSearchOpen[i] || false;
-                              } else if (i > index) {
-                                newSearchTerms[i - 1] = materialSearchTerms[i] || '';
-                                newSearchOpen[i - 1] = materialSearchOpen[i] || false;
-                              }
-                            });
-                            setMaterialSearchTerms(newSearchTerms);
-                            setMaterialSearchOpen(newSearchOpen);
                           }
                         }}
                       >
@@ -1172,36 +888,41 @@ export function CreateWorkOrderDialog({
               {operatorsAndMachines.map((item, index) => (
                 <div key={index} className="flex gap-2 items-end">
                   <div className="flex-1">
-                    <Select
-                      value={item.name}
-                      onValueChange={(value) => {
-                        const newItems = [...operatorsAndMachines];
-                        newItems[index].name = value;
-                        setOperatorsAndMachines(newItems);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={item.type === "operator" ? "Select operator" : "Select machine"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {item.type === "operator" ? (
-                          staffMembers.map((staff) => (
-                            <SelectItem key={staff.id} value={staff.name}>
-                              {staff.name} - {staff.position}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          machineLibraryItems.map((machine) => (
-                            <SelectItem key={machine.id} value={machine.name}>
-                              {machine.name}
-                              {machine.part_number && (
-                                <span className="text-muted-foreground"> | {machine.part_number}</span>
-                              )}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                    {item.type === "operator" ? (
+                      <SearchableSelect
+                        items={staffMembers}
+                        value={item.name}
+                        onSelect={(staff) => {
+                          const newItems = [...operatorsAndMachines];
+                          newItems[index].name = staff.name;
+                          setOperatorsAndMachines(newItems);
+                        }}
+                        placeholder="Select operator"
+                        searchPlaceholder="Search operators..."
+                        emptyMessage="No operators found."
+                        getItemValue={(s) => s.name}
+                        getItemLabel={(s) => `${s.name}${s.position ? ` - ${s.position}` : ''}`}
+                        getItemSearchText={(s) => `${s.name} ${s.position || ''} ${s.department || ''}`}
+                        showPartNumber={false}
+                      />
+                    ) : (
+                      <SearchableSelect
+                        items={machineLibraryItems}
+                        value={item.name}
+                        onSelect={(machine) => {
+                          const newItems = [...operatorsAndMachines];
+                          newItems[index].name = machine.name;
+                          setOperatorsAndMachines(newItems);
+                        }}
+                        placeholder="Select machine"
+                        searchPlaceholder="Search machines..."
+                        emptyMessage="No machines found."
+                        getItemValue={(m) => m.name}
+                        getItemLabel={(m) => m.name}
+                        getItemSearchText={(m) => `${m.name} ${m.part_number || ''}`}
+                        getItemPartNumber={(m) => m.part_number}
+                      />
+                    )}
                   </div>
                   <div className="w-32">
                     <Select 
@@ -1257,19 +978,19 @@ export function CreateWorkOrderDialog({
               <ClipboardCheck className="w-4 h-4" />
               Person in Charge of Control
             </Label>
-              <Select value={controlInChargeId} onValueChange={setControlInChargeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select staff member for control" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                {staffMembers.map((staff) => (
-                  <SelectItem key={staff.id} value={staff.id}>
-                    {staff.name} {staff.position && `- ${staff.position}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              items={staffMembers}
+              value={controlInChargeId === "__none__" ? "" : controlInChargeId}
+              onSelect={(staff) => setControlInChargeId(staff?.id ?? "__none__")}
+              placeholder="None"
+              searchPlaceholder="Search staff..."
+              emptyMessage="No staff found."
+              allowClear
+              getItemValue={(s) => s.id}
+              getItemLabel={(s) => `${s.name}${s.position ? ` - ${s.position}` : ''}`}
+              getItemSearchText={(s) => `${s.name} ${s.position || ''} ${s.department || ''}`}
+              showPartNumber={false}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

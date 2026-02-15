@@ -37,6 +37,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 import { getCurrencyForCountry } from "@/lib/currencyUtils";
+import { compressImageForStorage, formatFileSize } from "@/lib/imageUtils";
 
 // Helper function to get status color classes
 const getStatusColor = (status: string): string => {
@@ -456,13 +457,14 @@ export default function CostManagement() {
   const uploadDocument = async (file: File): Promise<string | null> => {
     try {
       setIsUploadingDocument(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      // Compress images before upload to save storage space
+      const fileToUpload = await compressImageForStorage(file);
+      const fileName = `${Date.now()}_${fileToUpload.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('cost-documents')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) {
         console.error('Document upload error:', uploadError);
@@ -2504,19 +2506,28 @@ export default function CostManagement() {
                       isPDF = true;
                     }
                     
-                    return isPDF ? (
-                      <iframe
-                        src={`${url}#toolbar=0&navpanes=0`}
-                        className="w-full min-h-[400px] sm:min-h-[800px] rounded-lg shadow-sm border-0"
-                        title="Document Preview"
-                        style={{ border: 'none' }}
-                      />
-                    ) : (
-                      <img
-                        src={url}
-                        alt="Document Preview"
-                        className="max-w-full h-auto rounded-lg shadow-sm object-contain"
-                      />
+                    return (
+                      <>
+                        {isPDF ? (
+                          <iframe
+                            src={`${url}#toolbar=0&navpanes=0`}
+                            className="w-full min-h-[400px] sm:min-h-[800px] rounded-lg shadow-sm border-0"
+                            title="Document Preview"
+                            style={{ border: 'none' }}
+                          />
+                        ) : (
+                          <img
+                            src={url}
+                            alt="Document Preview"
+                            className="max-w-full h-auto rounded-lg shadow-sm object-contain"
+                          />
+                        )}
+                        {file && (
+                          <p className="text-sm text-muted-foreground mt-2 text-center">
+                            Size: {formatFileSize(file.size)}
+                          </p>
+                        )}
+                      </>
                     );
                   })()}
                 </div>
@@ -3023,18 +3034,27 @@ export default function CostManagement() {
                       isPDF = true;
                     }
                     
-                    return isPDF ? (
-                      <iframe
-                        src={url}
-                        className="w-full min-h-[800px] rounded-lg shadow-sm"
-                        title="Document Preview"
-                      />
-                    ) : (
-                      <img
-                        src={url}
-                        alt="Document Preview"
-                        className="max-w-full h-auto rounded-lg shadow-sm"
-                      />
+                    return (
+                      <>
+                        {isPDF ? (
+                          <iframe
+                            src={url}
+                            className="w-full min-h-[800px] rounded-lg shadow-sm"
+                            title="Document Preview"
+                          />
+                        ) : (
+                          <img
+                            src={url}
+                            alt="Document Preview"
+                            className="max-w-full h-auto rounded-lg shadow-sm"
+                          />
+                        )}
+                        {file && (
+                          <p className="text-sm text-muted-foreground mt-2 text-center">
+                            Size: {formatFileSize(file.size)}
+                          </p>
+                        )}
+                      </>
                     );
                   })()}
                 </div>

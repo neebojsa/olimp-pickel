@@ -6,9 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Trash2, Check, ChevronsUpDown, X, Minus } from "lucide-react";
+import { Plus, Trash2, X, Minus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,8 +29,6 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [isIssueDatePickerOpen, setIsIssueDatePickerOpen] = useState(false);
-  const [productSearchOpen, setProductSearchOpen] = useState<Record<number, boolean>>({});
-  const [productSearchTerms, setProductSearchTerms] = useState<Record<number, string>>({});
   const [customAddress, setCustomAddress] = useState("");
   const [isCustomAddressMode, setIsCustomAddressMode] = useState(false);
   
@@ -681,81 +679,18 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                   <div key={index} className="space-y-2">
                     {/* Part, Quantity, and Delete in one line */}
                     <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
-                        <Popover
-                          open={productSearchOpen[index] || false}
-                          onOpenChange={(open) => setProductSearchOpen(prev => ({ ...prev, [index]: open }))}
-                        >
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between text-left font-normal"
-                            >
-                              {inventoryItem ? (
-                              <span>
-                                {inventoryItem.name}
-                                  {inventoryItem.part_number && (
-                                  <span className="text-muted-foreground"> | {inventoryItem.part_number}</span>
-                                  )}
-                              </span>
-                              ) : "Select part..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent 
-                            className="w-[var(--radix-popover-trigger-width)] p-0" 
-                            align="start"
-                            onWheel={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                          >
-                            <Command>
-                              <CommandInput
-                                placeholder="Search parts..."
-                                value={productSearchTerms[index] || ''}
-                                onValueChange={(value) => {
-                                  setProductSearchTerms(prev => ({ ...prev, [index]: value }));
-                                }}
-                              />
-                              <CommandList>
-                                <CommandEmpty>No parts found.</CommandEmpty>
-                                <CommandGroup>
-                                  {inventoryItems
-                                    .filter(invItem => {
-                                      const searchTerm = (productSearchTerms[index] || '').toLowerCase();
-                                      if (!searchTerm) return true;
-                                      const nameMatch = invItem.name.toLowerCase().includes(searchTerm);
-                                      const partNumberMatch = (invItem.part_number || '').toLowerCase().includes(searchTerm);
-                                      return nameMatch || partNumberMatch;
-                                    })
-                                    .map((invItem) => (
-                                      <CommandItem
-                                        key={invItem.id}
-                                        value={`${invItem.name} ${invItem.part_number || ''}`}
-                                        onSelect={() => {
-                                          updateItem(index, 'inventoryId', invItem.id);
-                                          setProductSearchOpen(prev => ({ ...prev, [index]: false }));
-                                          setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                        }}
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4",
-                                            item.inventoryId === invItem.id ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                        <div className="flex flex-col">
-                                          <span>{invItem.name}</span>
-                                          {invItem.part_number && (
-                                            <span className="text-xs text-muted-foreground">Part #: {invItem.part_number}</span>
-                                          )}
-                                        </div>
-                                      </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                        <SearchableSelect
+                          items={inventoryItems}
+                          value={item.inventoryId}
+                          onSelect={(invItem) => updateItem(index, 'inventoryId', invItem.id)}
+                          placeholder="Select part..."
+                          searchPlaceholder="Search parts..."
+                          emptyMessage="No parts found."
+                          getItemValue={(inv) => inv.id}
+                          getItemLabel={(inv) => inv.name}
+                          getItemSearchText={(inv) => `${inv.name} ${inv.part_number || ''}`}
+                          getItemPartNumber={(inv) => inv.part_number}
+                        />
 
                       <div className="relative w-40">
                         <Input

@@ -74,3 +74,25 @@ export const validateImageFile = (file: File): boolean => {
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
   return validTypes.includes(file.type);
 };
+
+/** Image MIME types that can be compressed for storage (cost documents, etc.) */
+const COMPRESSIBLE_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+
+/**
+ * Compresses an image file for storage (e.g. cost document photos).
+ * Reduces file size while keeping documents readable. PDFs and non-image files are returned unchanged.
+ */
+export const compressImageForStorage = async (file: File): Promise<File> => {
+  if (!COMPRESSIBLE_IMAGE_TYPES.includes(file.type)) {
+    return file;
+  }
+  // Max 1920px, quality 0.82 - good balance for document photos
+  return resizeImageFile(file, 1920, 1920, 0.82);
+};
+
+/** Format file size for display (e.g. "1.25 MB") */
+export const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
