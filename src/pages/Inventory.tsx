@@ -257,7 +257,7 @@ export default function Inventory() {
   const fetchCustomers = async () => {
     const {
       data
-    } = await supabase.from('customers').select('id, name, country, currency');
+    } = await supabase.from('customers').select('id, name, country, currency, photo_url');
     if (data) {
       setCustomers(data);
     }
@@ -1964,23 +1964,21 @@ export default function Inventory() {
               )}
 
               {/* Items List - Desktop View */}
-              <div className="hidden md:block space-y-1.5 w-full max-w-full min-w-0">
+              <div className="hidden md:block w-full max-w-full min-w-0">
                 {filteredItems.length > 0 ? filteredItems.map(item => item &&
-            // Add null check for the entire item
-            <Card key={item.id} className={`h-32 hover:shadow-md transition-shadow cursor-pointer ${
-              item.quantity <= (item.minimum_stock || 0) ? 'border-destructive bg-destructive/5' : ''
-            } ${
-              (item.category === "Materials" || item.category === "Components") && materialReorders[item.id] ? 'bg-blue-50 border-blue-200' : ''
-            }`} onClick={() => {
-              // Check if item still exists in the list (not deleted)
+            <div key={item.id} className={cn(
+              "border-b border-border py-4 px-4 last:border-b-0 hover:bg-muted/30 transition-colors cursor-pointer min-h-[8rem]",
+              item.quantity <= (item.minimum_stock || 0) && "bg-destructive/5",
+              (item.category === "Materials" || item.category === "Components") && materialReorders[item.id] && "bg-blue-50"
+            )} onClick={() => {
               const itemExists = inventoryItems.some(i => i.id === item.id);
               if (itemExists) {
                 setSelectedViewItem(item);
                 setIsViewDialogOpen(true);
               }
             }}>
-                       <CardContent className="p-4 h-full min-w-0 overflow-hidden">
-                         <div className="grid grid-cols-[auto_1fr_auto] gap-2 sm:gap-4 h-full items-center min-w-0">
+                       <div className="h-full min-w-0 overflow-hidden">
+                         <div className="grid grid-cols-[auto_1fr] gap-2 sm:gap-4 h-full items-center min-w-0">
                            {/* Material Shape Icon or Regular Image */}
                              {item?.category === "Materials" ? (() => {
                     const materialInfo = item.materials_used || {};
@@ -1992,277 +1990,149 @@ export default function Inventory() {
                                       shapeName={shape} 
                                       shapeId={shapeId || undefined}
                                       imageUrl={shapeData?.image_url || null}
-                                      size={80}
+                                      size={88}
                                     />
                   </div>;
-                })() : <div className="h-[94px] w-[100px] sm:w-[125px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                })() : <div className="h-[103px] w-[110px] sm:w-[138px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                             {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" /> : <CategoryIcon className="w-12 h-12 text-muted-foreground" />}
                           </div>}
                            
                            {/* Content */}
                            <div className="flex-1 flex flex-col justify-center min-w-0 h-full">
                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <div className="min-w-0 flex-1">
-                                     {item.category === "Tools" ? (
-                                       <>
-                                           <h3 className="font-semibold text-lg truncate">
-                                            {formatToolName(item.materials_used, item.name)}
-                                           </h3>
-                                         {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
-                                       </>
-                                     ) : (
-                                      <>
-                                        <h3 className="font-semibold text-lg truncate">{item.name}</h3>
-                                        {item.part_number && item?.category !== "Materials" && item?.category !== "Components" && <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>}
-                                        {item.production_status && <p className="text-sm text-black font-medium">{item.production_status}</p>}
-                                      </>
-                                    )}
-                                  </div>
-                                 <AlertDialog>
-                                   <div className="flex gap-1 ml-2">
-                                      {item.category !== "Materials" && item.category !== "Components" && (
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="grid grid-cols-[1fr_auto] gap-4 min-w-0 flex-1 items-center">
+                                    {/* First column: Name, Part#, Quantity in stock */}
+                                    <div className="min-w-0 space-y-0.5 flex flex-col justify-center">
+                                      {item.category === "Tools" ? (
                                         <>
-                                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                                   e.stopPropagation();
-                                   handleViewHistory(item);
-                                 }} title="View History">
-                                             <History className="h-4 w-4" />
-                                          </Button>
+                                          <h3 className="font-semibold text-lg truncate">
+                                            {(() => { const n = formatToolName(item.materials_used, item.name); return n?.length > 25 ? n.slice(0, 25) + "..." : n; })()}
+                                          </h3>
+                                          {item.description && <p className="text-sm text-muted-foreground truncate">{item.description}</p>}
+                                          {item.category !== "Materials" && (
+                                            <div className={`flex items-center gap-2 ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                                              <span className={`text-lg font-bold ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>{item.quantity}</span>
+                                              <div className="flex flex-col text-[0.5rem] leading-[0.6rem]">
+                                                <span className={`font-medium ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                                                  {item.unit === "piece" || item.unit === "pcs" || !item.unit ? (item.quantity === 1 ? "piece" : "pieces") : item.unit}
+                                                </span>
+                                                <span className={item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}>in stock</span>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <h3 className="font-semibold text-lg truncate">{item.name?.length > 25 ? item.name.slice(0, 25) + "..." : item.name}</h3>
+                                          {item.part_number && item?.category !== "Materials" && item?.category !== "Components" && (
+                                            <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>
+                                          )}
+                                          {item?.category !== "Materials" && (
+                                            <div className={`flex items-center gap-2 ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                                              <span className={`text-lg font-bold ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>{item.quantity}</span>
+                                              <div className="flex flex-col text-[0.5rem] leading-[0.6rem]">
+                                                <span className={`font-medium ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                                                  {item.unit === "piece" || item.unit === "pcs" || !item.unit ? (item.quantity === 1 ? "piece" : "pieces") : item.unit}
+                                                </span>
+                                                <span className={item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}>in stock</span>
+                                              </div>
+                                            </div>
+                                          )}
                                         </>
                                       )}
+                                    </div>
+                                    {/* Second column: Production status */}
+                                    <div className="flex items-center justify-end shrink-0">
+                                      {item.production_status && (
+                                        <p className="text-sm font-medium text-black whitespace-nowrap">{item.production_status}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                 <div className="flex flex-col items-end gap-2 ml-2 min-w-0" onClick={e => e.stopPropagation()}>
+                                     {/* Row 1 & 2: Buttons in two rows, full size like cards */}
+                                     <div className="flex flex-wrap gap-2 justify-end max-w-[280px]">
                                        {item.category === "Materials" && (
                                          <>
-                                           <Button variant="outline" size="icon" className="h-8 w-8 text-green-600" onClick={e => {
-                                             e.stopPropagation();
-                                             setSelectedMaterialForAdjustment(item);
-                                             setIsMaterialAdjustmentDialogOpen(true);
-                                           }} title="Adjust Quantity">
-                                             <Plus className="h-4 w-4" />
+                                           <Button variant="outline" size="sm" className="text-green-600" onClick={e => { e.stopPropagation(); setSelectedMaterialForAdjustment(item); setIsMaterialAdjustmentDialogOpen(true); }}>
+                                             <Plus className="h-4 w-4 mr-2" />
+                                             Add
                                            </Button>
-                                           <Button variant="outline" size="icon" className="h-8 w-8 text-red-600" onClick={e => {
-                                             e.stopPropagation();
-                                             setSelectedMaterialForAdjustment(item);
-                                             setIsMaterialAdjustmentDialogOpen(true);
-                                           }} title="Subtract Quantity">
-                                             <Minus className="h-4 w-4" />
-                                           </Button>
-                                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                                             e.stopPropagation();
-                                             setSelectedMaterialForHistory(item);
-                                             setIsMaterialHistoryDialogOpen(true);
-                                           }} title="View Material History">
-                                             <Clock className="h-4 w-4" />
+                                           <Button variant="outline" size="sm" className="text-red-600" onClick={e => { e.stopPropagation(); setSelectedMaterialForAdjustment(item); setIsMaterialAdjustmentDialogOpen(true); }}>
+                                             <Minus className="h-4 w-4 mr-2" />
+                                             Subtract
                                            </Button>
                                            {!materialReorders[item.id] ? (
-                                             <Button variant="outline" size="icon" className="h-8 w-8 text-blue-600" onClick={e => {
-                                               e.stopPropagation();
-                                               setSelectedMaterialForReorder(item);
-                                               setIsMaterialReorderDialogOpen(true);
-                                             }} title="Mark for Reorder">
-                                               <ShoppingCart className="h-4 w-4" />
+                                             <Button variant="outline" size="sm" className="text-blue-600" onClick={e => { e.stopPropagation(); setSelectedMaterialForReorder(item); setIsMaterialReorderDialogOpen(true); }}>
+                                               <ShoppingCart className="h-4 w-4 mr-2" />
+                                               Reorder
                                              </Button>
                                            ) : (
-                                             <Button variant="outline" size="icon" className="h-8 w-8 text-orange-600" onClick={e => {
-                                               e.stopPropagation();
-                                               handleCancelReorder(item.id);
-                                             }} title="Cancel Reorder">
-                                               <X className="h-4 w-4" />
+                                             <Button variant="outline" size="sm" className="text-orange-600" onClick={e => { e.stopPropagation(); handleCancelReorder(item.id); }}>
+                                               <X className="h-4 w-4 mr-2" />
+                                               Cancel Reorder
                                              </Button>
                                            )}
                                          </>
                                        )}
                                        {item.category === "Components" && (
                                          <>
-                                           <Button variant="outline" size="icon" className="h-8 w-8 text-green-600" onClick={e => {
-                                             e.stopPropagation();
-                                             setSelectedComponentForAdjustment(item);
-                                             setComponentAdjustmentType('add');
-                                             setIsComponentAdjustmentDialogOpen(true);
-                                           }} title="Add Quantity">
-                                             <Plus className="h-4 w-4" />
+                                           <Button variant="outline" size="sm" className="text-green-600" onClick={e => { e.stopPropagation(); setSelectedComponentForAdjustment(item); setComponentAdjustmentType('add'); setIsComponentAdjustmentDialogOpen(true); }}>
+                                             <Plus className="h-4 w-4 mr-2" />
+                                             Add
                                            </Button>
-                                           <Button variant="outline" size="icon" className="h-8 w-8 text-red-600" onClick={e => {
-                                             e.stopPropagation();
-                                             setSelectedComponentForAdjustment(item);
-                                             setComponentAdjustmentType('subtract');
-                                             setIsComponentAdjustmentDialogOpen(true);
-                                           }} title="Remove Quantity">
-                                             <Minus className="h-4 w-4" />
+                                           <Button variant="outline" size="sm" className="text-red-600" onClick={e => { e.stopPropagation(); setSelectedComponentForAdjustment(item); setComponentAdjustmentType('subtract'); setIsComponentAdjustmentDialogOpen(true); }}>
+                                             <Minus className="h-4 w-4 mr-2" />
+                                             Remove
                                            </Button>
                                            {!materialReorders[item.id] ? (
-                                             <Button variant="outline" size="icon" className="h-8 w-8 text-blue-600" onClick={e => {
-                                               e.stopPropagation();
-                                               setSelectedMaterialForReorder(item);
-                                               setIsMaterialReorderDialogOpen(true);
-                                             }} title="Mark for Reorder">
-                                               <ShoppingCart className="h-4 w-4" />
+                                             <Button variant="outline" size="sm" className="text-blue-600" onClick={e => { e.stopPropagation(); setSelectedMaterialForReorder(item); setIsMaterialReorderDialogOpen(true); }}>
+                                               <ShoppingCart className="h-4 w-4 mr-2" />
+                                               Reorder
                                              </Button>
                                            ) : (
-                                             <Button variant="outline" size="icon" className="h-8 w-8 text-orange-600" onClick={e => {
-                                               e.stopPropagation();
-                                               handleCancelReorder(item.id);
-                                             }} title="Cancel Reorder">
-                                               <X className="h-4 w-4" />
+                                             <Button variant="outline" size="sm" className="text-orange-600" onClick={e => { e.stopPropagation(); handleCancelReorder(item.id); }}>
+                                               <X className="h-4 w-4 mr-2" />
+                                               Cancel Reorder
                                              </Button>
                                            )}
                                          </>
                                        )}
-                                       {item.category !== "Materials" && item.category !== "Components" && (
-                                         <>
-                                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                                 e.stopPropagation();
-                                 setSelectedItemForProductionStatus(item);
-                                 setIsProductionStatusDialogOpen(true);
-                               }} title="Production Status">
-                                             <PlayCircle className="h-4 w-4" />
-                                           </Button>
-                                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                                 e.stopPropagation();
-                                 setSelectedItemForWorkOrder(item);
-                                 setIsWorkOrderDialogOpen(true);
-                               }} title="Create Work Order">
-                                           <ClipboardList className="h-4 w-4" />
+                                       {item.category === "Parts" && item.customer_id && (
+                                         <Button variant="outline" size="sm" className={cn("transition-all duration-300", justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce")} onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}>
+                                           {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
+                                           {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
                                          </Button>
-                                         </>
                                        )}
-                                     {item.category === "Parts" && item.customer_id && (
-                                       <Button
-                                         variant="outline"
-                                         size="icon"
-                                         className={cn(
-                                           "h-8 w-8 transition-all duration-300",
-                                           justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce"
+                                       <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); handleOpenEditDialog(item); }}>
+                                         <Edit className="h-4 w-4 mr-2" />
+                                         Edit
+                                       </Button>
+                                     </div>
+                                     {/* Row 3: Stock location left of customer name, customer name right-aligned */}
+                                     {(item.location || (item.category === "Parts" && item.customer_id)) && (
+                                       <div className="flex items-center justify-end gap-2 w-full max-w-[280px]">
+                                         {item.location && (
+                                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                             <MapPin className="h-3 w-3 flex-shrink-0" />
+                                             <span>{item.location}</span>
+                                           </div>
                                          )}
-                                         onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}
-                                         title="Add to PO"
-                                       >
-                                         {justAddedToPoItemId === item.id ? <Check className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
-                                       </Button>
+                                         {item.category === "Parts" && item.customer_id && (() => {
+                                           const customer = customers.find(c => c.id === item.customer_id);
+                                           return customer?.name ? (
+                                             <span className="text-xs font-medium truncate max-w-[150px]" title={customer.name}>{customer.name}</span>
+                                           ) : null;
+                                         })()}
+                                       </div>
                                      )}
-                                     {item.category === "Parts" && canSeePrices() && (
-                                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                                         e.stopPropagation();
-                                         setSelectedPartForPriceCalculator(item);
-                                         setIsPriceCalculatorDialogOpen(true);
-                                       }} title="Price Calculator">
-                                         <Calculator className="h-4 w-4" />
-                                       </Button>
-                                     )}
-                                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                              e.stopPropagation();
-                              handleOpenEditDialog(item);
-                            }}>
-                                       <Edit className="h-4 w-4" />
-                                     </Button>
-                                     <AlertDialogTrigger asChild>
-                                       <Button variant="destructive" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
-                                         <Trash2 className="h-4 w-4" />
-                                       </Button>
-                                     </AlertDialogTrigger>
                                   </div>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete Item</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
                                </div>
                              </div>
-                            
-                             <div className="flex items-center justify-between mt-2">
-                               <div className="flex items-center gap-4">
-                                   {item?.category === "Materials" ? (() => {
-                          const materialInfo = item.materials_used || {};
-                          const quantity = formatMaterialQuantity(materialInfo, item.quantity);
-                          const unitWeight = calculateMaterialWeight(materialInfo);
-                          const totalWeight = unitWeight * item.quantity;
-                          const priceUnit = materialInfo.priceUnit === 'per_kg' ? 'kg' : 'm';
-                          
-                          // Calculate total value based on pricing unit
-                          let totalValue;
-                          if (materialInfo.priceUnit === 'per_kg') {
-                            totalValue = totalWeight * item.unit_price;
-                          } else {
-                            // For per_meter pricing, calculate total length in meters
-                            const dims = materialInfo.dimensions || {};
-                            const lengthInMm = parseFloat(dims.length) || 0;
-                            const lengthInMeters = lengthInMm / 1000;
-                            const totalMeters = lengthInMeters * item.quantity;
-                            totalValue = totalMeters * item.unit_price;
-                          }
-                          
-                          const stockQuantityMm = materialStockQuantities[item.id] || 0;
-                          const reorder = materialReorders[item.id];
-                          
-                          return <>
-                                          {totalWeight > 0 && <span className="text-sm text-muted-foreground">
-                                              {totalWeight.toFixed(1)} kg
-                                            </span>}
-                                            <span className="font-semibold text-lg text-blue-600">
-                                              Stock: {stockQuantityMm.toFixed(0)} mm
-                                            </span>
-                                            {reorder && (
-                                              <div className="mt-1 text-xs text-blue-600 font-medium">
-                                                Reorder: {reorder.length_mm}mm {reorder.notes && `- ${reorder.notes}`}
-                                              </div>
-                                            )}
-                                        </>;
-                         })() : <>
-                                     {(item.category === "Parts" || item.category === "Machines") && item.weight > 0 && (
-                                       <span className="text-sm text-muted-foreground">
-                                         {item.weight} kg
-                                       </span>
-                                     )}
-                                     {canSeePrices() && <span className="font-semibold text-lg">{formatCurrency(item.unit_price, item.currency || 'EUR')}</span>}
-                                   </>}
-                               </div>
-                              
-                                <div className="text-xs text-muted-foreground text-right space-y-1">
-                                  {item.customer_id && item.category === "Parts" && <div className="flex items-center justify-end gap-1">
-                                      <Users className="h-3 w-3 text-gray-400" />
-                                      <span>{customers.find(c => c.id === item.customer_id)?.name}</span>
-                                    </div>}
-                                  {item.supplier && item.category !== "Parts" && <div className="flex items-center justify-end gap-1">
-                                      <Building2 className="h-3 w-3 text-gray-400" />
-                                      <span>{item.supplier}</span>
-                                    </div>}
-                                  {item.location && <div className="flex items-center justify-end gap-1">
-                                      <MapPin className="h-3 w-3 text-gray-400" />
-                                      <span>{item.location}</span>
-                                    </div>}
-                                </div>
-                            </div>
                           </div>
-                          
-                          {/* Quantity Display - Last Column */}
-                          {item?.category !== "Materials" && (
-                            <div className="flex items-center justify-center flex-shrink-0 gap-2">
-                              <span className={`text-[1.9rem] font-bold ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
-                                {item.quantity}
-                              </span>
-                              <div className="flex flex-col justify-center leading-tight">
-                                <span className={`text-sm ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
-                                  {item.unit === "piece" || item.unit === "pcs" || !item.unit ? (item.quantity === 1 ? "piece" : "pieces") : item.unit}
-                                </span>
-                                <span className={`text-sm ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}`}>
-                                  in stock
-                                </span>
-                              </div>
-                            </div>
-                          )}
                         </div>
-                      </CardContent>
-                     </Card>) : <div className="text-center py-12">
+                      </div>
+                     </div>) : <div className="text-center py-12">
                     <CategoryIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground mb-4">No {category.toLowerCase()} found</p>
                     <Button variant="outline" onClick={() => handleOpenAddDialog(category)}>
@@ -2320,18 +2190,6 @@ export default function Inventory() {
                               </div>
                             </div>
                           )}
-                          {canSeePrices() && item.unit_price && (
-                            <div className="flex flex-col space-y-1">
-                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Unit Price</span>
-                              <div className="text-sm font-medium">{formatCurrency(item.unit_price, item.currency || 'EUR')}</div>
-                            </div>
-                          )}
-                          {item.weight > 0 && (
-                            <div className="flex flex-col space-y-1">
-                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight</span>
-                              <div className="text-sm font-medium">{item.weight} kg</div>
-                            </div>
-                          )}
                         </>
                       )}
 
@@ -2360,7 +2218,7 @@ export default function Inventory() {
                                   shapeName={shape} 
                                   shapeId={shapeId || undefined}
                                   imageUrl={shapeData?.image_url || null}
-                                  size={80}
+                                  size={88}
                                 />
                               </div>
                             </div>
@@ -2441,10 +2299,10 @@ export default function Inventory() {
                               <img 
                                 src={item.image} 
                                 alt={item.name} 
-                                className="h-[90px] w-[120px] object-contain rounded-lg"
+                                className="h-[99px] w-[132px] object-contain rounded-lg"
                               />
                             ) : (
-                              <div className="h-[90px] w-[120px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                              <div className="h-[99px] w-[132px] bg-muted rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                                 <CategoryIcon className="w-10 h-10 text-muted-foreground" />
                               </div>
                             )}
@@ -2454,17 +2312,6 @@ export default function Inventory() {
 
                       {/* Action Buttons - Bottom of Card */}
                       <div className="pt-2 border-t flex flex-wrap gap-2 w-full" onClick={(e) => e.stopPropagation()}>
-                        {item.category !== "Materials" && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewHistory(item);
-                            }}>
-                              <History className="h-4 w-4 mr-2" />
-                              History
-                            </Button>
-                          </>
-                        )}
                         {item.category === "Materials" && (
                           <>
                             <Button variant="outline" size="sm" className="text-green-600" onClick={(e) => {
@@ -2482,14 +2329,6 @@ export default function Inventory() {
                             }}>
                               <Minus className="h-4 w-4 mr-2" />
                               Subtract
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedMaterialForHistory(item);
-                              setIsMaterialHistoryDialogOpen(true);
-                            }}>
-                              <Clock className="h-4 w-4 mr-2" />
-                              History
                             </Button>
                             {!materialReorders[item.id] ? (
                               <Button variant="outline" size="sm" className="text-blue-600" onClick={(e) => {
@@ -2551,26 +2390,6 @@ export default function Inventory() {
                             )}
                           </>
                         )}
-                        {item.category !== "Materials" && item.category !== "Components" && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedItemForProductionStatus(item);
-                              setIsProductionStatusDialogOpen(true);
-                            }}>
-                              <PlayCircle className="h-4 w-4 mr-2" />
-                              Status
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedItemForWorkOrder(item);
-                              setIsWorkOrderDialogOpen(true);
-                            }}>
-                              <ClipboardList className="h-4 w-4 mr-2" />
-                              Work Order
-                            </Button>
-                          </>
-                        )}
                         {item.category === "Parts" && item.customer_id && (
                           <Button
                             variant="outline"
@@ -2585,16 +2404,6 @@ export default function Inventory() {
                             {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
                           </Button>
                         )}
-                        {item.category === "Parts" && canSeePrices() && (
-                          <Button variant="outline" size="sm" onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedPartForPriceCalculator(item);
-                            setIsPriceCalculatorDialogOpen(true);
-                          }}>
-                            <Calculator className="h-4 w-4 mr-2" />
-                            Calculator
-                          </Button>
-                        )}
                         <Button variant="outline" size="sm" onClick={(e) => {
                           e.stopPropagation();
                           handleOpenEditDialog(item);
@@ -2602,29 +2411,24 @@ export default function Inventory() {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" onClick={(e) => e.stopPropagation()}>
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Item</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteInventoryItem(item.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       </div>
+                      {/* Stock location left of customer name, customer name right-aligned */}
+                      {(item.location || (item.category === "Parts" && item.customer_id)) && (
+                        <div className="flex items-center justify-end w-full gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+                          {item.location && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                              <span className="break-words min-w-0">{item.location}</span>
+                            </div>
+                          )}
+                          {item.category === "Parts" && item.customer_id && (() => {
+                            const customer = customers.find(c => c.id === item.customer_id);
+                            return customer?.name ? (
+                              <span className="text-xs font-medium truncate max-w-[150px]" title={customer.name}>{customer.name}</span>
+                            ) : null;
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </Card>
                 )) : (
@@ -4197,6 +4001,64 @@ export default function Inventory() {
                   </div>
                 </div>}
             </div>}
+            
+            {/* Action Buttons: History, Status, Calculator, Delete */}
+            {selectedViewItem && (
+              <div className="pt-4 mt-6 flex flex-wrap gap-2">
+                {selectedViewItem.category !== "Materials" && selectedViewItem.category !== "Components" && (
+                  <Button variant="outline" size="sm" onClick={() => handleViewHistory(selectedViewItem)}>
+                    <History className="h-4 w-4 mr-2" />
+                    History
+                  </Button>
+                )}
+                {selectedViewItem.category === "Materials" && (
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedMaterialForHistory(selectedViewItem); setIsMaterialHistoryDialogOpen(true); }}>
+                    <Clock className="h-4 w-4 mr-2" />
+                    History
+                  </Button>
+                )}
+                {selectedViewItem.category !== "Materials" && selectedViewItem.category !== "Components" && (
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedItemForProductionStatus(selectedViewItem); setIsProductionStatusDialogOpen(true); }}>
+                    <PlayCircle className="h-4 w-4 mr-2" />
+                    Status
+                  </Button>
+                )}
+                {selectedViewItem.category !== "Materials" && selectedViewItem.category !== "Components" && (
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedItemForWorkOrder(selectedViewItem); setIsViewDialogOpen(false); setIsWorkOrderDialogOpen(true); }}>
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    Work Order
+                  </Button>
+                )}
+                {selectedViewItem.category === "Parts" && canSeePrices() && (
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedPartForPriceCalculator(selectedViewItem); setIsPriceCalculatorDialogOpen(true); }}>
+                    <Calculator className="h-4 w-4 mr-2" />
+                    Calculator
+                  </Button>
+                )}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete "{selectedViewItem.name}"? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => { handleDeleteInventoryItem(selectedViewItem.id); setIsViewDialogOpen(false); }}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
             
             {/* Cancel Button */}
             <div className="pt-4 mt-6">
