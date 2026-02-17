@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Minus } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 
 interface NumericInputProps {
   value: number | string;
@@ -14,6 +15,9 @@ interface NumericInputProps {
   id?: string;
   increment?: number; // Custom increment amount (default: 1 or step)
   decrement?: number; // Custom decrement amount (default: 1 or step)
+  suffix?: string;
+  showSteppers?: boolean;
+  containerClassName?: string;
 }
 
 export function NumericInput({
@@ -26,7 +30,10 @@ export function NumericInput({
   className = "",
   id,
   increment,
-  decrement
+  decrement,
+  suffix,
+  showSteppers = true,
+  containerClassName
 }: NumericInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -96,8 +103,18 @@ export function NumericInput({
     }
   };
 
+  const hasSuffix = !!suffix;
+  // Layout: { -, value, suffix, + } — suffix between value and + button
+  const inputPaddingClass = showSteppers
+    ? hasSuffix
+      ? "pl-6 pr-12 text-center" // extra pr for suffix between value and +
+      : "pl-6 pr-6 text-center"
+    : hasSuffix
+      ? "pl-4 pr-10 text-center"
+      : "pl-3 pr-3 text-center";
+
   return (
-    <div className="relative w-[120px]">
+    <div className={cn("relative w-[120px]", containerClassName)}>
       <Input
         ref={inputRef}
         id={id}
@@ -109,27 +126,40 @@ export function NumericInput({
         max={max}
         step={step}
         placeholder={placeholder}
-        className={`text-center rounded-md pr-6 pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden ${className}`}
+        className={cn(
+          "rounded-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden",
+          inputPaddingClass,
+          className
+        )}
         style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
       />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-md p-0 border-0 shadow-none hover:bg-muted"
-        onClick={handleDecrement}
-      >
-        <Minus className="h-4 w-4" />
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-md p-0 border-0 shadow-none hover:bg-muted"
-        onClick={handleIncrement}
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
+      {showSteppers && (
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-md p-0 border-0 shadow-none hover:bg-muted"
+            onClick={handleDecrement}
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-md p-0 border-0 shadow-none hover:bg-muted"
+            onClick={handleIncrement}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </>
+      )}
+      {hasSuffix && (
+        <span className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          {suffix}
+        </span>
+      )}
     </div>
   );
 }

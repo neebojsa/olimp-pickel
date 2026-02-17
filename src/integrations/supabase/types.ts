@@ -119,6 +119,24 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_units: {
+        Row: {
+          id: string
+          created_at: string
+          name: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          name: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          name?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -372,6 +390,141 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sales_order_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          inventory_id: string | null
+          quantity: number
+          sales_order_id: string
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          inventory_id?: string | null
+          quantity?: number
+          sales_order_id: string
+          total?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          inventory_id?: string | null
+          quantity?: number
+          sales_order_id?: string
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_items_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_items_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_orders: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string | null
+          customer_id: string | null
+          customer_po_number: string | null
+          id: string
+          purchase_order_id: string | null
+          issue_date: string
+          po_date: string | null
+          net_weight: number | null
+          notes: string | null
+          packing: number | null
+          requested_delivery_date: string | null
+          sales_order_number: string
+          shipping_address: string | null
+          status: string
+          tara_weight: number | null
+          total_quantity: number | null
+          total_weight: number | null
+          updated_at: string
+          vat_rate: number | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          currency?: string | null
+          customer_id?: string | null
+          customer_po_number?: string | null
+          id?: string
+          purchase_order_id?: string | null
+          issue_date?: string
+          po_date?: string | null
+          net_weight?: number | null
+          notes?: string | null
+          packing?: number | null
+          requested_delivery_date?: string | null
+          sales_order_number: string
+          shipping_address?: string | null
+          status?: string
+          tara_weight?: number | null
+          total_quantity?: number | null
+          total_weight?: number | null
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string | null
+          customer_id?: string | null
+          customer_po_number?: string | null
+          id?: string
+          purchase_order_id?: string | null
+          issue_date?: string
+          po_date?: string | null
+          net_weight?: number | null
+          notes?: string | null
+          packing?: number | null
+          requested_delivery_date?: string | null
+          sales_order_number?: string
+          shipping_address?: string | null
+          status?: string
+          tara_weight?: number | null
+          total_quantity?: number | null
+          total_weight?: number | null
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoices: {
         Row: {
@@ -940,11 +1093,13 @@ export type Database = {
           estimated_hours: number | null
           id: string
           inventory_id: string | null
+          sales_order_id: string | null
           materials_used: Json | null
           operators_and_machines: Json | null
           part_name: string | null
           part_number: string | null
           percentage_completion: number
+          po_date: string | null
           priority: string
           production_notes: string | null
           quality_requirements: string | null
@@ -968,11 +1123,13 @@ export type Database = {
           estimated_hours?: number | null
           id?: string
           inventory_id?: string | null
+          sales_order_id?: string | null
           materials_used?: Json | null
           operators_and_machines?: Json | null
           part_name?: string | null
           part_number?: string | null
           percentage_completion?: number
+          po_date?: string | null
           priority?: string
           production_notes?: string | null
           quality_requirements?: string | null
@@ -996,11 +1153,13 @@ export type Database = {
           estimated_hours?: number | null
           id?: string
           inventory_id?: string | null
+          sales_order_id?: string | null
           materials_used?: Json | null
           operators_and_machines?: Json | null
           part_name?: string | null
           part_number?: string | null
           percentage_completion?: number
+          po_date?: string | null
           priority?: string
           production_notes?: string | null
           quality_requirements?: string | null
@@ -1027,6 +1186,13 @@ export type Database = {
             referencedRelation: "inventory"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "work_orders_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -1039,6 +1205,10 @@ export type Database = {
         Returns: Json
       }
       generate_invoice_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_sales_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
       }

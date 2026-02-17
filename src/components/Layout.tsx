@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { 
   Package, 
   FileText, 
+  ShoppingCart,
   ClipboardList, 
   Calculator,
   Settings,
@@ -30,6 +31,8 @@ const navigation = [
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Work Orders", href: "/work-orders", icon: ClipboardList },
   { name: "Invoicing", href: "/invoicing", icon: FileText },
+  { name: "Sales Orders", href: "/sales-orders", icon: ShoppingCart },
+  { name: "Purchase Orders", href: "/purchase-orders", icon: FileText },
   { name: "Accounting", href: "/accounting", icon: Calculator },
   { name: "Cost Management", href: "/cost-management", icon: Receipt },
   { name: "Sales", href: "/sales", icon: TrendingUp },
@@ -101,7 +104,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex-1 px-4 py-6 space-y-2">
         {filteredNavigation.map((item) => {
-          const isActive = location.pathname.startsWith(item.href);
+          const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
           return (
             <Link
               key={item.name}

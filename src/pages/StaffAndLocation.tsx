@@ -321,7 +321,7 @@ const Settings = () => {
 
   const availablePages = [
     "inventory", "work-orders", "customers", "suppliers", 
-    "invoicing", "accounting", "sales", "cost-management", "settings"
+    "invoicing", "sales-orders", "accounting", "sales", "cost-management", "settings"
   ];
 
   const openStaffDialog = (staffMember?: Staff) => {

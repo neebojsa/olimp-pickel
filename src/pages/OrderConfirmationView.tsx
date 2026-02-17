@@ -818,16 +818,19 @@ export default function OrderConfirmationView({ orderConfirmationId, hideBackBut
                     <div className="text-right w-3/5 ml-auto">
                       <div className="space-y-2 print:space-y-3">
                         {(() => {
-                          const vatRate = customer?.vat_rate || 17;
+                          const vatRate = isForeign ? 0 : (customer?.vat_rate ?? 17);
+                          const subtotal = totalAmount || 0;
+                          const subtotalExclVat = vatRate === 0 ? subtotal : subtotal / (1 + (vatRate / 100));
+                          const vatAmount = subtotal - subtotalExclVat;
                           return (
                             <>
                               <div className="flex justify-between print-text-sm">
                                 <span>Subtotal</span>
-                                <span>{formatCurrency((totalAmount || 0) / (1 + (vatRate / 100)), currency)}</span>
+                                <span>{formatCurrency(subtotalExclVat, currency)}</span>
                               </div>
                               <div className="flex justify-between print-text-sm">
                                 <span>VAT ({vatRate}%):</span>
-                                <span>{formatCurrency((totalAmount || 0) - (totalAmount || 0) / (1 + (vatRate / 100)), currency)}</span>
+                                <span>{formatCurrency(vatAmount, currency)}</span>
                               </div>
                             </>
                           );

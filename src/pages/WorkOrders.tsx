@@ -387,25 +387,39 @@ export default function WorkOrders() {
   }, [isWorkOrderDetailsOpen, selectedWorkOrder?.id]);
 
   const fetchWorkOrders = async () => {
-    const { data } = await supabase.from('work_orders').select('*');
+    const { data } = await supabase
+      .from('work_orders')
+      .select('*, sales_orders(requested_delivery_date, po_date)');
     if (data) {
-      const formattedWorkOrders = data.map(wo => ({
-        ...wo,
-        workOrderNumber: wo.work_order_number || 'Pending',
-        partName: wo.part_name || 'No Part Selected',
-        partNumber: wo.part_number || 'N/A',
-        percentageCompletion: wo.percentage_completion ?? 0,
-        productionTime: "3.5 hours", // Placeholder
-        quantity: wo.quantity ?? 0,
-        setupInstructions: wo.setup_instructions || "",
-        qualityRequirements: wo.quality_requirements || "",
-        productionNotes: wo.production_notes || "",
-        tools: wo.tools_used && Array.isArray(wo.tools_used) ? wo.tools_used : [],
-        components: wo.components_used && Array.isArray(wo.components_used) ? wo.components_used : [],
-        materials: wo.materials_used && Array.isArray(wo.materials_used) ? wo.materials_used : [],
-        operatorsAndMachines: wo.operators_and_machines && Array.isArray(wo.operators_and_machines) ? wo.operators_and_machines : [],
-        controlInChargeId: wo.control_in_charge_id || null
-      }));
+      const formattedWorkOrders = data.map(wo => {
+        const so = wo.sales_orders as { requested_delivery_date?: string | null; po_date?: string | null } | null;
+        const dueDate = wo.sales_order_id && so?.requested_delivery_date
+          ? formatDate(so.requested_delivery_date)
+          : (wo.due_date ? formatDate(wo.due_date) : '-');
+        const poDate = wo.sales_order_id && so?.po_date
+          ? formatDate(so.po_date)
+          : (wo.po_date ? formatDate(wo.po_date) : '-');
+        return {
+          ...wo,
+          workOrderNumber: wo.work_order_number || 'Pending',
+          partName: wo.part_name || 'No Part Selected',
+          partNumber: wo.part_number || 'N/A',
+          percentageCompletion: wo.percentage_completion ?? 0,
+          productionTime: wo.estimated_hours != null ? `${wo.estimated_hours} h` : '-',
+          quantity: wo.quantity ?? 0,
+          orderDate: wo.created_at ? formatDate(wo.created_at) : '-',
+          dueDate,
+          poDate,
+          setupInstructions: wo.setup_instructions || "",
+          qualityRequirements: wo.quality_requirements || "",
+          productionNotes: wo.production_notes || "",
+          tools: wo.tools_used && Array.isArray(wo.tools_used) ? wo.tools_used : [],
+          components: wo.components_used && Array.isArray(wo.components_used) ? wo.components_used : [],
+          materials: wo.materials_used && Array.isArray(wo.materials_used) ? wo.materials_used : [],
+          operatorsAndMachines: wo.operators_and_machines && Array.isArray(wo.operators_and_machines) ? wo.operators_and_machines : [],
+          controlInChargeId: wo.control_in_charge_id || null
+        };
+      });
       setWorkOrders(formattedWorkOrders);
     }
   };
@@ -1250,6 +1264,10 @@ export default function WorkOrders() {
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Due Date:</span>
                           <span className="font-medium">{selectedWorkOrder.dueDate}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">PO Date:</span>
+                          <span className="font-medium">{selectedWorkOrder.poDate}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Status:</span>

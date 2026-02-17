@@ -25,6 +25,7 @@ export type EditingWorkOrder = {
   description?: string | null;
   estimated_hours?: number | null;
   due_date?: string | null;
+  po_date?: string | null;
   priority?: string | null;
   setup_instructions?: string | null;
   quality_requirements?: string | null;
@@ -81,7 +82,9 @@ export function CreateWorkOrderDialog({
   const [components, setComponents] = useState([{ name: "", quantity: 1 }]);
   const [componentItems, setComponentItems] = useState<any[]>([]);
   const [isDueDatePickerOpen, setIsDueDatePickerOpen] = useState(false);
+  const [isPoDatePickerOpen, setIsPoDatePickerOpen] = useState(false);
   const [workOrderDueDate, setWorkOrderDueDate] = useState<Date | undefined>(undefined);
+  const [workOrderPoDate, setWorkOrderPoDate] = useState<Date | undefined>(undefined);
   const [priority, setPriority] = useState("Medium");
   const [controlInChargeId, setControlInChargeId] = useState<string>("__none__");
 
@@ -101,6 +104,9 @@ export function CreateWorkOrderDialog({
         );
         setWorkOrderDueDate(
           editingWorkOrder.due_date ? new Date(editingWorkOrder.due_date) : undefined
+        );
+        setWorkOrderPoDate(
+          editingWorkOrder.po_date ? new Date(editingWorkOrder.po_date) : undefined
         );
         setPriority(editingWorkOrder.priority || "Medium");
         if (editingWorkOrder.tools_used && Array.isArray(editingWorkOrder.tools_used) && editingWorkOrder.tools_used.length > 0) {
@@ -345,6 +351,7 @@ export function CreateWorkOrderDialog({
           description,
           estimated_hours: productionTime ? parseFloat(productionTime) : null,
           due_date: dueDate || null,
+          po_date: workOrderPoDate ? format(workOrderPoDate, 'yyyy-MM-dd') : null,
           priority: priority || 'Medium',
           inventory_id: selectedPartId,
           part_name: selectedPart?.name,
@@ -399,6 +406,7 @@ export function CreateWorkOrderDialog({
         description: description,
         estimated_hours: productionTime ? parseFloat(productionTime) : null,
         due_date: dueDate || null,
+        po_date: workOrderPoDate ? format(workOrderPoDate, 'yyyy-MM-dd') : null,
         priority: priority || 'medium',
         status: 'pending',
         inventory_id: selectedPartId,
@@ -443,6 +451,7 @@ export function CreateWorkOrderDialog({
         setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
       }
       setWorkOrderDueDate(undefined);
+      setWorkOrderPoDate(undefined);
       setWorkOrderQuantity(0);
       setPriority("Medium");
       
@@ -479,6 +488,7 @@ export function CreateWorkOrderDialog({
     setControlInChargeId("__none__");
     setMaterials([{ name: "", notes: "", lengthPerPiece: "" }]);
     setWorkOrderDueDate(undefined);
+    setWorkOrderPoDate(undefined);
     setWorkOrderQuantity(0);
     setPriority("Medium");
     onOpenChange(false);
@@ -607,6 +617,36 @@ export function CreateWorkOrderDialog({
                       if (date) {
                         setWorkOrderDueDate(date);
                         setIsDueDatePickerOpen(false);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <Label htmlFor="poDate">PO Date</Label>
+              <Popover open={isPoDatePickerOpen} onOpenChange={setIsPoDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !workOrderPoDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {workOrderPoDate ? format(workOrderPoDate, "PPP") : <span>Pick a date (optional)</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={workOrderPoDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setWorkOrderPoDate(date);
+                        setIsPoDatePickerOpen(false);
                       }
                     }}
                     initialFocus

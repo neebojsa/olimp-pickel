@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle, Minus, ShoppingCart, Calculator, ChevronsUpDown, Check } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle, Minus, ShoppingCart, Calculator, ChevronsUpDown, Check, FilePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { ShapeImage } from "@/components/ShapeImage";
@@ -26,7 +26,6 @@ import { ToolCategorySelector } from "@/components/ToolCategorySelector";
 import { MaterialManagementDialog } from "@/components/MaterialManagementDialog";
 import { NumericInput } from "@/components/NumericInput";
 import { DragDropImageUpload } from "@/components/DragDropImageUpload";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -44,6 +43,7 @@ import { SortSelect, SortOption } from "@/components/SortSelect";
 import { useSortPreference } from "@/hooks/useSortPreference";
 import { sortItems } from "@/lib/sortUtils";
 import { CreateWorkOrderDialog } from "@/components/work-orders/CreateWorkOrderDialog";
+import { UnitSelect } from "@/components/UnitSelect";
 export default function Inventory() {
   const {
     toast
@@ -90,6 +90,9 @@ export default function Inventory() {
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [selectedItemForHistory, setSelectedItemForHistory] = useState<any>(null);
   const [historyData, setHistoryData] = useState<any[]>([]);
+  const [addToPoPopoverItemId, setAddToPoPopoverItemId] = useState<string | null>(null);
+  const [addToPoQuantity, setAddToPoQuantity] = useState(1);
+  const [justAddedToPoItemId, setJustAddedToPoItemId] = useState<string | null>(null);
   const [materialsUsed, setMaterialsUsed] = useState([{
     name: "",
     notes: "",
@@ -1279,6 +1282,99 @@ export default function Inventory() {
     }
   };
 
+  const handleAddToPO = async (item: any, quantity: number) => {
+    if (!item?.customer_id) {
+      toast({ title: "Error", description: "Part must be assigned to a customer to add to PO.", variant: "destructive" });
+      return;
+    }
+    const qty = Math.max(1, Math.floor(quantity));
+    try {
+      const customerId = item.customer_id;
+      const { data: recentPO } = await supabase
+        .from("purchase_orders")
+        .select("id, status, purchase_order_number")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let poId: string;
+      if (recentPO && recentPO.status === "draft") {
+        poId = recentPO.id;
+        const unitPrice = item.unit_price ?? 0;
+        const { error: itemErr } = await supabase.from("purchase_order_items").insert({
+          purchase_order_id: poId,
+          inventory_id: item.id,
+          description: item.name || "",
+          quantity: qty,
+          unit_price: unitPrice,
+          total: unitPrice * qty,
+        });
+        if (itemErr) throw itemErr;
+        const { data: allItems } = await supabase.from("purchase_order_items").select("quantity, unit_price, total").eq("purchase_order_id", poId);
+        const customer = customers.find((c) => c.id === customerId);
+        const vatRate = customer?.country === "Bosnia and Herzegovina" ? 17 : 0;
+        const subtotal = (allItems || []).reduce((s, i) => s + (i.total || 0), 0);
+        const vatAmount = subtotal * (vatRate / 100);
+        const amount = subtotal + vatAmount;
+        const totalQuantity = (allItems || []).reduce((s, i) => s + (i.quantity || 0), 0);
+        const itemWeight = (item.weight || 0) * qty;
+        const { data: existingPO } = await supabase.from("purchase_orders").select("net_weight").eq("id", poId).single();
+        const netWeight = (existingPO?.net_weight || 0) + itemWeight;
+        await supabase.from("purchase_orders").update({ amount, total_quantity: totalQuantity, net_weight: netWeight, total_weight: netWeight, vat_rate: vatRate }).eq("id", poId);
+        setAddToPoPopoverItemId(null);
+        setJustAddedToPoItemId(item.id);
+        setTimeout(() => setJustAddedToPoItemId(null), 1500);
+        toast({ title: "Added to PO", description: `${qty} added to ${recentPO.purchase_order_number}` });
+      } else {
+        const { data: poNum } = await supabase.rpc("generate_purchase_order_number");
+        if (!poNum) throw new Error("Failed to generate PO number");
+        const customer = customers.find((c) => c.id === customerId);
+        const vatRate = customer?.country === "Bosnia and Herzegovina" ? 17 : 0;
+        const unitPrice = item.unit_price ?? 0;
+        const total = unitPrice * qty;
+        const vatAmount = total * (vatRate / 100);
+        const amount = total + vatAmount;
+        const netWeight = (item.weight || 0) * qty;
+        const today = new Date().toISOString().split("T")[0];
+        const currency = customer?.currency || (customer?.country === "Bosnia and Herzegovina" ? "BAM" : "EUR");
+        const { data: newPO, error: poErr } = await supabase
+          .from("purchase_orders")
+          .insert({
+            purchase_order_number: poNum,
+            customer_id: customerId,
+            issue_date: today,
+            status: "draft",
+            total_quantity: qty,
+            net_weight: netWeight,
+            total_weight: netWeight,
+            amount,
+            currency,
+            vat_rate: vatRate,
+          })
+          .select()
+          .single();
+        if (poErr) throw poErr;
+        poId = newPO.id;
+        const { error: itemErr } = await supabase.from("purchase_order_items").insert({
+          purchase_order_id: poId,
+          inventory_id: item.id,
+          description: item.name || "",
+          quantity: qty,
+          unit_price: unitPrice,
+          total,
+        });
+        if (itemErr) throw itemErr;
+        setAddToPoPopoverItemId(null);
+        setJustAddedToPoItemId(item.id);
+        setTimeout(() => setJustAddedToPoItemId(null), 1500);
+        toast({ title: "New PO Created", description: `${qty} added to new PO ${poNum}` });
+      }
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || "Failed to add part to PO", variant: "destructive" });
+    }
+  };
+
   const handleSaveProductionStatus = async (status: string) => {
     if (!selectedItemForProductionStatus) return;
     
@@ -1917,17 +2013,6 @@ export default function Inventory() {
                                       {item.category !== "Materials" && item.category !== "Components" && (
                                         <>
                                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
-                                  e.stopPropagation();
-                                  // Check if item still exists in the list (not deleted)
-                                  const itemExists = inventoryItems.some(i => i.id === item.id);
-                                  if (itemExists) {
-                                    setSelectedViewItem(item);
-                                    setIsViewDialogOpen(true);
-                                  }
-                                }} title="View Details">
-                                            <Eye className="h-4 w-4" />
-                                          </Button>
-                                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                                    e.stopPropagation();
                                    handleViewHistory(item);
                                  }} title="View History">
@@ -2030,6 +2115,20 @@ export default function Inventory() {
                                          </Button>
                                          </>
                                        )}
+                                     {item.category === "Parts" && item.customer_id && (
+                                       <Button
+                                         variant="outline"
+                                         size="icon"
+                                         className={cn(
+                                           "h-8 w-8 transition-all duration-300",
+                                           justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce"
+                                         )}
+                                         onClick={e => { e.stopPropagation(); setAddToPoPopoverItemId(item.id); setAddToPoQuantity(1); }}
+                                         title="Add to PO"
+                                       >
+                                         {justAddedToPoItemId === item.id ? <Check className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
+                                       </Button>
+                                     )}
                                      {item.category === "Parts" && canSeePrices() && (
                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={e => {
                                          e.stopPropagation();
@@ -2461,6 +2560,20 @@ export default function Inventory() {
                             </Button>
                           </>
                         )}
+                        {item.category === "Parts" && item.customer_id && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "transition-all duration-300",
+                              justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce"
+                            )}
+                            onClick={e => { e.stopPropagation(); setAddToPoPopoverItemId(item.id); setAddToPoQuantity(1); }}
+                          >
+                            {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
+                            {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
+                          </Button>
+                        )}
                         {item.category === "Parts" && canSeePrices() && (
                           <Button variant="outline" size="sm" onClick={(e) => {
                             e.stopPropagation();
@@ -2517,6 +2630,41 @@ export default function Inventory() {
             </TabsContent>;
       })}
       </Tabs>
+
+      {/* Add to PO Dialog */}
+      <Dialog open={!!addToPoPopoverItemId} onOpenChange={(open) => { if (!open) setAddToPoPopoverItemId(null); }}>
+        <DialogContent className="sm:max-w-[280px]">
+          {(() => {
+            const addToPoItem = inventoryItems.find(i => i.id === addToPoPopoverItemId);
+            if (!addToPoItem) return null;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Add to Purchase Order</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-2">
+                  <p className="text-sm text-muted-foreground">{addToPoItem.name}</p>
+                  <div className="grid gap-2">
+                    <Label htmlFor="add-to-po-qty">Quantity</Label>
+                    <NumericInput
+                      id="add-to-po-qty"
+                      value={addToPoQuantity}
+                      onChange={v => setAddToPoQuantity(Math.max(1, v))}
+                      min={1}
+                      className="h-9 w-full"
+                      containerClassName="w-full"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setAddToPoPopoverItemId(null)}>Cancel</Button>
+                  <Button onClick={() => handleAddToPO(addToPoItem, addToPoQuantity)}>Add</Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* Add Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -2691,8 +2839,8 @@ export default function Inventory() {
               {currentCategory === "Parts" ? (
                 <>
                   {/* Mobile layout for Parts: 2 rows of 2 columns */}
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                    {/* Row 1: Quantity and Min Stock Level */}
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {/* Row 1: Quantity, Unit, Min Stock Level */}
                     <div className="grid gap-2">
                       <Label htmlFor="quantity">Quantity *</Label>
                       <NumericInput
@@ -2701,6 +2849,13 @@ export default function Inventory() {
                         onChange={(val) => setFormData(prev => ({ ...prev, quantity: val.toString() }))}
                         min={0}
                         placeholder="0"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="unit">Unit</Label>
+                      <UnitSelect
+                        value={formData.unit || "piece"}
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, unit: v }))}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -2730,7 +2885,7 @@ export default function Inventory() {
                       </div>
                     )}
                   </div>
-                  {/* Mobile: Row 2 for Parts - Unit Price and Weight */}
+                  {/* Mobile: Row 2 for Parts - Unit Price and Weight (Unit shown in row 1) */}
                   {canSeePrices() && (
                     <div className="grid grid-cols-2 gap-4 sm:hidden mt-4">
                       <div className="grid gap-2">
@@ -2775,8 +2930,8 @@ export default function Inventory() {
               ) : currentCategory === "Components" ? (
                 <>
                   {/* Mobile layout for Components: 2 rows of 2 columns */}
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                    {/* Row 1: Quantity and Min Stock Level */}
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {/* Row 1: Quantity, Unit, Min Stock Level */}
                     <div className="grid gap-2">
                       <Label htmlFor="quantity">Quantity *</Label>
                       <NumericInput
@@ -2785,6 +2940,13 @@ export default function Inventory() {
                         onChange={(val) => setFormData(prev => ({ ...prev, quantity: val.toString() }))}
                         min={0}
                         placeholder="0"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="unit">Unit</Label>
+                      <UnitSelect
+                        value={formData.unit || "piece"}
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, unit: v }))}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -3210,7 +3372,7 @@ export default function Inventory() {
                 </div>
               )}
             {editingItem?.category !== "Materials" && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit_quantity">Quantity *</Label>
                 <NumericInput
@@ -3221,6 +3383,15 @@ export default function Inventory() {
                   placeholder="0"
                 />
               </div>
+              {(editingItem?.category === "Parts" || editingItem?.category === "Components") && (
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_unit">Unit</Label>
+                  <UnitSelect
+                    value={formData.unit || "piece"}
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, unit: v }))}
+                  />
+                </div>
+              )}
               {formData.category !== "Machines" && (
                 <div className="grid gap-2">
                   <Label htmlFor="edit_minimum_stock">Min Stock Level</Label>

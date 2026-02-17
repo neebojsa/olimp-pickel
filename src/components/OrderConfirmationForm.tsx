@@ -147,6 +147,10 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
     return customers.find(c => c.id === formData.customerId);
   };
 
+  const partsForCustomer = formData.customerId
+    ? inventoryItems.filter((inv) => !inv.customer_id || inv.customer_id === formData.customerId)
+    : [];
+
   const handleCustomerChange = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
     const currency = getCurrencyForCountry(customer?.country || '');
@@ -155,6 +159,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
       customerId,
       shippingAddress: customer?.address || '',
       currency: currency || prev.currency,
+      items: [],
     }));
   };
 
@@ -497,6 +502,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
           <div>
             <div className="mb-4">
               <Label className="text-lg font-semibold">Parts</Label>
+              {!formData.customerId && <p className="text-sm text-muted-foreground mt-1">Select a customer first to add parts</p>}
             </div>
 
             {/* Headers */}
@@ -515,16 +521,17 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
                 return (
                   <div key={index} className="grid grid-cols-[280px_minmax(80px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_40px] gap-3 items-start">
                     <SearchableSelect
-                      items={inventoryItems}
+                      items={partsForCustomer}
                       value={item.inventoryId || ''}
                       onSelect={(inv) => updateItem(index, 'inventoryId', inv.id)}
-                      placeholder="Select part..."
-                      searchPlaceholder="Search parts..."
-                      emptyMessage="No parts found."
+                      placeholder={formData.customerId ? "Select part..." : "Select customer first"}
+                      searchPlaceholder={formData.customerId ? "Search parts..." : "Select customer first"}
+                      emptyMessage={formData.customerId ? "No parts found for this customer." : "Select customer first."}
                       getItemValue={(inv) => inv.id}
                       getItemLabel={(inv) => inv.name || inv.part_name || ''}
                       getItemSearchText={(inv) => `${inv.name || inv.part_name} ${inv.part_number || ''}`}
                       getItemPartNumber={(inv) => inv.part_number}
+                      disabled={!formData.customerId}
                     />
 
                     <NumericInput
@@ -565,7 +572,7 @@ export default function OrderConfirmationForm({ isOpen, onClose, onSuccess, edit
               
               {/* Add Part button below items */}
               <div className="mt-3">
-                <Button type="button" onClick={addItem} size="sm" variant="outline">
+                <Button type="button" onClick={addItem} size="sm" variant="outline" disabled={!formData.customerId}>
                   <Plus className="w-4 h-4 mr-1" />
                   Add Part
                 </Button>

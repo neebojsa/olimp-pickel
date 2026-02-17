@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, FileText, Edit, Trash2, Search, Download, Eye, Filter, X } from "lucide-react";
+import { Plus, FileText, Edit, Trash2, Search, Download, Eye, Filter, X, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { DeliveryNoteForm } from "@/components/DeliveryNoteForm";
 import { DeliveryNoteViewDialog } from "@/components/DeliveryNoteViewDialog";
 import OrderConfirmationForm from "@/components/OrderConfirmationForm";
 import { OrderConfirmationViewDialog } from "@/components/OrderConfirmationViewDialog";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const getTypeColor = (type: string) => {
   switch (type) {
@@ -38,6 +38,8 @@ const getTypeColor = (type: string) => {
 export default function OtherDocs() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
   const [searchTerm, setSearchTerm] = useState("");
   const [documents, setDocuments] = useState<any[]>([]);
   const [deliveryNotes, setDeliveryNotes] = useState<any[]>([]);
@@ -63,13 +65,29 @@ export default function OtherDocs() {
   // Column header filters
   const [documentTypeFilter, setDocumentTypeFilter] = useState("all");
   const [isDocumentTypeFilterOpen, setIsDocumentTypeFilterOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("Bill Of Materials");
+  const tabTypesList = [
+    "Bill Of Materials", "Statements", "Requests", "Purchase Orders",
+    "Order Confirmations", "Pallet tags", "Contracts", "Reports",
+    "Delivery Notes", "Quotes", "Proforma Invoice"
+  ];
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl && tabTypesList.includes(tabFromUrl) ? tabFromUrl : "Bill Of Materials"
+  );
+  const [proformaInvoices, setProformaInvoices] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (tabFromUrl && tabTypesList.includes(tabFromUrl) && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
 
   useEffect(() => {
     if (activeTab === "Delivery Notes") {
       fetchDeliveryNotes();
     } else if (activeTab === "Order Confirmations") {
       fetchOrderConfirmations();
+    } else if (activeTab === "Proforma Invoice") {
+      fetchProformaInvoices();
     } else {
       fetchDocuments();
     }
@@ -121,6 +139,29 @@ export default function OtherDocs() {
       
       setDeliveryNotes(notesWithEntities);
     }
+  };
+
+  const fetchProformaInvoices = async () => {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        customers!inner(id, name, country, address, city, phone),
+        invoice_items!fk_invoice_items_invoice(*)
+      `)
+      .eq('invoice_type', 'proforma')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching proforma invoices:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load proforma invoices",
+        variant: "destructive"
+      });
+      return;
+    }
+    setProformaInvoices(data || []);
   };
 
   const fetchOrderConfirmations = async () => {
@@ -275,22 +316,17 @@ export default function OtherDocs() {
     return oc.order_confirmation_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customerName.toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  const filteredProformaInvoices = proformaInvoices.filter(pi => {
+    const customerName = pi.customers?.name || "";
+    return pi.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customerName.toLowerCase().includes(searchTerm.toLowerCase());
+  });
   
   // Get unique document types
   const documentTypes = [...new Set(documents.map(doc => doc.type).filter(Boolean))].sort();
 
-  const tabTypes = [
-    "Bill Of Materials",
-    "Statements",
-    "Requests",
-    "Purchase Orders",
-    "Order Confirmations",
-    "Pallet tags",
-    "Contracts",
-    "Reports",
-    "Delivery Notes",
-    "Quotes"
-  ];
+  const tabTypes = tabTypesList;
 
   // Get button text based on tab name
   const getAddButtonText = (tabName: string): string => {
@@ -304,7 +340,8 @@ export default function OtherDocs() {
       "Contracts": "Add Contract",
       "Reports": "Add Report",
       "Delivery Notes": "Add Delivery Note",
-      "Quotes": "Add Quote"
+      "Quotes": "Add Quote",
+      "Proforma Invoice": "Add Proforma Invoice"
     };
     
     return buttonTexts[tabName] || `Add ${tabName}`;
@@ -317,6 +354,8 @@ export default function OtherDocs() {
     } else if (tabName === "Order Confirmations") {
       setEditingOrderConfirmation(null);
       setIsOrderConfirmationFormOpen(true);
+    } else if (tabName === "Proforma Invoice") {
+      navigate('/invoicing?type=proforma');
     } else {
       setFormData({
         name: "",
@@ -388,6 +427,31 @@ export default function OtherDocs() {
     }
   };
 
+  const handleViewProformaInvoice = (invoice: any) => {
+    navigate(`/proforma-invoices/${invoice.id}`);
+  };
+
+  const handlePrintProformaInvoice = (invoice: any) => {
+    window.open(`/proforma-invoices/${invoice.id}/print`, '_blank');
+  };
+
+  const handleDeleteProformaInvoice = async (invoiceId: string) => {
+    const { error } = await supabase.from('invoices').delete().eq('id', invoiceId);
+    if (!error) {
+      await fetchProformaInvoices();
+      toast({
+        title: "Proforma Invoice Deleted",
+        description: "The proforma invoice has been successfully deleted.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete proforma invoice",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -433,10 +497,104 @@ export default function OtherDocs() {
             {/* Documents List */}
             <Card>
               <CardHeader>
-                <CardTitle>{activeTab === "Delivery Notes" ? "Delivery Notes" : "Documents"}</CardTitle>
+                <CardTitle>
+                  {activeTab === "Delivery Notes" ? "Delivery Notes" : activeTab === "Order Confirmations" ? "Order Confirmations" : activeTab === "Proforma Invoice" ? "Proforma Invoices" : "Documents"}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {activeTab === "Delivery Notes" ? (
+                {activeTab === "Proforma Invoice" ? (
+                  filteredProformaInvoices.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Proforma Invoice Number</TableHead>
+                          <TableHead>Issue Date</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Due Date</TableHead>
+                          <TableHead className="w-40">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredProformaInvoices.map((invoice) => (
+                          <TableRow key={invoice.id}>
+                            <TableCell className="font-medium">
+                              <button
+                                onClick={() => handleViewProformaInvoice(invoice)}
+                                className="text-left hover:text-primary hover:underline cursor-pointer transition-colors"
+                              >
+                                {invoice.invoice_number}
+                              </button>
+                            </TableCell>
+                            <TableCell>{invoice.issue_date ? new Date(invoice.issue_date).toLocaleDateString() : "-"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {invoice.customers?.name || "Customer"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{Number(invoice.amount || 0).toFixed(2)} {invoice.currency || "EUR"}</TableCell>
+                            <TableCell>{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : "-"}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleViewProformaInvoice(invoice)}
+                                  title="View"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handlePrintProformaInvoice(invoice)}
+                                  title="Print"
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Proforma Invoice</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete "{invoice.invoice_number}"? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteProformaInvoice(invoice.id)}>
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                                </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-muted-foreground mb-2">No proforma invoices found</h3>
+                      <p className="text-muted-foreground">
+                        {searchTerm ? "Try adjusting your search terms." : "Get started by adding your first proforma invoice."}
+                      </p>
+                    </div>
+                  )
+                ) : activeTab === "Delivery Notes" ? (
                   filteredDeliveryNotes.length > 0 ? (
                     <Table>
                       <TableHeader>

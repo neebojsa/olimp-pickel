@@ -13,6 +13,10 @@ import Login from "./pages/Login";
 import Inventory from "./pages/Inventory";
 import WorkOrders from "./pages/WorkOrders";
 import Invoicing from "./pages/Invoicing";
+import SalesOrders from "./pages/SalesOrders";
+import SalesOrderView from "./pages/SalesOrderView";
+import PurchaseOrders from "./pages/PurchaseOrders";
+import PurchaseOrderView from "./pages/PurchaseOrderView";
 import Accounting from "./pages/Accounting";
 import CostManagement from "./pages/CostManagement";
 import Sales from "./pages/Sales";
@@ -24,15 +28,14 @@ import OrderConfirmationView from "./pages/OrderConfirmationView";
 import Settings from "./pages/Settings";
 import StaffAndLocation from "./pages/StaffAndLocation";
 import InvoicePrint from "./pages/InvoicePrint";
+import ProformaInvoicePrint from "./pages/ProformaInvoicePrint";
+import ProformaInvoiceView from "./pages/ProformaInvoiceView";
+import SalesOrderPrint from "./pages/SalesOrderPrint";
+import PurchaseOrderPrint from "./pages/PurchaseOrderPrint";
 import NotFound from "./pages/NotFound";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; page?: string }> = ({ children, page }) => {
   const { staff, isLoading, hasPagePermission } = useAuth();
-  
-  // Debug logging
-  console.log('ProtectedRoute - staff:', staff);
-  console.log('ProtectedRoute - page:', page);
-  console.log('ProtectedRoute - hasPagePermission:', page ? hasPagePermission(page) : 'no page specified');
   
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
@@ -116,6 +119,26 @@ const AppContent: React.FC = () => {
                   <Layout><Invoicing /></Layout>
                 </ProtectedRoute>
               } />
+              <Route path="/sales-orders" element={
+                <ProtectedRoute page="sales-orders">
+                  <Layout><SalesOrders /></Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/sales-orders/:id" element={
+                <ProtectedRoute page="sales-orders">
+                  <SalesOrderView />
+                </ProtectedRoute>
+              } />
+              <Route path="/purchase-orders" element={
+                <ProtectedRoute page="purchase-orders">
+                  <Layout><PurchaseOrders /></Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/purchase-orders/:id" element={
+                <ProtectedRoute page="purchase-orders">
+                  <PurchaseOrderView />
+                </ProtectedRoute>
+              } />
               <Route path="/accounting" element={
                 <ProtectedRoute page="accounting">
                   <Layout><Accounting /></Layout>
@@ -167,6 +190,14 @@ const AppContent: React.FC = () => {
                 </ProtectedRoute>
               } />
               <Route path="/invoices/:id/print" element={<InvoicePrint />} />
+              <Route path="/proforma-invoices/:id" element={
+                <ProtectedRoute page="other-docs">
+                  <Layout><ProformaInvoiceView /></Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/proforma-invoices/:id/print" element={<ProformaInvoicePrint />} />
+              <Route path="/sales-orders/:id/print" element={<SalesOrderPrint />} />
+              <Route path="/purchase-orders/:id/print" element={<PurchaseOrderPrint />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
       </Routes>

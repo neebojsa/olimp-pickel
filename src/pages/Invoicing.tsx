@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/currencyUtils";
+import { formatCurrency, getCurrencySymbol } from "@/lib/currencyUtils";
 import { formatDate, formatDateForInput } from "@/lib/dateUtils";
 import { getInvoiceTranslations } from "@/lib/translationUtils";
 import { cn } from "@/lib/utils";
@@ -148,6 +149,8 @@ const InvoiceStatusBadge = ({ invoice, onStatusChange }: { invoice: any; onStatu
 };
 
 export default function Invoicing() {
+  const [searchParams] = useSearchParams();
+  const isProformaMode = searchParams.get('type') === 'proforma';
   const {
     toast
   } = useToast();
@@ -205,8 +208,6 @@ export default function Invoicing() {
     quantity: 1,
     unitPrice: 0
   }]);
-  const [orderConfirmations, setOrderConfirmations] = useState<any[]>([]);
-  const [selectedOrderConfirmationId, setSelectedOrderConfirmationId] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [invoiceSettings, setInvoiceSettings] = useState({
     primaryColor: '#000000',
@@ -231,7 +232,6 @@ export default function Invoicing() {
     fetchAllInventoryItems();
     fetchCompanyInfo();
     fetchInvoiceSettings();
-    fetchOrderConfirmations();
     // Load PDF settings from localStorage
     const savedSettings = localStorage.getItem('pdfSettings');
     if (savedSettings) {
@@ -241,7 +241,7 @@ export default function Invoicing() {
         console.error('Error loading PDF settings:', e);
       }
     }
-  }, []);
+  }, [isProformaMode]);
 
   const savePdfSettings = (newSettings: typeof pdfSettings) => {
     setPdfSettings(newSettings);
@@ -249,14 +249,20 @@ export default function Invoicing() {
   };
   const fetchInvoices = async () => {
     try {
-    const {
-        data,
-        error
-    } = await supabase.from('invoices').select(`
+    let query = supabase.from('invoices').select(`
         *,
         customers!inner(id, name, country, address, city, phone, dap_address, fco_address, photo_url),
         invoice_items!fk_invoice_items_invoice(*)
-      `).order('created_at', {
+      `);
+    if (isProformaMode) {
+      query = query.eq('invoice_type', 'proforma');
+    } else {
+      query = query.eq('invoice_type', 'invoice');
+    }
+    const {
+        data,
+        error
+    } = await query.order('created_at', {
       ascending: false
     });
       
@@ -300,12 +306,6 @@ export default function Invoicing() {
       .from('inventory')
       .select('id, name, part_number, photo_url, weight, category');
     if (data) setAllInventoryItems(data);
-  };
-  const fetchOrderConfirmations = async () => {
-    const {
-      data
-    } = await supabase.from('order_confirmations').select('*, order_confirmation_items(*)').order('created_at', { ascending: false });
-    if (data) setOrderConfirmations(data);
   };
   const fetchCompanyInfo = async () => {
     const {
@@ -376,6 +376,10 @@ export default function Invoicing() {
   const getSelectedCustomer = () => {
     return customers.find(c => c.id === newInvoice.customerId);
   };
+
+  const partsForCustomer = newInvoice.customerId
+    ? inventoryItems.filter((inv) => !inv.customer_id || inv.customer_id === newInvoice.customerId)
+    : [];
   
   // Get country code from country name (ISO 3166-1 alpha-2)
   const getCountryCode = (countryName: string | null | undefined): string => {
@@ -500,7 +504,9 @@ export default function Invoicing() {
       });
       return;
     }
-    const invoiceNumber = await generateInvoiceNumber();
+    const invoiceNumber = isProformaMode
+      ? (await (supabase as any).rpc('generate_proforma_invoice_number')).data
+      : await generateInvoiceNumber();
     const totals = calculateTotals();
     const customer = getSelectedCustomer();
     const todayDate = new Date().toISOString().split('T')[0]; // Today's date in YYYY-MM-DD format
@@ -528,6 +534,7 @@ export default function Invoicing() {
       error: invoiceError
     } = await supabase.from('invoices').insert([{
       invoice_number: invoiceNumber,
+      invoice_type: isProformaMode ? 'proforma' : 'invoice',
       customer_id: newInvoice.customerId,
       order_number: newInvoice.orderNumber,
       shipping_date: shippingDate,
@@ -757,7 +764,6 @@ export default function Invoicing() {
       quantity: 1,
       unitPrice: 0
     }]);
-    setSelectedOrderConfirmationId('');
     setIsEditMode(false);
   };
   const handleDeleteInvoice = async () => {
@@ -839,41 +845,6 @@ export default function Invoicing() {
       }
     }
     setInvoiceItems(updated);
-  };
-  const applyOrderConfirmationItems = () => {
-    if (!selectedOrderConfirmationId) {
-      toast({
-        title: "Error",
-        description: "Please select an order confirmation first",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const orderConfirmation = orderConfirmations.find(oc => oc.id === selectedOrderConfirmationId);
-    if (!orderConfirmation || !orderConfirmation.order_confirmation_items) {
-      toast({
-        title: "Error",
-        description: "Order confirmation not found or has no items",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Map order confirmation items to invoice items
-    const newInvoiceItems = orderConfirmation.order_confirmation_items.map((item: any) => ({
-      inventoryId: item.inventory_id || '',
-      quantity: item.quantity || 1,
-      unitPrice: item.unit_price || 0
-    }));
-
-    setInvoiceItems(newInvoiceItems);
-    setSelectedOrderConfirmationId(''); // Reset selection after applying
-    
-    toast({
-      title: "Success",
-      description: `Applied ${newInvoiceItems.length} items from order confirmation`,
-    });
   };
   // Function to estimate lines an item will take based on description length
   const estimateItemLines = (item: any) => {
@@ -2866,13 +2837,13 @@ ${cssVariables}
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-row items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Invoicing</h1>
+        <h1 className="text-2xl font-bold">{isProformaMode ? 'Proforma Invoices' : 'Invoicing'}</h1>
         <div className="flex items-center gap-2 md:hidden">
           <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(true)} title="Invoice Settings">
             <Settings className="w-4 h-4" />
           </Button>
           <Button onClick={() => setIsAddInvoiceOpen(true)}>
-            + Add Invoice
+            + {isProformaMode ? 'Add Proforma Invoice' : 'Add Invoice'}
           </Button>
         </div>
       </div>
@@ -2883,9 +2854,9 @@ ${cssVariables}
       }}>
           <DialogContent className="max-w-4xl w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
             <DialogHeader className="flex-shrink-0">
-              <DialogTitle>{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</DialogTitle>
+              <DialogTitle>{isEditMode ? (isProformaMode ? 'Edit Proforma Invoice' : 'Edit Invoice') : (isProformaMode ? 'Create New Proforma Invoice' : 'Create New Invoice')}</DialogTitle>
               <DialogDescription>
-                Fill in the invoice details and add parts
+                Fill in the {isProformaMode ? 'proforma invoice' : 'invoice'} details and add parts
               </DialogDescription>
             </DialogHeader>
             
@@ -2895,6 +2866,7 @@ ${cssVariables}
                 <div>
                   <Label>Customer *</Label>
                   <Select value={newInvoice.customerId} onValueChange={value => {
+                  setInvoiceItems([{ inventoryId: '', quantity: 1, unitPrice: 0 }]);
                   setNewInvoice({
                     ...newInvoice,
                     customerId: value
@@ -3169,99 +3141,85 @@ ${cssVariables}
 
               {/* Invoice Items */}
               <div>
-                <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
-                  <div className="flex-1 w-full sm:w-auto">
-                    <Label className="text-lg font-semibold">Invoice Items</Label>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 flex-1 w-full sm:w-auto">
-                    <div className="flex-1 min-w-0">
-                      <Label className="text-sm">Quick Fill from Order Confirmation</Label>
-                      <Select value={selectedOrderConfirmationId} onValueChange={setSelectedOrderConfirmationId}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select order confirmation..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {orderConfirmations.map(oc => {
-                            const customer = customers.find(c => c.id === oc.customer_id);
-                            return (
-                              <SelectItem key={oc.id} value={oc.id}>
-                                {oc.order_confirmation_number} - {customer?.name || 'Unknown'} ({oc.order_confirmation_items?.length || 0} items)
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button 
-                      type="button" 
-                      variant="secondary" 
-                      size="sm"
-                      onClick={applyOrderConfirmationItems}
-                      disabled={!selectedOrderConfirmationId}
-                      className="w-full sm:w-auto"
-                    >
-                      Apply
-                    </Button>
-                  </div>
+                <div className="mb-4">
+                  <Label className="text-lg font-semibold">Invoice Items</Label>
+                  {!newInvoice.customerId && <p className="text-sm text-muted-foreground mt-1">Select a customer first to add parts</p>}
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-0">
                   {invoiceItems.map((item, index) => {
                     const inventoryItem = inventoryItems.find(inv => inv.id === item.inventoryId);
+                    const unit = inventoryItem?.unit || "piece";
+                    const currency = inventoryItem?.currency || totals.currency || "EUR";
+                    const currencySymbol = getCurrencySymbol(currency);
                     return (
-                      <div key={index} className="grid gap-2 p-3 rounded-lg shadow-sm grid-cols-1 sm:grid-cols-[2fr_0.8fr_0.8fr_0.8fr_0.8fr]">
-                      <div>
-                        <Label className="text-xs">Part</Label>
-                        <SearchableSelect
-                          items={inventoryItems}
-                          value={item.inventoryId}
-                          onSelect={(invItem) => updateInvoiceItem(index, 'inventoryId', invItem.id)}
-                          placeholder="Select part..."
-                          searchPlaceholder="Search parts..."
-                          emptyMessage="No parts found."
-                          getItemValue={(inv) => inv.id}
-                          getItemLabel={(inv) => inv.name}
-                          getItemSearchText={(inv) => `${inv.name} ${inv.part_number || ''}`}
-                          getItemPartNumber={(inv) => inv.part_number}
-                        />
-                      </div>
+                      <div key={index} className={cn("grid gap-2 py-3 grid-cols-1 sm:grid-cols-[2.6fr_1.05fr_1.05fr_0.735fr_0.8fr]", index > 0 && "border-t border-border")}>
+                        <div>
+                          {index === 0 ? <Label className="text-xs">Part</Label> : <Label className="sr-only">Part</Label>}
+                          <SearchableSelect
+                            items={partsForCustomer}
+                            value={item.inventoryId}
+                            onSelect={(invItem) => updateInvoiceItem(index, 'inventoryId', invItem.id)}
+                            placeholder={newInvoice.customerId ? "Select part..." : "Select customer first"}
+                            searchPlaceholder={newInvoice.customerId ? "Search parts..." : "Select customer first"}
+                            emptyMessage={newInvoice.customerId ? "No parts found for this customer." : "Select customer first."}
+                            getItemValue={(inv) => inv.id}
+                            getItemLabel={(inv) => inv.name}
+                            getItemSearchText={(inv) => `${inv.name} ${inv.part_number || ''}`}
+                            getItemPartNumber={(inv) => inv.part_number}
+                            disabled={!newInvoice.customerId}
+                          />
+                        </div>
 
-                      <div>
-                        <Label className="text-xs">Quantity</Label>
-                        <NumericInput
-                          value={item.quantity}
-                          onChange={(val) => updateInvoiceItem(index, 'quantity', val)}
-                          min={1}
-                        />
-                      </div>
+                        <div>
+                          {index === 0 ? <Label className="text-xs">Quantity</Label> : <Label className="sr-only">Quantity</Label>}
+                          <NumericInput
+                            value={item.quantity}
+                            onChange={(val) => updateInvoiceItem(index, 'quantity', val)}
+                            min={1}
+                            suffix={unit}
+                            containerClassName="w-[156px]"
+                          />
+                        </div>
 
-                      <div>
-                        <Label className="text-xs">Unit Price</Label>
-                        <NumericInput
-                          value={item.unitPrice}
-                          onChange={(val) => updateInvoiceItem(index, 'unitPrice', val)}
-                          min={0}
-                          step={0.01}
-                        />
-                      </div>
+                        <div>
+                          {index === 0 ? <Label className="text-xs">Unit Price</Label> : <Label className="sr-only">Unit Price</Label>}
+                          <NumericInput
+                            value={item.unitPrice}
+                            onChange={(val) => updateInvoiceItem(index, 'unitPrice', val)}
+                            min={0}
+                            step={0.01}
+                            suffix={currencySymbol}
+                            containerClassName="w-[156px]"
+                          />
+                        </div>
 
-                      <div>
-                        <Label className="text-xs">Total</Label>
-                        <Input value={(item.quantity * item.unitPrice).toFixed(2)} disabled className="bg-muted" />
-                      </div>
+                        <div>
+                          {index === 0 ? <Label className="text-xs">Total</Label> : <Label className="sr-only">Total</Label>}
+                          <div className="relative w-[110px]">
+                            <Input
+                              value={(item.quantity * item.unitPrice).toFixed(2)}
+                              disabled
+                              className="bg-muted pr-10 text-center"
+                            />
+                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                              {currencySymbol}
+                            </span>
+                          </div>
+                        </div>
 
-                      <div className="flex items-end">
-                        <Button type="button" variant="outline" size="sm" onClick={() => removeInvoiceItem(index)} disabled={invoiceItems.length === 1}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                        <div className="flex items-end">
+                          <Button type="button" variant="outline" size="sm" onClick={() => removeInvoiceItem(index)} disabled={invoiceItems.length === 1}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
                 
                 <div className="mt-3">
-                  <Button type="button" onClick={addInvoiceItem} size="sm" variant="outline">
+                  <Button type="button" onClick={addInvoiceItem} size="sm" variant="outline" disabled={!newInvoice.customerId}>
                     <Plus className="w-4 h-4" />
                   </Button>
                 </div>
@@ -3455,17 +3413,17 @@ ${cssVariables}
       {/* Invoices List */}
       <Card className="rounded-none bg-transparent text-foreground shadow-none md:rounded-lg md:bg-card md:text-card-foreground md:shadow-sm">
         <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 px-0 min-[1430px]:p-6 min-[1430px]:pb-3">
-          <div className="flex flex-wrap items-center gap-3 min-w-0 flex-1">
-            <div className="relative flex-1 min-w-0 max-w-xs">
+          <div className="flex flex-col md:flex-row md:items-center gap-3 min-w-0 flex-1">
+            <div className="relative w-full md:max-w-md md:flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by invoice or customer..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 text-sm"
+                className="pl-9 text-sm w-full"
               />
             </div>
-            <div className="w-[120px]">
+            <div className="w-full md:w-[120px] min-w-0">
               <SortSelect
                 value={getCurrentSortValue()}
                 onChange={handleSortChange}
@@ -3474,23 +3432,25 @@ ${cssVariables}
                 className="w-full"
               />
             </div>
-            <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Per page" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10 per page</SelectItem>
-                <SelectItem value="25">25 per page</SelectItem>
-                <SelectItem value="50">50 per page</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="w-full md:w-[120px] min-w-0">
+              <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Per page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 per page</SelectItem>
+                  <SelectItem value="25">25 per page</SelectItem>
+                  <SelectItem value="50">50 per page</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="hidden md:flex items-center gap-2 flex-shrink-0">
             <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(true)} title="Invoice Settings">
               <Settings className="w-4 h-4" />
             </Button>
             <Button onClick={() => setIsAddInvoiceOpen(true)}>
-              + Add Invoice
+              + {isProformaMode ? 'Add Proforma Invoice' : 'Add Invoice'}
             </Button>
           </div>
         </CardHeader>
@@ -3868,7 +3828,7 @@ ${cssVariables}
                           }}
                         >
                           <Tag className="w-4 h-4 mr-2" />
-                          Generate Labels
+                          Labels
                         </Button>
                         <Button
                           variant="outline"
@@ -4013,7 +3973,7 @@ ${cssVariables}
                       </div>
                     </div>
                   </div>
-                  <div className="pt-2 border-t flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                  <div className="pt-2 border-t flex flex-nowrap gap-0.5 min-[376px]:gap-1 sm:gap-2 w-full max-md:w-[calc(100%+88px)] min-w-0 overflow-hidden" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="outline"
                       size="sm"
@@ -4021,27 +3981,27 @@ ${cssVariables}
                         e.stopPropagation();
                         handleInvoiceClickForLabels(invoice);
                       }}
-                      className="flex-1"
+                      className="flex-1 min-w-0 shrink overflow-hidden !px-1.5 min-[376px]:!px-2 sm:!px-3 !text-xs sm:!text-sm"
                     >
-                      <Tag className="w-4 h-4 mr-2" />
-                      Generate Labels
+                      <Tag className="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1 shrink-0" />
+                      <span className="truncate block min-w-0">Labels</span>
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleEditInvoice(invoice)}
-                      className="flex-1"
+                      className="flex-1 min-w-0 shrink overflow-hidden !px-1.5 min-[376px]:!px-2 sm:!px-3 !text-xs sm:!text-sm"
                     >
-                      Edit
+                      <span className="truncate block min-w-0">Edit</span>
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setDeletingInvoice(invoice)}
-                      className="flex-1"
+                      className="flex-1 min-w-0 shrink overflow-hidden !px-1.5 min-[376px]:!px-2 sm:!px-3 !text-xs sm:!text-sm"
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
+                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1 shrink-0" />
+                      <span className="truncate block min-w-0">Delete</span>
                     </Button>
                   </div>
                 </div>
@@ -5107,7 +5067,7 @@ ${cssVariables}
       <Dialog open={isLabelsDialogOpen} onOpenChange={handleLabelsDialogClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Generate Labels</DialogTitle>
+            <DialogTitle>Labels</DialogTitle>
             <DialogDescription>
               Generate printable labels for {selectedInvoiceForLabels?.customers?.name}
             </DialogDescription>
@@ -5167,7 +5127,7 @@ ${cssVariables}
               </div>
               <Button onClick={openLabelsInNewTab}>
                 <ExternalLink className="w-4 h-4 mr-2" />
-                Generate Labels
+                Labels
               </Button>
             </div>
           </div>

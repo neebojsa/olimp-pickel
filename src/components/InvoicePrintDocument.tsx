@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { formatDate } from "@/lib/dateUtils";
-import { getInvoiceTranslations } from "@/lib/translationUtils";
+import { getInvoiceTranslations, getProformaInvoiceTranslations } from "@/lib/translationUtils";
 
 // Function to estimate lines an item will take based on description length
 const estimateItemLines = (item: any) => {
@@ -126,27 +126,30 @@ interface InvoicePrintDocumentProps {
     foreignNote: string;
     signatory: string;
   };
+  /** When true, uses Proforma invoice / Profaktura labels instead of Invoice / Faktura */
+  isProforma?: boolean;
 }
 
 export function InvoicePrintDocument({
   invoice,
   inventoryItems,
   companyInfo,
-  invoiceSettings
+  invoiceSettings,
+  isProforma = false
 }: InvoicePrintDocumentProps) {
   const invoiceItems = invoice.invoice_items || [];
   const paginatedItems = paginateInvoiceItems(invoiceItems);
   const totalPages = paginatedItems.length;
   
-  // Get translations based on customer country
+  // Get translations based on customer country and document type
   const translations = useMemo(() => {
     if (!invoice) {
-      return getInvoiceTranslations(undefined);
+      return isProforma ? getProformaInvoiceTranslations(undefined) : getInvoiceTranslations(undefined);
     }
     
     const customerCountry = invoice.customers?.country;
-    return getInvoiceTranslations(customerCountry);
-  }, [invoice]);
+    return isProforma ? getProformaInvoiceTranslations(customerCountry) : getInvoiceTranslations(customerCountry);
+  }, [invoice, isProforma]);
 
   return (
     <>

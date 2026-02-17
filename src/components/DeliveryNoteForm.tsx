@@ -211,6 +211,12 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
     }
   };
 
+  const partsForSelection = formData.toId
+    ? (formData.toType === "customer"
+        ? inventoryItems.filter((inv) => !inv.customer_id || inv.customer_id === formData.toId)
+        : inventoryItems)
+    : [];
+
   const getAddressOptions = () => {
     const entity = getSelectedEntity();
     const options: string[] = [];
@@ -468,6 +474,7 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                 setFormData(prev => ({ ...prev, toType: value, toId: "", deliveryAddress: "" }));
                 setIsCustomAddressMode(false);
                 setCustomAddress("");
+                setItems([{ inventoryId: "", quantity: 1, material: "", request: "", customFields: {} }]);
               }}>
                 <SelectTrigger>
                   <SelectValue />
@@ -486,6 +493,7 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                 setFormData(prev => ({ ...prev, toId: value, deliveryAddress: "" }));
                 setIsCustomAddressMode(false);
                 setCustomAddress("");
+                setItems([{ inventoryId: "", quantity: 1, material: "", request: "", customFields: {} }]);
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder={`Select ${formData.toType}`} />
@@ -655,10 +663,13 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
             </div>
 
             {/* Headers */}
-            <div className="grid grid-cols-[1fr_auto_auto] gap-2 mb-2">
-              <Label className="text-sm font-medium">Part</Label>
-              <Label className="text-sm font-medium">Quantity</Label>
-              <div></div>
+            <div className="mb-2">
+              {!formData.toId && <p className="text-sm text-muted-foreground mb-2">Select a customer or supplier first to add parts</p>}
+              <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+                <Label className="text-sm font-medium">Part</Label>
+                <Label className="text-sm font-medium">Quantity</Label>
+                <div></div>
+              </div>
             </div>
 
             {/* Part rows */}
@@ -680,16 +691,17 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
                     {/* Part, Quantity, and Delete in one line */}
                     <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
                         <SearchableSelect
-                          items={inventoryItems}
+                          items={partsForSelection}
                           value={item.inventoryId}
                           onSelect={(invItem) => updateItem(index, 'inventoryId', invItem.id)}
-                          placeholder="Select part..."
-                          searchPlaceholder="Search parts..."
-                          emptyMessage="No parts found."
+                          placeholder={formData.toId ? "Select part..." : "Select customer/supplier first"}
+                          searchPlaceholder={formData.toId ? "Search parts..." : "Select customer/supplier first"}
+                          emptyMessage={formData.toId ? (formData.toType === "customer" ? "No parts found for this customer." : "No parts found.") : "Select customer/supplier first."}
                           getItemValue={(inv) => inv.id}
                           getItemLabel={(inv) => inv.name}
                           getItemSearchText={(inv) => `${inv.name} ${inv.part_number || ''}`}
                           getItemPartNumber={(inv) => inv.part_number}
+                          disabled={!formData.toId}
                         />
 
                       <div className="relative w-40">
@@ -789,7 +801,7 @@ export function DeliveryNoteForm({ open, onOpenChange, onSuccess, editingNote }:
 
             {/* Add Part button below items */}
             <div className="mt-3">
-              <Button type="button" onClick={addItem} size="sm" variant="outline">
+              <Button type="button" onClick={addItem} size="sm" variant="outline" disabled={!formData.toId}>
                 <Plus className="w-4 h-4 mr-1" />
                 Add Part
               </Button>
