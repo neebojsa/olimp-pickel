@@ -18,6 +18,7 @@ interface NumericInputProps {
   suffix?: string;
   showSteppers?: boolean;
   containerClassName?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export function NumericInput({
@@ -33,7 +34,8 @@ export function NumericInput({
   decrement,
   suffix,
   showSteppers = true,
-  containerClassName
+  containerClassName,
+  onKeyDown
 }: NumericInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -122,6 +124,7 @@ export function NumericInput({
         value={displayValue}
         onChange={handleChange}
         onBlur={handleBlur}
+        onKeyDown={onKeyDown}
         min={min}
         max={max}
         step={step}

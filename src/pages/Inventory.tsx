@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle, Minus, ShoppingCart, Calculator, ChevronsUpDown, Check, FilePlus } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Wrench, Trash2, Settings, Cog, Upload, X, Edit, MapPin, Building2, ClipboardList, Users, History, FileText, Calendar as CalendarIcon, Clock, Eye, Download, Circle, Square, Hexagon, Cylinder, PlayCircle, Minus, ShoppingCart, Calculator, ChevronsUpDown, Check, FilePlus, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { ShapeImage } from "@/components/ShapeImage";
@@ -44,6 +44,14 @@ import { useSortPreference } from "@/hooks/useSortPreference";
 import { sortItems } from "@/lib/sortUtils";
 import { CreateWorkOrderDialog } from "@/components/work-orders/CreateWorkOrderDialog";
 import { UnitSelect } from "@/components/UnitSelect";
+
+function pluralizeUnit(unit: string, qty: number): string {
+  if (qty === 1) return unit;
+  if (unit === "piece" || unit === "pcs") return "pieces";
+  if (unit.endsWith("s")) return unit;
+  return unit + "s";
+}
+
 export default function Inventory() {
   const {
     toast
@@ -90,8 +98,9 @@ export default function Inventory() {
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [selectedItemForHistory, setSelectedItemForHistory] = useState<any>(null);
   const [historyData, setHistoryData] = useState<any[]>([]);
-  const [addToPoPopoverItemId, setAddToPoPopoverItemId] = useState<string | null>(null);
-  const [addToPoQuantity, setAddToPoQuantity] = useState(1);
+  const [addToPoOpen, setAddToPoOpen] = useState(false);
+  const [addToPoItem, setAddToPoItem] = useState<any>(null);
+  const [addToPoQty, setAddToPoQty] = useState(1);
   const [justAddedToPoItemId, setJustAddedToPoItemId] = useState<string | null>(null);
   const [materialsUsed, setMaterialsUsed] = useState([{
     name: "",
@@ -1322,7 +1331,8 @@ export default function Inventory() {
         const { data: existingPO } = await supabase.from("purchase_orders").select("net_weight").eq("id", poId).single();
         const netWeight = (existingPO?.net_weight || 0) + itemWeight;
         await supabase.from("purchase_orders").update({ amount, total_quantity: totalQuantity, net_weight: netWeight, total_weight: netWeight, vat_rate: vatRate }).eq("id", poId);
-        setAddToPoPopoverItemId(null);
+        setAddToPoOpen(false);
+        setAddToPoItem(null);
         setJustAddedToPoItemId(item.id);
         setTimeout(() => setJustAddedToPoItemId(null), 1500);
         toast({ title: "Added to PO", description: `${qty} added to ${recentPO.purchase_order_number}` });
@@ -1365,7 +1375,8 @@ export default function Inventory() {
           total,
         });
         if (itemErr) throw itemErr;
-        setAddToPoPopoverItemId(null);
+        setAddToPoOpen(false);
+        setAddToPoItem(null);
         setJustAddedToPoItemId(item.id);
         setTimeout(() => setJustAddedToPoItemId(null), 1500);
         toast({ title: "New PO Created", description: `${qty} added to new PO ${poNum}` });
@@ -2123,7 +2134,7 @@ export default function Inventory() {
                                            "h-8 w-8 transition-all duration-300",
                                            justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce"
                                          )}
-                                         onClick={e => { e.stopPropagation(); setAddToPoPopoverItemId(item.id); setAddToPoQuantity(1); }}
+                                         onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}
                                          title="Add to PO"
                                        >
                                          {justAddedToPoItemId === item.id ? <Check className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
@@ -2568,7 +2579,7 @@ export default function Inventory() {
                               "transition-all duration-300",
                               justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce"
                             )}
-                            onClick={e => { e.stopPropagation(); setAddToPoPopoverItemId(item.id); setAddToPoQuantity(1); }}
+                            onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}
                           >
                             {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
                             {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
@@ -2632,37 +2643,26 @@ export default function Inventory() {
       </Tabs>
 
       {/* Add to PO Dialog */}
-      <Dialog open={!!addToPoPopoverItemId} onOpenChange={(open) => { if (!open) setAddToPoPopoverItemId(null); }}>
-        <DialogContent className="sm:max-w-[280px]">
-          {(() => {
-            const addToPoItem = inventoryItems.find(i => i.id === addToPoPopoverItemId);
-            if (!addToPoItem) return null;
-            return (
-              <>
-                <DialogHeader>
-                  <DialogTitle>Add to Purchase Order</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-2">
-                  <p className="text-sm text-muted-foreground">{addToPoItem.name}</p>
-                  <div className="grid gap-2">
-                    <Label htmlFor="add-to-po-qty">Quantity</Label>
-                    <NumericInput
-                      id="add-to-po-qty"
-                      value={addToPoQuantity}
-                      onChange={v => setAddToPoQuantity(Math.max(1, v))}
-                      min={1}
-                      className="h-9 w-full"
-                      containerClassName="w-full"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setAddToPoPopoverItemId(null)}>Cancel</Button>
-                  <Button onClick={() => handleAddToPO(addToPoItem, addToPoQuantity)}>Add</Button>
-                </DialogFooter>
-              </>
-            );
-          })()}
+      <Dialog open={addToPoOpen} onOpenChange={(open) => { setAddToPoOpen(open); if (!open) setAddToPoItem(null); }}>
+        <DialogContent className="w-fit max-w-[280px] p-4">
+          <div className="flex items-center gap-2">
+            <NumericInput
+              value={addToPoQty}
+              onChange={v => setAddToPoQty(Math.max(1, v))}
+              min={1}
+              suffix={addToPoItem ? pluralizeUnit(addToPoItem.unit || "piece", addToPoQty) : "piece"}
+              className="h-9"
+              containerClassName="w-[156px]"
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addToPoItem && handleAddToPO(addToPoItem, addToPoQty); } }}
+            />
+            <Button
+              size="icon"
+              className="h-9 w-9 rounded-full p-0"
+              onClick={() => addToPoItem && handleAddToPO(addToPoItem, addToPoQty)}
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
