@@ -1965,10 +1965,10 @@ export default function Inventory() {
 
               {/* Items List - Desktop View */}
               <div className="hidden md:block w-full max-w-full min-w-0">
-                {filteredItems.length > 0 ? filteredItems.map(item => item &&
+                {filteredItems.length > 0 ? filteredItems.map(item => item && (
             <div key={item.id} className={cn(
               "border-b border-border py-4 px-4 last:border-b-0 hover:bg-muted/30 transition-colors cursor-pointer min-h-[8rem]",
-              item.quantity <= (item.minimum_stock || 0) && "bg-destructive/5",
+              item.category !== "Parts" && item.quantity === 0 && "bg-destructive/5",
               (item.category === "Materials" || item.category === "Components") && materialReorders[item.id] && "bg-blue-50"
             )} onClick={() => {
               const itemExists = inventoryItems.some(i => i.id === item.id);
@@ -1999,6 +1999,63 @@ export default function Inventory() {
                            
                            {/* Content */}
                            <div className="flex-1 flex flex-col justify-center min-w-0 h-full">
+                             {item.category === "Parts" ? (
+                               <div className="grid grid-cols-[290px_minmax(250px,1fr)_216.2px] gap-4 items-center min-w-0">
+                                 {/* Column 1: Part name, Part#, Qty - 290px */}
+                                 <div className="min-w-[290px] space-y-0.5 flex flex-col justify-center">
+                                   <h3 className="font-semibold text-lg break-words">
+                                     {item.name}
+                                   </h3>
+                                   {item.part_number && (
+                                     <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>
+                                   )}
+                                   <div className="flex items-center gap-2 text-blue-600">
+                                     <span className="text-lg font-bold text-blue-600">{item.quantity}</span>
+                                     <div className="flex flex-col text-[0.5rem] leading-[0.6rem]">
+                                       <span className="font-medium text-blue-600">
+                                         {item.unit === "piece" || item.unit === "pcs" || !item.unit ? (item.quantity === 1 ? "piece" : "pieces") : item.unit}
+                                       </span>
+                                       <span className="text-blue-500">in stock</span>
+                                     </div>
+                                   </div>
+                                 </div>
+                                 {/* Column 2: Production status - min 250px */}
+                                 <div className="min-w-[250px] flex flex-col justify-center">
+                                   <p className="text-sm font-medium text-black break-words">{item.production_status || "\u00A0"}</p>
+                                 </div>
+                                 {/* Column 3: Buttons, then customer and location below - fixed 216.2px */}
+                                 <div className="flex flex-col items-end gap-2 min-w-[216.2px] w-[216.2px] shrink-0" onClick={e => e.stopPropagation()}>
+                                   <div className="flex flex-nowrap gap-2 justify-end">
+                                     {item.customer_id && (
+                                       <Button variant="outline" size="sm" className={cn("transition-all duration-300", justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce")} onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}>
+                                         {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
+                                         {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
+                                       </Button>
+                                     )}
+                                     <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); handleOpenEditDialog(item); }}>
+                                       <Edit className="h-4 w-4 mr-2" />
+                                       Edit
+                                     </Button>
+                                   </div>
+                                   {(item.location || item.customer_id) && (
+                                     <div className="flex flex-col gap-1 items-end text-right">
+                                       {item.customer_id && (() => {
+                                         const customer = customers.find(c => c.id === item.customer_id);
+                                         return customer?.name ? (
+                                           <span className="text-xs font-medium truncate max-w-[200px]" title={customer.name}>{customer.name}</span>
+                                         ) : null;
+                                       })()}
+                                       {item.location && (
+                                         <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
+                                           <MapPin className="h-3 w-3 flex-shrink-0" />
+                                           <span>{item.location}</span>
+                                         </div>
+                                       )}
+                                     </div>
+                                   )}
+                                 </div>
+                               </div>
+                             ) : (
                              <div className="space-y-1">
                                 <div className="flex items-center justify-between gap-4">
                                   <div className="grid grid-cols-[1fr_auto] gap-4 min-w-0 flex-1 items-center">
@@ -2006,36 +2063,72 @@ export default function Inventory() {
                                     <div className="min-w-0 space-y-0.5 flex flex-col justify-center">
                                       {item.category === "Tools" ? (
                                         <>
-                                          <h3 className="font-semibold text-lg truncate">
-                                            {(() => { const n = formatToolName(item.materials_used, item.name); return n?.length > 25 ? n.slice(0, 25) + "..." : n; })()}
+                                          <h3 className="font-semibold text-lg">
+                                            {(() => {
+                                              const n = formatToolName(item.materials_used, item.name);
+                                              if (!n) return null;
+                                              const chunks = [];
+                                              let remaining = n;
+                                              while (remaining.length > 0) {
+                                                if (remaining.length <= 25) {
+                                                  chunks.push(remaining);
+                                                  break;
+                                                }
+                                                const segment = remaining.slice(0, 25);
+                                                const lastSpace = segment.lastIndexOf(' ');
+                                                const breakAt = lastSpace >= 0 ? lastSpace : 25;
+                                                chunks.push(remaining.slice(0, breakAt));
+                                                remaining = remaining.slice(breakAt).trimStart();
+                                              }
+                                              return chunks.map((c, i) => <span key={i}>{i > 0 && <br />}{c}</span>);
+                                            })()}
                                           </h3>
                                           {item.description && <p className="text-sm text-muted-foreground truncate">{item.description}</p>}
                                           {item.category !== "Materials" && (
-                                            <div className={`flex items-center gap-2 ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
-                                              <span className={`text-lg font-bold ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>{item.quantity}</span>
+                                            <div className={`flex items-center gap-2 ${item.quantity === 0 ? "text-destructive" : "text-blue-600"}`}>
+                                              <span className={`text-lg font-bold ${item.quantity === 0 ? "text-destructive" : "text-blue-600"}`}>{item.quantity}</span>
                                               <div className="flex flex-col text-[0.5rem] leading-[0.6rem]">
-                                                <span className={`font-medium ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                                                <span className={`font-medium ${item.quantity === 0 ? "text-destructive" : "text-blue-600"}`}>
                                                   {item.unit === "piece" || item.unit === "pcs" || !item.unit ? (item.quantity === 1 ? "piece" : "pieces") : item.unit}
                                                 </span>
-                                                <span className={item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}>in stock</span>
+                                                <span className={item.quantity === 0 ? "text-destructive" : "text-blue-500"}>in stock</span>
                                               </div>
                                             </div>
                                           )}
                                         </>
                                       ) : (
                                         <>
-                                          <h3 className="font-semibold text-lg truncate">{item.name?.length > 25 ? item.name.slice(0, 25) + "..." : item.name}</h3>
+                                          <h3 className="font-semibold text-lg">
+                                            {(() => {
+                                              const n = item.name || "";
+                                              if (!n) return null;
+                                              const chunks = [];
+                                              let remaining = n;
+                                              while (remaining.length > 0) {
+                                                if (remaining.length <= 35) {
+                                                  chunks.push(remaining);
+                                                  break;
+                                                }
+                                                const segment = remaining.slice(0, 35);
+                                                const lastSpace = segment.lastIndexOf(' ');
+                                                const breakAt = lastSpace >= 0 ? lastSpace : 35;
+                                                chunks.push(remaining.slice(0, breakAt));
+                                                remaining = remaining.slice(breakAt).trimStart();
+                                              }
+                                              return chunks.map((c, i) => <span key={i}>{i > 0 && <br />}{c}</span>);
+                                            })()}
+                                          </h3>
                                           {item.part_number && item?.category !== "Materials" && item?.category !== "Components" && (
                                             <p className="text-sm text-muted-foreground font-medium">Part #: {item.part_number}</p>
                                           )}
                                           {item?.category !== "Materials" && (
-                                            <div className={`flex items-center gap-2 ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
-                                              <span className={`text-lg font-bold ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>{item.quantity}</span>
+                                            <div className={`flex items-center gap-2 ${item.quantity === 0 ? "text-destructive" : "text-blue-600"}`}>
+                                              <span className={`text-lg font-bold ${item.quantity === 0 ? "text-destructive" : "text-blue-600"}`}>{item.quantity}</span>
                                               <div className="flex flex-col text-[0.5rem] leading-[0.6rem]">
-                                                <span className={`font-medium ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                                                <span className={`font-medium ${item.quantity === 0 ? "text-destructive" : "text-blue-600"}`}>
                                                   {item.unit === "piece" || item.unit === "pcs" || !item.unit ? (item.quantity === 1 ? "piece" : "pieces") : item.unit}
                                                 </span>
-                                                <span className={item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}>in stock</span>
+                                                <span className={item.quantity === 0 ? "text-destructive" : "text-blue-500"}>in stock</span>
                                               </div>
                                             </div>
                                           )}
@@ -2129,17 +2222,21 @@ export default function Inventory() {
                                   </div>
                                </div>
                              </div>
+                             )}
+                             </div>
                           </div>
                         </div>
                       </div>
-                     </div>) : <div className="text-center py-12">
+                )) : (
+                  <div className="text-center py-12">
                     <CategoryIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground mb-4">No {category.toLowerCase()} found</p>
                     <Button variant="outline" onClick={() => handleOpenAddDialog(category)}>
                       <Plus className="w-4 h-4 mr-2" />
                       Add First {category.slice(0, -1)}
                     </Button>
-                  </div>}
+                  </div>
+                )}
               </div>
 
               {/* Mobile Card View */}
@@ -2148,7 +2245,7 @@ export default function Inventory() {
                   <Card 
                     key={item.id} 
                     className={`p-4 border cursor-pointer hover:bg-muted/50 transition-colors relative w-full max-w-full overflow-hidden ${
-                      item.quantity <= (item.minimum_stock || 0) ? 'border-destructive bg-destructive/5' : ''
+                      item.category !== "Parts" && item.quantity === 0 ? 'border-destructive bg-destructive/5' : ''
                     } ${
                       item.category === "Materials" && materialReorders[item.id] ? 'bg-blue-50 border-blue-200' : ''
                     }`}
@@ -2163,15 +2260,11 @@ export default function Inventory() {
                     <div className="space-y-3 w-full min-w-0 overflow-hidden">
                       {/* Name/Title */}
                       <div className="flex flex-col space-y-1">
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</span>
                         <div className="text-sm font-semibold break-words">
                           {item.category === "Tools" ? formatToolName(item.materials_used, item.name) : item.name}
                         </div>
                         {item.part_number && item.category !== "Materials" && (
                           <div className="text-xs text-muted-foreground break-words">Part #: {item.part_number}</div>
-                        )}
-                        {item.production_status && (
-                          <div className="text-xs font-medium text-black break-words">{item.production_status}</div>
                         )}
                         {item.description && item.category === "Tools" && (
                           <div className="text-xs text-muted-foreground mt-1 break-words">{item.description}</div>
@@ -2179,20 +2272,6 @@ export default function Inventory() {
                       </div>
 
                       {/* Category-specific fields */}
-                      {item.category === "Parts" && (
-                        <>
-                          {item.customer_id && (
-                            <div className="flex flex-col space-y-1">
-                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer</span>
-                              <div className="text-sm font-medium flex items-center gap-1 min-w-0">
-                                <Users className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                                <span className="break-words min-w-0">{customers.find(c => c.id === item.customer_id)?.name}</span>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-
                       {item.category === "Materials" && (() => {
                         const materialInfo = item.materials_used || {};
                         const unitWeight = calculateMaterialWeight(materialInfo);
@@ -2272,25 +2351,25 @@ export default function Inventory() {
                       )}
 
                       {item.category !== "Materials" && (
-                        <div className="flex w-full justify-between items-end gap-4 min-w-0 h-[60px] overflow-visible">
-                          {/* Quantity section - left */}
-                          <div className="flex flex-col space-y-1 min-w-0 flex-1 justify-end">
-                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantity</span>
+                        <div className="flex w-full justify-between items-end gap-4 min-w-0 !mt-0 overflow-visible">
+                          {/* Quantity and production status - left, constrained to not overlap picture */}
+                          <div className="flex flex-col space-y-1 min-w-0 flex-1 justify-end max-w-[calc(100%-148px)]">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-[1.9rem] font-bold ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-600"}`}>
+                              <span className={`text-[1.9rem] font-bold ${item.category === "Parts" ? "text-blue-600" : (item.quantity === 0 ? "text-destructive" : "text-blue-600")}`}>
                                 {item.quantity}
                               </span>
                               <div className="flex flex-col justify-center leading-tight">
-                                <span className={`text-xs ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}`}>
+                                <span className={`text-xs ${item.category === "Parts" ? "text-blue-500" : (item.quantity === 0 ? "text-destructive" : "text-blue-500")}`}>
                                   {item.unit === "piece" || item.unit === "pcs" || !item.unit ? (item.quantity === 1 ? "piece" : "pieces") : item.unit}
                                 </span>
-                                <span className={`text-xs ${item.quantity <= (item.minimum_stock || 0) ? "text-destructive" : "text-blue-500"}`}>
+                                <span className={`text-xs ${item.category === "Parts" ? "text-blue-500" : (item.quantity === 0 ? "text-destructive" : "text-blue-500")}`}>
                                   in stock
                                 </span>
                               </div>
-                              {item.quantity <= (item.minimum_stock || 0) && (
-                                <span className="text-xs text-destructive">Low Stock</span>
-                              )}
+                            </div>
+                            {/* Production status - always 3 lines, wraps before picture */}
+                            <div className="min-h-[3.75em] text-xs font-medium text-black break-words leading-tight">
+                              {item.production_status || "\u00A0"}
                             </div>
                           </div>
                           {/* Picture section - right */}
@@ -2310,8 +2389,8 @@ export default function Inventory() {
                         </div>
                       )}
 
-                      {/* Action Buttons - Bottom of Card */}
-                      <div className="pt-2 border-t flex flex-wrap gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                      {/* Action Buttons - Bottom of Card, with location and customer on the right */}
+                      <div className="pt-2 border-t flex flex-wrap gap-2 w-full items-start" onClick={(e) => e.stopPropagation()}>
                         {item.category === "Materials" && (
                           <>
                             <Button variant="outline" size="sm" className="text-green-600" onClick={(e) => {
@@ -2411,24 +2490,24 @@ export default function Inventory() {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </Button>
+                        {/* Customer and location - same line as buttons, two rows: customer above, location below */}
+                        {(item.location || (item.category === "Parts" && item.customer_id)) && (
+                          <div className="flex flex-col gap-1 ml-auto text-right">
+                            {item.category === "Parts" && item.customer_id && (() => {
+                              const customer = customers.find(c => c.id === item.customer_id);
+                              return customer?.name ? (
+                                <span className="text-xs font-medium truncate max-w-[150px]" title={customer.name}>{customer.name}</span>
+                              ) : null;
+                            })()}
+                            {item.location && (
+                              <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
+                                <MapPin className="h-3 w-3 flex-shrink-0" />
+                                <span className="break-words min-w-0">{item.location}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {/* Stock location left of customer name, customer name right-aligned */}
-                      {(item.location || (item.category === "Parts" && item.customer_id)) && (
-                        <div className="flex items-center justify-end w-full gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
-                          {item.location && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <MapPin className="h-3 w-3 flex-shrink-0" />
-                              <span className="break-words min-w-0">{item.location}</span>
-                            </div>
-                          )}
-                          {item.category === "Parts" && item.customer_id && (() => {
-                            const customer = customers.find(c => c.id === item.customer_id);
-                            return customer?.name ? (
-                              <span className="text-xs font-medium truncate max-w-[150px]" title={customer.name}>{customer.name}</span>
-                            ) : null;
-                          })()}
-                        </div>
-                      )}
                     </div>
                   </Card>
                 )) : (
