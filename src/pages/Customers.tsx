@@ -12,7 +12,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, FileText, Filter, X, Pencil } from "lucide-react";
+import { Building2, Mail, Globe, MapPin, Phone, Plus, Trash2, FileText, Filter, X, Pencil, UserPlus, ChevronDown, ChevronRight } from "lucide-react";
 import { DragDropImageUpload } from "@/components/DragDropImageUpload";
 import jsPDF from 'jspdf';
 import { useState, useEffect } from "react";
@@ -26,6 +26,22 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NumericInput } from "@/components/NumericInput";
+import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+const AVAILABLE_PAGES = ["inventory", "work-orders", "invoicing", "sales-orders", "purchase-orders", "accounting", "sales", "cost-management", "customers", "suppliers", "other-docs"];
+
+interface ContactPersonForm {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  login_username: string;
+  password: string;
+  page_permissions: string[];
+  can_see_prices: boolean;
+  is_active: boolean;
+}
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -76,6 +92,7 @@ export default function Customers() {
   const [customerPhoto, setCustomerPhoto] = useState<File | null>(null);
   const [customerPhotoPreview, setCustomerPhotoPreview] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [contactPersons, setContactPersons] = useState<ContactPersonForm[]>([]);
 
   const uploadCustomerPhoto = async (file: File): Promise<string | null> => {
     const fileExt = file.name.split('.').pop();
@@ -205,6 +222,26 @@ export default function Customers() {
       }])
       .select();
 
+    if (!error && data?.[0] && contactPersons.length > 0) {
+      const inserts = contactPersons.filter(cp => cp.name.trim()).map(cp => {
+        const hasLogin = cp.login_username.trim() && cp.password.trim();
+        return {
+          customer_id: data[0].id,
+          name: cp.name.trim(),
+          email: cp.email.trim() || null,
+          phone: cp.phone.trim() || null,
+          login_username: hasLogin ? cp.login_username.trim() : null,
+          password_hash: hasLogin ? cp.password.trim() : null,
+          page_permissions: cp.page_permissions,
+          can_see_prices: cp.can_see_prices,
+          is_active: cp.is_active
+        };
+      });
+      if (inserts.length > 0) {
+        await supabase.from('customer_contact_persons').insert(inserts);
+      }
+    }
+
     setIsUploadingPhoto(false);
     if (error) {
       console.error('Save customer error:', error);
@@ -236,6 +273,7 @@ export default function Customers() {
       });
       setCustomerPhoto(null);
       setCustomerPhotoPreview(null);
+      setContactPersons([]);
       toast({
         title: "Success",
         description: "Customer saved successfully"
@@ -248,8 +286,56 @@ export default function Customers() {
     setIsCustomerDialogOpen(true);
   };
 
-  const handleEditCustomer = (customer: any) => {
+  const addContactPerson = () => {
+    setContactPersons(prev => [...prev, {
+      id: `new-${Date.now()}`,
+      name: '',
+      email: '',
+      phone: '',
+      login_username: '',
+      password: '',
+      page_permissions: [],
+      can_see_prices: false,
+      is_active: true
+    }]);
+  };
+  const removeContactPerson = (id: string) => {
+    setContactPersons(prev => prev.filter(cp => cp.id !== id));
+  };
+  const updateContactPerson = (id: string, updates: Partial<ContactPersonForm>) => {
+    setContactPersons(prev => prev.map(cp => cp.id === id ? { ...cp, ...updates } : cp));
+  };
+  const toggleContactPersonPermission = (id: string, page: string) => {
+    setContactPersons(prev => prev.map(cp => cp.id === id
+      ? { ...cp, page_permissions: cp.page_permissions.includes(page) ? cp.page_permissions.filter(p => p !== page) : [...cp.page_permissions, page] }
+      : cp));
+  };
+
+  const fetchContactPersons = async (customerId: string) => {
+    const { data } = await supabase
+      .from('customer_contact_persons')
+      .select('*')
+      .eq('customer_id', customerId);
+    if (data) {
+      setContactPersons(data.map(cp => ({
+        id: cp.id,
+        name: cp.name || '',
+        email: cp.email || '',
+        phone: cp.phone || '',
+        login_username: cp.login_username || '',
+        password: '',
+        page_permissions: Array.isArray(cp.page_permissions) ? cp.page_permissions.filter((p: unknown): p is string => typeof p === 'string') : [],
+        can_see_prices: cp.can_see_prices ?? false,
+        is_active: cp.is_active ?? true
+      })));
+    } else {
+      setContactPersons([]);
+    }
+  };
+
+  const handleEditCustomer = async (customer: any) => {
     setSelectedCustomer(customer);
+    await fetchContactPersons(customer.id);
     setNewCustomer({
       name: customer.name,
       contactPerson: customer.contactPerson || customer.contact_person || '',
@@ -327,6 +413,47 @@ export default function Customers() {
       })
       .eq('id', selectedCustomer.id);
 
+    if (!error && selectedCustomer.id) {
+      const existingIds = contactPersons.filter(cp => cp.id && !cp.id.startsWith('new-')).map(cp => cp.id);
+      const { data: existing } = await supabase.from('customer_contact_persons').select('id').eq('customer_id', selectedCustomer.id);
+      const toDelete = (existing || []).filter((e: { id: string }) => !existingIds.includes(e.id)).map((e: { id: string }) => e.id);
+      for (const id of toDelete) {
+        await supabase.from('customer_contact_persons').delete().eq('id', id);
+      }
+      for (const cp of contactPersons.filter(c => c.name.trim())) {
+        const hasNewPassword = cp.password.trim().length > 0;
+        const hasLoginIntent = cp.login_username.trim().length > 0;
+        const isExisting = cp.id && !cp.id.startsWith('new-');
+
+        const payload: Record<string, unknown> = {
+          name: cp.name.trim(),
+          email: cp.email.trim() || null,
+          phone: cp.phone.trim() || null,
+          page_permissions: cp.page_permissions,
+          can_see_prices: cp.can_see_prices,
+          is_active: cp.is_active
+        };
+
+        if (isExisting) {
+          if (hasLoginIntent) {
+            payload.login_username = cp.login_username.trim();
+            if (hasNewPassword) {
+              payload.password_hash = cp.password.trim();
+            }
+          } else {
+            payload.login_username = null;
+            payload.password_hash = null;
+          }
+          await supabase.from('customer_contact_persons').update(payload).eq('id', cp.id);
+        } else {
+          const hasLogin = hasLoginIntent && hasNewPassword;
+          payload.login_username = hasLogin ? cp.login_username.trim() : null;
+          payload.password_hash = hasLogin ? cp.password.trim() : null;
+          await supabase.from('customer_contact_persons').insert([{ customer_id: selectedCustomer.id, ...payload }]);
+        }
+      }
+    }
+
     setIsUploadingPhoto(false);
     if (!error) {
       toast({
@@ -355,6 +482,7 @@ export default function Customers() {
       });
       setCustomerPhoto(null);
       setCustomerPhotoPreview(null);
+      setContactPersons([]);
       setIsEditCustomerOpen(false);
     } else {
       console.error('Update customer error:', error);
@@ -875,6 +1003,7 @@ export default function Customers() {
           if (open) {
             setCustomerPhoto(null);
             setCustomerPhotoPreview(null);
+            setContactPersons([]);
           }
         }}>
           <DialogTrigger asChild>
@@ -1076,6 +1205,58 @@ export default function Customers() {
                   value={newCustomer.notes}
                   onChange={(e) => setNewCustomer({...newCustomer, notes: e.target.value})}
                 />
+              </div>
+              <div className="col-span-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Contact Persons</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addContactPerson}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add Contact Person
+                  </Button>
+                </div>
+                {contactPersons.map((cp) => (
+                  <div key={cp.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="grid grid-cols-3 gap-2 flex-1">
+                        <Input placeholder="Name" value={cp.name} onChange={(e) => updateContactPerson(cp.id, { name: e.target.value })} />
+                        <Input type="email" placeholder="Email" value={cp.email} onChange={(e) => updateContactPerson(cp.id, { email: e.target.value })} />
+                        <Input placeholder="Phone" value={cp.phone} onChange={(e) => updateContactPerson(cp.id, { phone: e.target.value })} />
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeContactPerson(cp.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                    <Collapsible>
+                      <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium">
+                        <ChevronRight className="h-4 w-4" />
+                        Login settings
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="pt-3 space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input placeholder="Login username" value={cp.login_username} onChange={(e) => updateContactPerson(cp.id, { login_username: e.target.value })} />
+                          <Input type="password" placeholder="Password" value={cp.password} onChange={(e) => updateContactPerson(cp.id, { password: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Page permissions</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {AVAILABLE_PAGES.map((page) => (
+                              <div key={page} className="flex items-center space-x-2">
+                                <Switch checked={cp.page_permissions.includes(page)} onCheckedChange={() => toggleContactPersonPermission(cp.id, page)} />
+                                <Label className="text-xs capitalize">{page.replace('-', ' ')}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch checked={cp.can_see_prices} onCheckedChange={(c) => updateContactPerson(cp.id, { can_see_prices: c })} />
+                          <Label className="text-xs">Can see prices</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch checked={cp.is_active} onCheckedChange={(c) => updateContactPerson(cp.id, { is_active: c })} />
+                          <Label className="text-xs">Active</Label>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                ))}
               </div>
             </div>
             <div className="flex gap-2 pt-4">
@@ -1602,8 +1783,8 @@ export default function Customers() {
       </Dialog>
 
       {/* Edit Customer Dialog */}
-      <Dialog open={isEditCustomerOpen} onOpenChange={setIsEditCustomerOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <Dialog open={isEditCustomerOpen} onOpenChange={(open) => { if (!open) setContactPersons([]); setIsEditCustomerOpen(open); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
           </DialogHeader>
@@ -1809,6 +1990,58 @@ export default function Customers() {
                 onChange={(e) => setNewCustomer(prev => ({ ...prev, notes: e.target.value }))}
                 placeholder="Enter any additional notes"
               />
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Contact Persons</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addContactPerson}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Contact Person
+                </Button>
+              </div>
+              {contactPersons.map((cp) => (
+                <div key={cp.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="grid grid-cols-3 gap-2 flex-1">
+                      <Input placeholder="Name" value={cp.name} onChange={(e) => updateContactPerson(cp.id, { name: e.target.value })} />
+                      <Input type="email" placeholder="Email" value={cp.email} onChange={(e) => updateContactPerson(cp.id, { email: e.target.value })} />
+                      <Input placeholder="Phone" value={cp.phone} onChange={(e) => updateContactPerson(cp.id, { phone: e.target.value })} />
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeContactPerson(cp.id)}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium">
+                      <ChevronRight className="h-4 w-4" />
+                      Login settings
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input placeholder="Login username" value={cp.login_username} onChange={(e) => updateContactPerson(cp.id, { login_username: e.target.value })} />
+                        <Input type="password" placeholder={cp.id.startsWith('new-') ? "Password" : "Leave empty to keep current"} value={cp.password} onChange={(e) => updateContactPerson(cp.id, { password: e.target.value })} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Page permissions</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {AVAILABLE_PAGES.map((page) => (
+                            <div key={page} className="flex items-center space-x-2">
+                              <Switch checked={cp.page_permissions.includes(page)} onCheckedChange={() => toggleContactPersonPermission(cp.id, page)} />
+                              <Label className="text-xs capitalize">{page.replace('-', ' ')}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch checked={cp.can_see_prices} onCheckedChange={(c) => updateContactPerson(cp.id, { can_see_prices: c })} />
+                        <Label className="text-xs">Can see prices</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch checked={cp.is_active} onCheckedChange={(c) => updateContactPerson(cp.id, { is_active: c })} />
+                        <Label className="text-xs">Active</Label>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              ))}
             </div>
           </div>
           <div className="flex justify-end space-x-2">

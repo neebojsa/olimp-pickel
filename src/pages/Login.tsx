@@ -72,49 +72,76 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.rpc('authenticate_staff', {
+      // Try staff login first
+      const { data: staffData, error: staffError } = await supabase.rpc('authenticate_staff', {
         staff_email: email.trim().toLowerCase(),
         staff_password: password
       });
 
-      if (error) {
-        console.error("Supabase RPC error:", error);
-        
-        // Check for connection errors
-        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+      if (!staffError && staffData) {
+        const result = staffData as any;
+        if (result?.success && result.staff) {
+          const staff = result.staff;
+          login({
+            ...staff,
+            page_permissions: Array.isArray(staff.page_permissions) ? staff.page_permissions : []
+          }, result.token, stayLoggedIn);
+          toast({ title: "Success", description: "Login successful" });
+          navigate("/inventory");
+          return;
+        }
+      }
+
+      // Staff login failed - try customer contact login
+      const { data: contactData, error: contactError } = await supabase.rpc('authenticate_customer_contact', {
+        contact_username: email.trim().toLowerCase(),
+        contact_password: password
+      });
+
+      if (contactError) {
+        console.error("Supabase RPC error:", contactError);
+        if (contactError.message?.includes('Failed to fetch') || contactError.message?.includes('NetworkError')) {
           toast({
             title: "Connection Failed",
             description: "Cannot reach the server. This could mean:\n• Your internet connection is down\n• The Supabase project is paused/suspended\n• Firewall is blocking the connection\n\nPlease check your Supabase dashboard to ensure the project is active.",
             variant: "destructive",
             duration: 15000,
           });
-          // Update connection status
           const status = await testSupabaseConnection();
           setConnectionStatus(status);
         } else {
           toast({
             title: "Error",
-            description: error.message || "Failed to connect to server. Please check your connection.",
+            description: contactError.message || "Failed to connect to server. Please check your connection.",
             variant: "destructive",
           });
         }
         return;
       }
 
-      const result = data as any;
-      console.log("Authentication result:", result);
-      
-      if (result && result.success) {
-        login(result.staff, result.token, stayLoggedIn);
-        toast({
-          title: "Success",
-          description: "Login successful",
-        });
+      const contactResult = contactData as any;
+      if (contactResult?.success && contactResult.contact) {
+        const c = contactResult.contact;
+        const perms = c.page_permissions;
+        login({
+          id: c.id,
+          name: c.name,
+          email: c.email || "",
+          department: "",
+          position: "Customer Contact",
+          page_permissions: Array.isArray(perms) ? perms : (typeof perms === 'string' ? JSON.parse(perms || '[]') : []),
+          can_see_prices: c.can_see_prices ?? false,
+          can_see_customers: false,
+          customer_id: c.customer_id,
+          customer_name: c.customer_name,
+          is_customer_user: true
+        }, contactResult.token, stayLoggedIn);
+        toast({ title: "Success", description: "Login successful" });
         navigate("/inventory");
       } else {
         toast({
           title: "Error",
-          description: result?.error || "Invalid email or password. Please check your credentials.",
+          description: contactResult?.error || "Invalid email or password. Please check your credentials.",
           variant: "destructive",
         });
       }
@@ -145,11 +172,13 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Username or Email</Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="your.email@company.com"
+                name="username"
+                type="text"
+                autoComplete="username"
+                placeholder="Username or email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
@@ -160,7 +189,9 @@ export default function Login() {
               <div className="relative">
                 <Input
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -195,7 +226,7 @@ export default function Login() {
                 htmlFor="stay-logged-in"
                 className="text-sm font-normal cursor-pointer"
               >
-                Stay logged in
+                Save login
               </Label>
             </div>
             <Button 

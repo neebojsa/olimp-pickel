@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { ShapeImage } from "@/components/ShapeImage";
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { formatToolName } from "@/lib/toolSpecUtils";
 import { useToast } from "@/hooks/use-toast";
-import { resizeImageFile, validateImageFile } from "@/lib/imageUtils";
+import { resizeImageForPartPhoto, validateImageFile } from "@/lib/imageUtils";
 import PartHistoryDialog from "@/components/PartHistoryDialog";
 import { MaterialForm, MaterialData } from "@/components/MaterialForm";
 import { ProductionStatusDialog } from "@/components/ProductionStatusDialog";
@@ -52,11 +52,35 @@ function pluralizeUnit(unit: string, qty: number): string {
   return unit + "s";
 }
 
+function ProductionStatusWithRequests({
+  productionStatus,
+  requests,
+  className = "",
+}: {
+  productionStatus?: string | null;
+  requests: { requester_first_name: string; request_text: string }[];
+  className?: string;
+}) {
+  const hasStatus = productionStatus && productionStatus.trim() !== "";
+  const hasRequests = requests && requests.length > 0;
+  if (!hasStatus && !hasRequests) return <p className={cn("text-sm font-medium text-black break-words", className)}>{"\u00A0"}</p>;
+  return (
+    <div className={cn("flex flex-col gap-1 text-sm font-medium text-black break-words leading-tight", className)}>
+      {hasStatus && <p>{productionStatus}</p>}
+      {hasRequests && requests.map((r, i) => (
+        <p key={i} className="text-muted-foreground font-normal bg-pink-50 px-2 py-1 rounded">
+          {r.requester_first_name}: {r.request_text}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export default function Inventory() {
   const {
     toast
   } = useToast();
-  const { canSeePrices, staff } = useAuth();
+  const { canSeePrices, staff, isCustomerUser, customerId } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -102,6 +126,10 @@ export default function Inventory() {
   const [addToPoItem, setAddToPoItem] = useState<any>(null);
   const [addToPoQty, setAddToPoQty] = useState(1);
   const [justAddedToPoItemId, setJustAddedToPoItemId] = useState<string | null>(null);
+  const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
+  const [selectedItemForRequest, setSelectedItemForRequest] = useState<any>(null);
+  const [requestText, setRequestText] = useState("");
+  const [partRequests, setPartRequests] = useState<{ [inventoryId: string]: { requester_first_name: string; request_text: string }[] }>({});
   const [materialsUsed, setMaterialsUsed] = useState([{
     name: "",
     notes: "",
@@ -216,10 +244,11 @@ export default function Inventory() {
 
   const fetchInventoryItems = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('inventory').select('*');
+      let query = supabase.from('inventory').select('*');
+      if (isCustomerUser() && customerId()) {
+        query = query.eq('category', 'Parts').eq('customer_id', customerId()!);
+      }
+      const { data, error } = await query;
       if (error) {
         console.error('Error fetching inventory items:', error);
         return;
@@ -230,22 +259,47 @@ export default function Inventory() {
           sku: `SKU-${item.id}`,
           currentQuantity: item.quantity,
           minimumQuantity: 5,
-          // Default minimum
           unitOfMeasure: item.unit || "piece",
           unitCost: item.unit_price,
           image: item.photo_url || null
         }));
         setInventoryItems(formattedItems);
-        
-        // Fetch material stock quantities for materials
-        await fetchMaterialStockQuantities();
-        // Fetch material reorders
-        await fetchMaterialReorders();
+
+        if (!isCustomerUser()) {
+          await fetchMaterialStockQuantities();
+          await fetchMaterialReorders();
+        }
+        await fetchPartRequests(formattedItems.map((i: any) => i.id));
       }
     } catch (error: any) {
       console.error('Error fetching inventory items:', error);
     }
   };
+
+  const fetchPartRequests = async (inventoryIds: string[]) => {
+    if (inventoryIds.length === 0) {
+      setPartRequests({});
+      return;
+    }
+    try {
+      const { data } = await supabase
+        .from('part_requests' as any)
+        .select('inventory_id, requester_first_name, request_text')
+        .in('inventory_id', inventoryIds)
+        .order('created_at', { ascending: true });
+      if (data) {
+        const byPart: { [k: string]: { requester_first_name: string; request_text: string }[] } = {};
+        (data as any[]).forEach((r: any) => {
+          if (!byPart[r.inventory_id]) byPart[r.inventory_id] = [];
+          byPart[r.inventory_id].push({ requester_first_name: r.requester_first_name, request_text: r.request_text });
+        });
+        setPartRequests(byPart);
+      }
+    } catch {
+      setPartRequests({});
+    }
+  };
+
   const fetchSuppliers = async () => {
     const {
       data
@@ -334,7 +388,7 @@ export default function Inventory() {
       return;
     }
     try {
-      const resizedFile = await resizeImageFile(file, 400, 400);
+      const resizedFile = await resizeImageForPartPhoto(file);
       setFormData(prev => ({
         ...prev,
         photo: resizedFile
@@ -1386,6 +1440,30 @@ export default function Inventory() {
     }
   };
 
+  const handleSubmitRequest = async () => {
+    if (!selectedItemForRequest || !requestText.trim() || !staff) return;
+    const firstName = (staff.name || "").split(/\s+/)[0] || "User";
+    try {
+      const { error } = await supabase.from("part_requests" as any).insert({
+        inventory_id: selectedItemForRequest.id,
+        contact_person_id: staff.id,
+        requester_first_name: firstName,
+        request_text: requestText.trim(),
+      });
+      if (error) throw error;
+      setPartRequests(prev => {
+        const list = prev[selectedItemForRequest.id] || [];
+        return { ...prev, [selectedItemForRequest.id]: [...list, { requester_first_name: firstName, request_text: requestText.trim() }] };
+      });
+      setIsRequestDialogOpen(false);
+      setSelectedItemForRequest(null);
+      setRequestText("");
+      toast({ title: "Request sent", description: "Your question has been submitted." });
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || "Failed to submit request", variant: "destructive" });
+    }
+  };
+
   const handleSaveProductionStatus = async (status: string) => {
     if (!selectedItemForProductionStatus) return;
     
@@ -1719,20 +1797,24 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - customer users see only Parts */}
       <Tabs defaultValue="Parts" className="space-y-4 w-full max-w-full min-w-0" onValueChange={setCurrentCategory}>
-        <TabsList className="grid w-full grid-cols-5 min-w-0">
+        <TabsList className={cn("grid w-full min-w-0", isCustomerUser() ? "grid-cols-1" : "grid-cols-5")}>
           <TabsTrigger value="Parts">Parts</TabsTrigger>
-          <TabsTrigger value="Materials">Materials</TabsTrigger>
-          <TabsTrigger value="Components">
-            <span className="hidden min-[480px]:inline">Components</span>
-            <span className="min-[480px]:hidden">Comp.</span>
-          </TabsTrigger>
-          <TabsTrigger value="Tools">Tools</TabsTrigger>
-          <TabsTrigger value="Machines">Machines</TabsTrigger>
+          {!isCustomerUser() && (
+            <>
+              <TabsTrigger value="Materials">Materials</TabsTrigger>
+              <TabsTrigger value="Components">
+                <span className="hidden min-[480px]:inline">Components</span>
+                <span className="min-[480px]:hidden">Comp.</span>
+              </TabsTrigger>
+              <TabsTrigger value="Tools">Tools</TabsTrigger>
+              <TabsTrigger value="Machines">Machines</TabsTrigger>
+            </>
+          )}
         </TabsList>
 
-        {["Parts", "Materials", "Components", "Tools", "Machines"].map(category => {
+        {(isCustomerUser() ? ["Parts"] : ["Parts", "Materials", "Components", "Tools", "Machines"]).map(category => {
         const CategoryIcon = getCategoryIcon(category);
         const filteredItems = getFilteredItems(category);
         
@@ -1899,8 +1981,8 @@ export default function Inventory() {
                     />
                   </div>
                   
-                  {/* Customer filter - one line on mobile (only for Parts) */}
-                  {category === "Parts" && (
+                  {/* Customer filter - one line on mobile (only for Parts, hidden for customer users) */}
+                  {category === "Parts" && !isCustomerUser() && (
                     <div className="w-full md:w-60 min-w-0">
                       <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
                         <SelectTrigger className="w-full">
@@ -1918,7 +2000,7 @@ export default function Inventory() {
                     </div>
                   )}
                   
-                  {/* "With Production Status" and "Add Part" - one line on mobile */}
+                  {/* "With Production Status" and "Add Part" - one line on mobile (Add Part hidden for customer users) */}
                   {category === "Parts" && (
                     <div className="flex flex-row items-center justify-between gap-2 md:gap-3 w-full md:w-auto">
                       <div className="flex items-center gap-2 flex-1 md:flex-none">
@@ -1932,10 +2014,12 @@ export default function Inventory() {
                           With Production Status
                         </Button>
                       </div>
-                      <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add {category.slice(0, -1)}
-                      </Button>
+                      {!isCustomerUser() && (
+                        <Button onClick={() => handleOpenAddDialog(category)} className="whitespace-nowrap">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add {category.slice(0, -1)}
+                        </Button>
+                      )}
                     </div>
                   )}
                 {category === "Tools" && (
@@ -1967,10 +2051,12 @@ export default function Inventory() {
               <div className="hidden md:block w-full max-w-full min-w-0">
                 {filteredItems.length > 0 ? filteredItems.map(item => item && (
             <div key={item.id} className={cn(
-              "border-b border-border py-4 px-4 last:border-b-0 hover:bg-muted/30 transition-colors cursor-pointer min-h-[8rem]",
+              "border-b border-border py-4 px-4 last:border-b-0 min-h-[8rem]",
+              !isCustomerUser() && "hover:bg-muted/30 transition-colors cursor-pointer",
               item.category !== "Parts" && item.quantity === 0 && "bg-destructive/5",
               (item.category === "Materials" || item.category === "Components") && materialReorders[item.id] && "bg-blue-50"
             )} onClick={() => {
+              if (isCustomerUser()) return;
               const itemExists = inventoryItems.some(i => i.id === item.id);
               if (itemExists) {
                 setSelectedViewItem(item);
@@ -2019,23 +2105,32 @@ export default function Inventory() {
                                      </div>
                                    </div>
                                  </div>
-                                 {/* Column 2: Production status - min 250px */}
+                                 {/* Column 2: Production status and requests - min 250px */}
                                  <div className="min-w-[250px] flex flex-col justify-center">
-                                   <p className="text-sm font-medium text-black break-words">{item.production_status || "\u00A0"}</p>
+                                   <ProductionStatusWithRequests productionStatus={item.production_status} requests={partRequests[item.id] || []} />
                                  </div>
                                  {/* Column 3: Buttons, then customer and location below - fixed 216.2px */}
                                  <div className="flex flex-col items-end gap-2 min-w-[216.2px] w-[216.2px] shrink-0" onClick={e => e.stopPropagation()}>
                                    <div className="flex flex-nowrap gap-2 justify-end">
-                                     {item.customer_id && (
-                                       <Button variant="outline" size="sm" className={cn("transition-all duration-300", justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce")} onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}>
-                                         {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
-                                         {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
-                                       </Button>
-                                     )}
-                                     <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); handleOpenEditDialog(item); }}>
-                                       <Edit className="h-4 w-4 mr-2" />
-                                       Edit
-                                     </Button>
+                                    {item.customer_id && (
+                                      <>
+                                        <Button variant="outline" size="sm" className={cn("transition-all duration-300", justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce")} onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}>
+                                          {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
+                                          {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
+                                        </Button>
+                                        {isCustomerUser() && (
+                                          <Button variant="outline" size="sm" onClick={e => { e.preventDefault(); e.stopPropagation(); setSelectedItemForRequest(item); setRequestText(""); setIsRequestDialogOpen(true); }}>
+                                            Request
+                                          </Button>
+                                        )}
+                                      </>
+                                    )}
+                                    {!isCustomerUser() && (
+                                      <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); handleOpenEditDialog(item); }}>
+                                        <Edit className="h-4 w-4 mr-2" />
+                                        Edit
+                                      </Button>
+                                    )}
                                    </div>
                                    {(item.location || item.customer_id) && (
                                      <div className="flex flex-col gap-1 items-end text-right">
@@ -2135,11 +2230,9 @@ export default function Inventory() {
                                         </>
                                       )}
                                     </div>
-                                    {/* Second column: Production status */}
-                                    <div className="flex items-center justify-end shrink-0">
-                                      {item.production_status && (
-                                        <p className="text-sm font-medium text-black whitespace-nowrap">{item.production_status}</p>
-                                      )}
+                                    {/* Second column: Production status and requests */}
+                                    <div className="flex flex-col items-end justify-center shrink-0 min-w-[120px] max-w-[200px]">
+                                      <ProductionStatusWithRequests productionStatus={item.production_status} requests={partRequests[item.id] || []} />
                                     </div>
                                   </div>
                                  <div className="flex flex-col items-end gap-2 ml-2 min-w-0" onClick={e => e.stopPropagation()}>
@@ -2191,16 +2284,25 @@ export default function Inventory() {
                                            )}
                                          </>
                                        )}
-                                       {item.category === "Parts" && item.customer_id && (
-                                         <Button variant="outline" size="sm" className={cn("transition-all duration-300", justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce")} onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}>
-                                           {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
-                                           {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
-                                         </Button>
-                                       )}
-                                       <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); handleOpenEditDialog(item); }}>
-                                         <Edit className="h-4 w-4 mr-2" />
-                                         Edit
-                                       </Button>
+                                      {item.category === "Parts" && item.customer_id && (
+                                        <>
+                                          <Button variant="outline" size="sm" className={cn("transition-all duration-300", justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce")} onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}>
+                                            {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
+                                            {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
+                                          </Button>
+                                          {isCustomerUser() && (
+                                            <Button variant="outline" size="sm" onClick={e => { e.preventDefault(); e.stopPropagation(); setSelectedItemForRequest(item); setRequestText(""); setIsRequestDialogOpen(true); }}>
+                                              Request
+                                            </Button>
+                                          )}
+                                        </>
+                                      )}
+                                      {!isCustomerUser() && (
+                                        <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); handleOpenEditDialog(item); }}>
+                                          <Edit className="h-4 w-4 mr-2" />
+                                          Edit
+                                        </Button>
+                                      )}
                                      </div>
                                      {/* Row 3: Stock location left of customer name, customer name right-aligned */}
                                      {(item.location || (item.category === "Parts" && item.customer_id)) && (
@@ -2231,10 +2333,12 @@ export default function Inventory() {
                   <div className="text-center py-12">
                     <CategoryIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground mb-4">No {category.toLowerCase()} found</p>
-                    <Button variant="outline" onClick={() => handleOpenAddDialog(category)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add First {category.slice(0, -1)}
-                    </Button>
+                    {!isCustomerUser() && (
+                      <Button variant="outline" onClick={() => handleOpenAddDialog(category)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add First {category.slice(0, -1)}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2244,12 +2348,15 @@ export default function Inventory() {
                 {filteredItems.length > 0 ? filteredItems.map(item => item && (
                   <Card 
                     key={item.id} 
-                    className={`p-4 border cursor-pointer hover:bg-muted/50 transition-colors relative w-full max-w-full overflow-hidden ${
+                    className={`p-4 border relative w-full max-w-full overflow-hidden ${
+                      !isCustomerUser() && "cursor-pointer hover:bg-muted/50 transition-colors"
+                    } ${
                       item.category !== "Parts" && item.quantity === 0 ? 'border-destructive bg-destructive/5' : ''
                     } ${
                       item.category === "Materials" && materialReorders[item.id] ? 'bg-blue-50 border-blue-200' : ''
                     }`}
                     onClick={() => {
+                      if (isCustomerUser()) return;
                       const itemExists = inventoryItems.some(i => i.id === item.id);
                       if (itemExists) {
                         setSelectedViewItem(item);
@@ -2367,9 +2474,9 @@ export default function Inventory() {
                                 </span>
                               </div>
                             </div>
-                            {/* Production status - always 3 lines, wraps before picture */}
-                            <div className="min-h-[3.75em] text-xs font-medium text-black break-words leading-tight">
-                              {item.production_status || "\u00A0"}
+                            {/* Production status and requests - wraps as needed */}
+                            <div className="min-h-[3.75em]">
+                              <ProductionStatusWithRequests productionStatus={item.production_status} requests={partRequests[item.id] || []} className="text-xs" />
                             </div>
                           </div>
                           {/* Picture section - right */}
@@ -2470,26 +2577,35 @@ export default function Inventory() {
                           </>
                         )}
                         {item.category === "Parts" && item.customer_id && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className={cn(
-                              "transition-all duration-300",
-                              justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce"
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "transition-all duration-300",
+                                justAddedToPoItemId === item.id && "bg-green-600 text-white border-green-600 hover:bg-green-600 hover:text-white animate-bounce"
+                              )}
+                              onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}
+                            >
+                              {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
+                              {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
+                            </Button>
+                            {isCustomerUser() && (
+                              <Button variant="outline" size="sm" onClick={e => { e.preventDefault(); e.stopPropagation(); setSelectedItemForRequest(item); setRequestText(""); setIsRequestDialogOpen(true); }}>
+                                Request
+                              </Button>
                             )}
-                            onClick={e => { e.preventDefault(); e.stopPropagation(); setAddToPoItem(item); setAddToPoQty(1); setAddToPoOpen(true); }}
-                          >
-                            {justAddedToPoItemId === item.id ? <Check className="h-4 w-4 mr-2" /> : <FilePlus className="h-4 w-4 mr-2" />}
-                            {justAddedToPoItemId === item.id ? "Added!" : "Add to PO"}
+                          </>
+                        )}
+                        {!isCustomerUser() && (
+                          <Button variant="outline" size="sm" onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditDialog(item);
+                          }}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
                           </Button>
                         )}
-                        <Button variant="outline" size="sm" onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEditDialog(item);
-                        }}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
                         {/* Customer and location - same line as buttons, two rows: customer above, location below */}
                         {(item.location || (item.category === "Parts" && item.customer_id)) && (
                           <div className="flex flex-col gap-1 ml-auto text-right">
@@ -2514,10 +2630,12 @@ export default function Inventory() {
                   <div className="text-center py-12">
                     <CategoryIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground mb-4">No {category.toLowerCase()} found</p>
-                    <Button variant="outline" onClick={() => handleOpenAddDialog(category)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add First {category.slice(0, -1)}
-                    </Button>
+                    {!isCustomerUser() && (
+                      <Button variant="outline" onClick={() => handleOpenAddDialog(category)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add First {category.slice(0, -1)}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2545,6 +2663,39 @@ export default function Inventory() {
             >
               <ArrowUp className="h-4 w-4" />
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Dialog - customer users only */}
+      <Dialog open={isRequestDialogOpen} onOpenChange={(open) => { setIsRequestDialogOpen(open); if (!open) { setSelectedItemForRequest(null); setRequestText(""); } }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Request / Question about part</DialogTitle>
+            <DialogDescription>
+              {selectedItemForRequest ? `Ask a question about "${selectedItemForRequest.name}"` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="request-text">Your question</Label>
+              <Textarea
+                id="request-text"
+                placeholder="Enter your question about this part..."
+                value={requestText}
+                onChange={e => setRequestText(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setIsRequestDialogOpen(false); setSelectedItemForRequest(null); setRequestText(""); }}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmitRequest} disabled={!requestText.trim()}>
+                Submit Request
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -3047,7 +3198,7 @@ export default function Inventory() {
                   onChange={async (file) => {
                     if (file) {
                       try {
-                        const resizedFile = await resizeImageFile(file, 400, 400);
+                        const resizedFile = await resizeImageForPartPhoto(file);
                         setFormData(prev => ({
                           ...prev,
                           photo: resizedFile
@@ -3402,7 +3553,7 @@ export default function Inventory() {
                   onChange={async (file) => {
                     if (file) {
                       try {
-                        const resizedFile = await resizeImageFile(file, 400, 400);
+                        const resizedFile = await resizeImageForPartPhoto(file);
                         setFormData(prev => ({
                           ...prev,
                           photo: resizedFile

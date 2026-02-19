@@ -19,6 +19,7 @@ import { formatCurrency, getCurrencySymbol } from "@/lib/currencyUtils";
 import { formatDate, formatDateForInput } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { NumericInput } from "@/components/NumericInput";
 import { SortSelect, SortOption } from "@/components/SortSelect";
 import { useSortPreference } from "@/hooks/useSortPreference";
@@ -55,6 +56,7 @@ const GenerateButton = ({
 export default function SalesOrders() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isCustomerUser, customerId } = useAuth();
   const sortPreference = useSortPreference("sales-orders");
   const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -137,7 +139,7 @@ export default function SalesOrders() {
   }, [JSON.stringify(salesOrders.map((o) => o.id))]);
 
   const fetchSalesOrders = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("sales_orders")
       .select(`
         *,
@@ -145,6 +147,12 @@ export default function SalesOrders() {
         sales_order_items(*)
       `)
       .order("created_at", { ascending: false });
+
+    if (isCustomerUser() && customerId()) {
+      query = query.eq("customer_id", customerId()!);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast({ title: "Error", description: "Failed to load sales orders.", variant: "destructive" });

@@ -20,6 +20,7 @@ import { formatCurrency, getCurrencySymbol } from "@/lib/currencyUtils";
 import { formatDate, formatDateForInput } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { NumericInput } from "@/components/NumericInput";
 import { SortSelect, SortOption } from "@/components/SortSelect";
 import { useSortPreference } from "@/hooks/useSortPreference";
@@ -41,6 +42,7 @@ const getPoStatusColor = (status: string) => {
 export default function PurchaseOrders() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isCustomerUser, customerId } = useAuth();
   const sortPreference = useSortPreference("purchase-orders");
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -82,7 +84,7 @@ export default function PurchaseOrders() {
   }, []);
 
   const fetchPurchaseOrders = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("purchase_orders")
       .select(`
         *,
@@ -90,6 +92,12 @@ export default function PurchaseOrders() {
         purchase_order_items(*)
       `)
       .order("created_at", { ascending: false });
+
+    if (isCustomerUser() && customerId()) {
+      query = query.eq("customer_id", customerId()!);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast({ title: "Error", description: "Failed to load purchase orders.", variant: "destructive" });

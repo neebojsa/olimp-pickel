@@ -46,7 +46,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { staff, logout, hasPagePermission } = useAuth();
+  const { staff, logout, hasPagePermission, isCustomerUser, customerId } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -124,23 +124,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
       <div className="px-4 py-4 space-y-2 mt-auto">
-        <div className="flex items-center px-3 py-2 text-sm text-muted-foreground mb-2">
-          <User className="w-4 h-4 mr-2" />
-          <span>{staff?.name || "Staff"}{staff?.position ? `, ${staff.position}` : ""}</span>
+        <div className="flex items-start px-3 py-2 text-sm text-muted-foreground mb-2 gap-2">
+          <User className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div className="flex flex-col min-w-0">
+            {isCustomerUser() && staff?.customer_name ? (
+              <>
+                <span>{staff?.name || "Staff"},</span>
+                <span className="font-medium">{staff.customer_name}</span>
+              </>
+            ) : (
+              <span>{staff?.name || "Staff"}{staff?.position ? `, ${staff.position}` : ""}</span>
+            )}
+          </div>
         </div>
-        <Link
-          to="/settings"
-          onClick={onLinkClick}
-          className={cn(
-            "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors w-full",
-            location.pathname.startsWith("/settings")
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
-          )}
-        >
-          <Settings className="w-4 h-4 mr-2" />
-          Settings
-        </Link>
+        {!isCustomerUser() && (
+          <Link
+            to="/settings"
+            onClick={onLinkClick}
+            className={cn(
+              "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors w-full",
+              location.pathname.startsWith("/settings")
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            )}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Settings
+          </Link>
+        )}
         <Button 
           variant="ghost" 
           size="sm" 

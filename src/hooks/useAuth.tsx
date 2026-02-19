@@ -10,6 +10,10 @@ interface Staff {
   page_permissions: string[];
   can_see_prices: boolean;
   can_see_customers: boolean;
+  /** Set when logged in as customer contact person - filters data to this company only */
+  customer_id?: string;
+  customer_name?: string;
+  is_customer_user?: boolean;
 }
 
 interface AuthContextType {
@@ -21,6 +25,10 @@ interface AuthContextType {
   hasPagePermission: (page: string) => boolean;
   canSeePrices: () => boolean;
   canSeeCustomers: () => boolean;
+  /** True when logged in as customer contact - restricts to own company data only */
+  isCustomerUser: () => boolean;
+  /** Customer company ID when isCustomerUser - use to filter sales orders, inventory, etc. */
+  customerId: () => string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,24 +51,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const verifySession = async (sessionToken: string) => {
     try {
-      const { data, error } = await supabase.rpc('verify_staff_session', {
+      // Try staff session first
+      const { data: staffData, error: staffError } = await supabase.rpc('verify_staff_session', {
         token: sessionToken
       });
 
-      if (error) {
-        // Check for connection errors
-        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-          console.error('Connection error - Supabase may be unreachable:', error);
-          // Don't remove token on connection error, might be temporary
+      if (staffError) {
+        if (staffError.message?.includes('Failed to fetch') || staffError.message?.includes('NetworkError')) {
+          console.error('Connection error - Supabase may be unreachable:', staffError);
           setIsLoading(false);
           return;
         }
-        throw error;
       }
 
-      const result = data as any;
-      if (result.success) {
-        setStaff(result.staff);
+      const staffResult = staffData as any;
+      if (staffResult?.success && staffResult.staff) {
+        const staffObj = staffResult.staff;
+        setStaff({
+          ...staffObj,
+          page_permissions: Array.isArray(staffObj.page_permissions) ? staffObj.page_permissions : []
+        });
+        setToken(sessionToken);
+        setIsLoading(false);
+        return;
+      }
+
+      // Staff session failed - try customer contact session
+      const { data: contactData, error: contactError } = await supabase.rpc('verify_customer_contact_session', {
+        token: sessionToken
+      });
+
+      if (contactError) {
+        if (contactError.message?.includes('Failed to fetch') || contactError.message?.includes('NetworkError')) {
+          console.error('Connection error - Supabase may be unreachable:', contactError);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      const contactResult = contactData as any;
+      if (contactResult?.success && contactResult.staff) {
+        const staffObj = contactResult.staff;
+        const perms = staffObj.page_permissions;
+        setStaff({
+          ...staffObj,
+          page_permissions: Array.isArray(perms) ? perms : (typeof perms === 'string' ? JSON.parse(perms || '[]') : [])
+        });
         setToken(sessionToken);
       } else {
         localStorage.removeItem('staff_token');
@@ -68,7 +104,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Session verification error:', error);
-      // Only remove token if it's an auth error, not a connection error
       if (error?.message && !error.message.includes('Failed to fetch') && !error.message.includes('NetworkError')) {
         localStorage.removeItem('staff_token');
         sessionStorage.removeItem('staff_token');
@@ -117,6 +152,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return staff?.can_see_customers || false;
   };
 
+  const isCustomerUser = (): boolean => {
+    return !!(staff?.is_customer_user && staff?.customer_id);
+  };
+
+  const customerId = (): string | null => {
+    return staff?.customer_id || null;
+  };
+
   return (
     <AuthContext.Provider value={{
       staff,
@@ -126,7 +169,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       logout,
       hasPagePermission,
       canSeePrices,
-      canSeeCustomers
+      canSeeCustomers,
+      isCustomerUser,
+      customerId
     }}>
       {children}
     </AuthContext.Provider>
