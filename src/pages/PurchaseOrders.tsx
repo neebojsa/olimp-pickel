@@ -617,7 +617,7 @@ export default function PurchaseOrders() {
                         </div>
                       </div>
                       <div className="flex items-end">
-                        <Button type="button" variant="outline" size="sm" onClick={() => removeOrderItem(index)} disabled={orderItems.length === 1}><Trash2 className="w-4 h-4" /></Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => removeOrderItem(index)} disabled={orderItems.length === 1 && !isCustomerUser()}><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     </div>
                   );
