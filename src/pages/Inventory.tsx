@@ -44,6 +44,7 @@ import { useSortPreference } from "@/hooks/useSortPreference";
 import { sortItems } from "@/lib/sortUtils";
 import { CreateWorkOrderDialog } from "@/components/work-orders/CreateWorkOrderDialog";
 import { UnitSelect } from "@/components/UnitSelect";
+import { PartRequestsDialog } from "@/components/PartRequestsDialog";
 
 function pluralizeUnit(unit: string, qty: number): string {
   if (qty === 1) return unit;
@@ -58,16 +59,18 @@ function ProductionStatusWithRequests({
   className = "",
 }: {
   productionStatus?: string | null;
-  requests: { requester_first_name: string; request_text: string }[];
+  requests: { requester_first_name: string; request_text: string; status?: string | null }[];
   className?: string;
 }) {
   const hasStatus = productionStatus && productionStatus.trim() !== "";
-  const hasRequests = requests && requests.length > 0;
+  // Only show active requests in the list (hide processed and cancelled)
+  const activeRequests = requests?.filter((r) => !r.status || r.status === "active") || [];
+  const hasRequests = activeRequests.length > 0;
   if (!hasStatus && !hasRequests) return <p className={cn("text-sm font-medium text-black break-words", className)}>{"\u00A0"}</p>;
   return (
     <div className={cn("flex flex-col gap-1 text-sm font-medium text-black break-words leading-tight", className)}>
       {hasStatus && <p>{productionStatus}</p>}
-      {hasRequests && requests.map((r, i) => (
+      {hasRequests && activeRequests.map((r, i) => (
         <p key={i} className="text-muted-foreground font-normal bg-pink-50 px-2 py-1 rounded">
           {r.requester_first_name}: {r.request_text}
         </p>
@@ -129,7 +132,9 @@ export default function Inventory() {
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   const [selectedItemForRequest, setSelectedItemForRequest] = useState<any>(null);
   const [requestText, setRequestText] = useState("");
-  const [partRequests, setPartRequests] = useState<{ [inventoryId: string]: { requester_first_name: string; request_text: string }[] }>({});
+  const [partRequests, setPartRequests] = useState<{ [inventoryId: string]: { id?: string; requester_first_name: string; request_text: string; status?: string | null }[] }>({});
+  const [isPartRequestsDialogOpen, setIsPartRequestsDialogOpen] = useState(false);
+  const [selectedItemForPartRequests, setSelectedItemForPartRequests] = useState<any>(null);
   const [materialsUsed, setMaterialsUsed] = useState([{
     name: "",
     notes: "",
@@ -284,14 +289,19 @@ export default function Inventory() {
     try {
       const { data } = await supabase
         .from('part_requests' as any)
-        .select('inventory_id, requester_first_name, request_text')
+        .select('id, inventory_id, requester_first_name, request_text, status')
         .in('inventory_id', inventoryIds)
         .order('created_at', { ascending: true });
       if (data) {
-        const byPart: { [k: string]: { requester_first_name: string; request_text: string }[] } = {};
+        const byPart: { [k: string]: { id?: string; requester_first_name: string; request_text: string; status?: string | null }[] } = {};
         (data as any[]).forEach((r: any) => {
           if (!byPart[r.inventory_id]) byPart[r.inventory_id] = [];
-          byPart[r.inventory_id].push({ requester_first_name: r.requester_first_name, request_text: r.request_text });
+          byPart[r.inventory_id].push({
+            id: r.id,
+            requester_first_name: r.requester_first_name,
+            request_text: r.request_text,
+            status: r.status ?? "active",
+          });
         });
         setPartRequests(byPart);
       }
@@ -796,6 +806,9 @@ export default function Inventory() {
       // Upload new photo if selected
       if (formData.photo) {
         photoUrl = await uploadPhoto(formData.photo);
+      } else if (editingItem.photo_url && !photoPreview) {
+        // User explicitly removed the photo (had one, now preview is cleared)
+        photoUrl = null;
       }
       const itemName = editingItem?.category === "Materials" && materialData ? materialData.generatedName : 
                        editingItem?.category === "Tools" && toolCategorySelection ? 
@@ -1453,7 +1466,7 @@ export default function Inventory() {
       if (error) throw error;
       setPartRequests(prev => {
         const list = prev[selectedItemForRequest.id] || [];
-        return { ...prev, [selectedItemForRequest.id]: [...list, { requester_first_name: firstName, request_text: requestText.trim() }] };
+        return { ...prev, [selectedItemForRequest.id]: [...list, { requester_first_name: firstName, request_text: requestText.trim(), status: "active" }] };
       });
       setIsRequestDialogOpen(false);
       setSelectedItemForRequest(null);
@@ -3873,6 +3886,14 @@ export default function Inventory() {
         itemName={selectedItemForProductionStatus?.name || ""}
       />
 
+      {/* Part Requests Dialog (administrator) */}
+      <PartRequestsDialog
+        isOpen={isPartRequestsDialogOpen}
+        onClose={() => { setIsPartRequestsDialogOpen(false); setSelectedItemForPartRequests(null); }}
+        part={selectedItemForPartRequests ? { id: selectedItemForPartRequests.id, name: selectedItemForPartRequests.name } : null}
+        onRequestsUpdated={() => fetchPartRequests(inventoryItems.filter((i: any) => i.category === "Parts").map((i: any) => i.id))}
+      />
+
 
       {/* View Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={(open) => {
@@ -4245,6 +4266,12 @@ export default function Inventory() {
                   <Button variant="outline" size="sm" onClick={() => { setSelectedMaterialForHistory(selectedViewItem); setIsMaterialHistoryDialogOpen(true); }}>
                     <Clock className="h-4 w-4 mr-2" />
                     History
+                  </Button>
+                )}
+                {selectedViewItem.category === "Parts" && !isCustomerUser() && (
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedItemForPartRequests(selectedViewItem); setIsPartRequestsDialogOpen(true); }}>
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    Requests
                   </Button>
                 )}
                 {selectedViewItem.category !== "Materials" && selectedViewItem.category !== "Components" && (

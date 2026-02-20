@@ -168,7 +168,34 @@ export function ToolManagementDialog({
     }
   };
   const handleImageUpload = async (categoryId: string, file: File | null) => {
-    if (!file) return;
+    if (!file) {
+      // User removed the image - clear picture_url in database
+      try {
+        setLoading(true);
+        setUploadingCategoryId(categoryId);
+        const { error: updateError } = await supabase
+          .from('tool_category_hierarchy')
+          .update({ picture_url: null })
+          .eq('id', categoryId);
+        if (updateError) throw updateError;
+        await fetchCategories();
+        toast({
+          title: "Success",
+          description: "Image removed successfully",
+        });
+      } catch (error) {
+        console.error("Error removing image:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove image",
+          variant: "destructive",
+        });
+      } finally {
+        setUploadingCategoryId(null);
+        setLoading(false);
+      }
+      return;
+    }
     try {
       setLoading(true);
       setUploadingCategoryId(categoryId);
@@ -350,11 +377,7 @@ export function ToolManagementDialog({
                       <Label className="text-sm font-medium">Upload Category Image</Label>
                       <DragDropImageUpload
                         value={category.picture}
-                        onChange={(file) => {
-                          if (file) {
-                            handleImageUpload(category.id, file);
-                          }
-                        }}
+                        onChange={(file) => handleImageUpload(category.id, file)}
                         maxSizeMB={10}
                       />
                     </div>
