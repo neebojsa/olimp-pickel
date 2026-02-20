@@ -600,6 +600,7 @@ export default function PurchaseOrders() {
                           step={0.01}
                           suffix={currencySymbol}
                           containerClassName="w-[156px]"
+                          disabled={isCustomerUser()}
                         />
                       </div>
                       <div>

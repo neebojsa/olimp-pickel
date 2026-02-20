@@ -66,7 +66,7 @@ export default function Settings() {
 
   // System settings state
   const [systemSettings, setSystemSettings] = useState({
-    app_title: "Olimp Pickel",
+    app_title: "Olimp ERP",
     favicon_url: ""
   });
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
@@ -180,7 +180,7 @@ export default function Settings() {
     
     if (data) {
       setSystemSettings({
-        app_title: data.app_title || "Olimp Pickel",
+        app_title: data.app_title || "Olimp ERP",
         favicon_url: data.favicon_url || ""
       });
     }

@@ -19,6 +19,7 @@ interface NumericInputProps {
   showSteppers?: boolean;
   containerClassName?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
 }
 
 export function NumericInput({
@@ -35,7 +36,8 @@ export function NumericInput({
   suffix,
   showSteppers = true,
   containerClassName,
-  onKeyDown
+  onKeyDown,
+  disabled = false,
 }: NumericInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -69,16 +71,19 @@ export function NumericInput({
   }, []);
 
   const handleIncrement = () => {
+    if (disabled) return;
     const newValue = numValue + incAmount;
     onChange(max !== undefined ? Math.min(newValue, max) : newValue);
   };
 
   const handleDecrement = () => {
+    if (disabled) return;
     const newValue = numValue - decAmount;
     onChange(min !== undefined ? Math.max(newValue, min) : newValue);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return;
     const inputVal = e.target.value;
     // Allow empty string - don't convert to 0 immediately
     if (inputVal === "") {
@@ -129,14 +134,16 @@ export function NumericInput({
         max={max}
         step={step}
         placeholder={placeholder}
+        disabled={disabled}
         className={cn(
           "rounded-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden",
           inputPaddingClass,
+          disabled && "bg-muted cursor-not-allowed",
           className
         )}
         style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
       />
-      {showSteppers && (
+      {showSteppers && !disabled && (
         <>
           <Button
             type="button"

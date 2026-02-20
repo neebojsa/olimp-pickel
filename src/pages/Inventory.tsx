@@ -1378,15 +1378,31 @@ export default function Inventory() {
       if (recentPO && recentPO.status === "draft") {
         poId = recentPO.id;
         const unitPrice = item.unit_price ?? 0;
-        const { error: itemErr } = await supabase.from("purchase_order_items").insert({
-          purchase_order_id: poId,
-          inventory_id: item.id,
-          description: item.name || "",
-          quantity: qty,
-          unit_price: unitPrice,
-          total: unitPrice * qty,
-        });
-        if (itemErr) throw itemErr;
+        const { data: existingItem } = await supabase
+          .from("purchase_order_items" as any)
+          .select("id, quantity, total")
+          .eq("purchase_order_id", poId)
+          .eq("inventory_id", item.id)
+          .maybeSingle();
+        if (existingItem) {
+          const newQty = (existingItem.quantity || 0) + qty;
+          const newTotal = unitPrice * newQty;
+          const { error: updateErr } = await supabase
+            .from("purchase_order_items" as any)
+            .update({ quantity: newQty, total: newTotal })
+            .eq("id", existingItem.id);
+          if (updateErr) throw updateErr;
+        } else {
+          const { error: itemErr } = await supabase.from("purchase_order_items" as any).insert({
+            purchase_order_id: poId,
+            inventory_id: item.id,
+            description: item.name || "",
+            quantity: qty,
+            unit_price: unitPrice,
+            total: unitPrice * qty,
+          });
+          if (itemErr) throw itemErr;
+        }
         const { data: allItems } = await supabase.from("purchase_order_items").select("quantity, unit_price, total").eq("purchase_order_id", poId);
         const customer = customers.find((c) => c.id === customerId);
         const vatRate = customer?.country === "Bosnia and Herzegovina" ? 17 : 0;
