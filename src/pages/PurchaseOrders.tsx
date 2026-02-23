@@ -200,6 +200,14 @@ export default function PurchaseOrders() {
       return;
     }
 
+    for (const item of orderItems) {
+      if (item.inventoryId && item.quantity > 0) {
+        const { data: inv } = await supabase.from("inventory").select("quantity").eq("id", item.inventoryId).single();
+        const newQty = Math.max(0, (inv?.quantity ?? 0) - item.quantity);
+        await supabase.from("inventory").update({ quantity: newQty }).eq("id", item.inventoryId);
+      }
+    }
+
     await fetchPurchaseOrders();
     setIsAddOrderOpen(false);
     resetForm();
@@ -238,6 +246,15 @@ export default function PurchaseOrders() {
       return;
     }
 
+    const { data: oldItems } = await supabase.from("purchase_order_items" as any).select("inventory_id, quantity").eq("purchase_order_id", selectedOrder.id);
+    for (const old of oldItems || []) {
+      if (old.inventory_id && (old.quantity || 0) > 0) {
+        const { data: inv } = await supabase.from("inventory").select("quantity").eq("id", old.inventory_id).single();
+        const newQty = (inv?.quantity ?? 0) + (old.quantity || 0);
+        await supabase.from("inventory").update({ quantity: newQty }).eq("id", old.inventory_id);
+      }
+    }
+
     await supabase.from("purchase_order_items").delete().eq("purchase_order_id", selectedOrder.id);
 
     const itemsData = orderItems.map((item) => {
@@ -256,6 +273,14 @@ export default function PurchaseOrders() {
     if (itemsError) {
       toast({ title: "Error", description: `Failed to update items: ${itemsError.message}`, variant: "destructive" });
       return;
+    }
+
+    for (const item of orderItems) {
+      if (item.inventoryId && item.quantity > 0) {
+        const { data: inv } = await supabase.from("inventory").select("quantity").eq("id", item.inventoryId).single();
+        const newQty = Math.max(0, (inv?.quantity ?? 0) - item.quantity);
+        await supabase.from("inventory").update({ quantity: newQty }).eq("id", item.inventoryId);
+      }
     }
 
     await fetchPurchaseOrders();

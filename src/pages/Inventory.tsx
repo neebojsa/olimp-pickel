@@ -1414,6 +1414,10 @@ export default function Inventory() {
         const { data: existingPO } = await supabase.from("purchase_orders").select("net_weight").eq("id", poId).single();
         const netWeight = (existingPO?.net_weight || 0) + itemWeight;
         await supabase.from("purchase_orders").update({ amount, total_quantity: totalQuantity, net_weight: netWeight, total_weight: netWeight, vat_rate: vatRate }).eq("id", poId);
+        const { data: inv } = await supabase.from("inventory").select("quantity").eq("id", item.id).single();
+        const newQty = Math.max(0, (inv?.quantity ?? 0) - qty);
+        await supabase.from("inventory").update({ quantity: newQty }).eq("id", item.id);
+        await fetchInventoryItems();
         setAddToPoOpen(false);
         setAddToPoItem(null);
         setJustAddedToPoItemId(item.id);
@@ -1458,6 +1462,10 @@ export default function Inventory() {
           total,
         });
         if (itemErr) throw itemErr;
+        const { data: inv } = await supabase.from("inventory").select("quantity").eq("id", item.id).single();
+        const newQty = Math.max(0, (inv?.quantity ?? 0) - qty);
+        await supabase.from("inventory").update({ quantity: newQty }).eq("id", item.id);
+        await fetchInventoryItems();
         setAddToPoOpen(false);
         setAddToPoItem(null);
         setJustAddedToPoItemId(item.id);
