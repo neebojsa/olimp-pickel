@@ -18,6 +18,7 @@ import {
   Search,
   User
 } from "lucide-react";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -78,19 +79,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     const [searchTerm, setSearchTerm] = useState("");
 
     return (
-      <div className="flex flex-col h-full min-h-screen">
-        <div className="flex flex-col items-center justify-center px-4 pt-6 pb-4 space-y-4">
-          <Link to="/inventory" className="flex items-center justify-center" onClick={onLinkClick}>
-            {companyInfo?.logo_url ? (
-              <img 
-                src={companyInfo.logo_url} 
-                alt="Company Logo" 
-                className="max-w-full max-h-12 h-auto object-contain cursor-pointer"
-              />
-            ) : (
-              <h1 className="text-xl font-bold cursor-pointer">{companyInfo?.company_name || "CNC Manager"}</h1>
-            )}
-          </Link>
+      <div className="flex flex-col h-full">
+        <div className="flex flex-col px-4 pt-4 pb-4 space-y-4">
           <div className="w-full relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -168,44 +158,53 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="flex h-screen bg-background">
-        {/* Desktop Sidebar */}
-        <div className="hidden md:flex md:w-64 md:min-w-64 md:flex-col flex-shrink-0">
-          <NavContent />
+      <div className="flex flex-col h-screen bg-background">
+        {/* Global top bar: logo (left) | notification (right) */}
+        <div className="flex items-center justify-between h-16 px-4 border-b shrink-0 w-full">
+          <Link to="/inventory" className="flex items-center">
+            {companyInfo?.logo_url ? (
+              <img 
+                src={companyInfo.logo_url} 
+                alt="Company Logo" 
+                className="max-h-10 h-auto object-contain cursor-pointer"
+              />
+            ) : (
+              <h1 className="text-xl font-bold cursor-pointer">{companyInfo?.company_name || "CNC Manager"}</h1>
+            )}
+          </Link>
+          <NotificationCenter />
         </div>
 
-        {/* Mobile Sidebar */}
-        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-          <div className="flex flex-col flex-1 md:pl-0">
-            <div className="flex items-center h-16 px-4 border-b md:hidden">
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </SheetTrigger>
-              <div className="ml-4 flex items-center space-x-2">
-                {companyInfo?.logo_url ? (
-                  <img 
-                    src={companyInfo.logo_url} 
-                    alt="Company Logo" 
-                    className="max-h-8 h-auto object-contain"
-                  />
-                ) : null}
-              </div>
-            </div>
-            <main className="flex-1 overflow-auto">
-              {children}
-              <ScrollToTopButton />
-            </main>
+        <div className="flex flex-1 min-h-0">
+          {/* Desktop Sidebar - no logo, menu only */}
+          <div className="hidden md:flex md:w-64 md:min-w-64 md:flex-col flex-shrink-0">
+            <NavContent />
           </div>
-          <SheetContent 
-            side="left" 
-            className="w-64 p-0 !h-screen max-h-none [&>button]:hidden"
-            onOpenAutoFocus={(e) => e.preventDefault()}
-          >
-            <NavContent onLinkClick={() => setIsMobileMenuOpen(false)} />
-          </SheetContent>
-        </Sheet>
+
+          {/* Mobile Sidebar */}
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <div className="flex flex-col flex-1 md:pl-0 min-w-0">
+              <div className="flex items-center h-12 px-4 border-b md:hidden shrink-0">
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+              </div>
+              <main className="flex-1 overflow-auto">
+                {children}
+                <ScrollToTopButton />
+              </main>
+            </div>
+            <SheetContent 
+              side="left" 
+              className="w-64 p-0 !h-screen max-h-none [&>button]:hidden"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
+              <NavContent onLinkClick={() => setIsMobileMenuOpen(false)} />
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </>
   );

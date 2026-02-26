@@ -67,7 +67,7 @@ export function ScrollToTopButton() {
     <Button
       onClick={scrollToTop}
       className={cn(
-        "fixed top-2 right-4 md:top-4 z-50 rounded-full w-12 h-12 p-0 shadow-lg transition-all duration-300",
+        "fixed top-[calc(4rem+1rem)] right-4 z-50 rounded-full w-12 h-12 p-0 shadow-lg transition-all duration-300",
         isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
       )}
       size="icon"

@@ -45,6 +45,7 @@ import { sortItems } from "@/lib/sortUtils";
 import { CreateWorkOrderDialog } from "@/components/work-orders/CreateWorkOrderDialog";
 import { UnitSelect } from "@/components/UnitSelect";
 import { PartRequestsDialog } from "@/components/PartRequestsDialog";
+import { notifyAdminsOfNewPO } from "@/lib/notifications";
 
 function pluralizeUnit(unit: string, qty: number): string {
   if (qty === 1) return unit;
@@ -1465,6 +1466,7 @@ export default function Inventory() {
         const { data: inv } = await supabase.from("inventory").select("quantity").eq("id", item.id).single();
         const newQty = Math.max(0, (inv?.quantity ?? 0) - qty);
         await supabase.from("inventory").update({ quantity: newQty }).eq("id", item.id);
+        notifyAdminsOfNewPO(poId, poNum, customer?.name || "Unknown", staff?.id);
         await fetchInventoryItems();
         setAddToPoOpen(false);
         setAddToPoItem(null);

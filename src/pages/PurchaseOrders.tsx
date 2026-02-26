@@ -21,6 +21,7 @@ import { formatDate, formatDateForInput } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { notifyAdminsOfNewPO } from "@/lib/notifications";
 import { NumericInput } from "@/components/NumericInput";
 import { SortSelect, SortOption } from "@/components/SortSelect";
 import { useSortPreference } from "@/hooks/useSortPreference";
@@ -42,7 +43,7 @@ const getPoStatusColor = (status: string) => {
 export default function PurchaseOrders() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isCustomerUser, customerId } = useAuth();
+  const { isCustomerUser, customerId, staff } = useAuth();
   const sortPreference = useSortPreference("purchase-orders");
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -208,6 +209,12 @@ export default function PurchaseOrders() {
       }
     }
 
+    notifyAdminsOfNewPO(
+      orderData.id,
+      poNumber,
+      selectedCustomer?.name || "Unknown",
+      staff?.id
+    );
     await fetchPurchaseOrders();
     setIsAddOrderOpen(false);
     resetForm();
@@ -310,6 +317,14 @@ export default function PurchaseOrders() {
 
   const handleDeleteOrder = async () => {
     if (!deletingOrder) return;
+    const { data: items } = await supabase.from("purchase_order_items" as any).select("inventory_id, quantity").eq("purchase_order_id", deletingOrder.id);
+    for (const item of items || []) {
+      if (item.inventory_id && (item.quantity || 0) > 0) {
+        const { data: inv } = await supabase.from("inventory").select("quantity").eq("id", item.inventory_id).single();
+        const newQty = (inv?.quantity ?? 0) + (item.quantity || 0);
+        await supabase.from("inventory").update({ quantity: newQty }).eq("id", item.inventory_id);
+      }
+    }
     const { error } = await supabase.from("purchase_orders").delete().eq("id", deletingOrder.id);
     if (!error) {
       setPurchaseOrders((prev) => prev.filter((o) => o.id !== deletingOrder.id));
