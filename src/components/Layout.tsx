@@ -159,9 +159,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <div className="flex flex-col h-screen bg-background">
-        {/* Global top bar: logo (left) | notification (right) */}
-        <div className="flex items-center justify-between h-16 px-4 border-b shrink-0 w-full">
-          <Link to="/inventory" className="flex items-center">
+        {/* Global top bar: hamburger (left, mobile) | logo (center) | notification (right) */}
+        <div className="flex items-center justify-between h-16 px-4 border-b shrink-0 w-full gap-4">
+          <div className="flex items-center shrink-0 w-10 md:hidden">
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent 
+                side="left" 
+                className="w-64 p-0 !h-screen max-h-none [&>button]:hidden"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
+                <NavContent onLinkClick={() => setIsMobileMenuOpen(false)} />
+              </SheetContent>
+            </Sheet>
+          </div>
+          <Link to="/inventory" className="flex items-center justify-center flex-1 min-w-0 md:justify-start">
             {companyInfo?.logo_url ? (
               <img 
                 src={companyInfo.logo_url} 
@@ -169,10 +185,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 className="max-h-10 h-auto object-contain cursor-pointer"
               />
             ) : (
-              <h1 className="text-xl font-bold cursor-pointer">{companyInfo?.company_name || "CNC Manager"}</h1>
+              <h1 className="text-xl font-bold cursor-pointer truncate">{companyInfo?.company_name || "CNC Manager"}</h1>
             )}
           </Link>
-          <NotificationCenter />
+          <div className="flex items-center shrink-0">
+            <NotificationCenter />
+          </div>
         </div>
 
         <div className="flex flex-1 min-h-0">
@@ -181,29 +199,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <NavContent />
           </div>
 
-          {/* Mobile Sidebar */}
-          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-            <div className="flex flex-col flex-1 md:pl-0 min-w-0">
-              <div className="flex items-center h-12 px-4 border-b md:hidden shrink-0">
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <Menu className="w-5 h-5" />
-                  </Button>
-                </SheetTrigger>
-              </div>
-              <main className="flex-1 overflow-auto">
+          {/* Content area */}
+          <div className="flex flex-col flex-1 md:pl-0 min-w-0">
+            <main className="flex-1 overflow-auto">
                 {children}
                 <ScrollToTopButton />
               </main>
-            </div>
-            <SheetContent 
-              side="left" 
-              className="w-64 p-0 !h-screen max-h-none [&>button]:hidden"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              <NavContent onLinkClick={() => setIsMobileMenuOpen(false)} />
-            </SheetContent>
-          </Sheet>
+          </div>
         </div>
       </div>
     </>

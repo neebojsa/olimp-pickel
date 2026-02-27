@@ -719,7 +719,7 @@ export function PriceCalculatorDialog({ isOpen, onClose, part, onSuccess }: Pric
               <p className="text-sm text-muted-foreground">Materials from the part are loaded below. Enter prices and adjust any field as needed.</p>
 
               {step1Rows.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No materials. Add one from the library below.</div>
+                <div className="text-sm text-muted-foreground">No materials. Click &quot;Add Material&quot; below or select from the library.</div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_100px_24px_120px_90px_auto] gap-y-2 gap-x-4 w-full max-w-4xl">
                   <div className="contents">
@@ -766,11 +766,9 @@ export function PriceCalculatorDialog({ isOpen, onClose, part, onSuccess }: Pric
                         {getCurrencySymbol(currency)}/{row.materialPriceUnit === 'per_kg' ? 'kg' : 'm'}
                       </Button>
                       <div className="flex items-center justify-center w-8 md:col-span-1">
-                        {step1Rows.length > 1 && (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeStep1Material(index)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeStep1Material(index)}>
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -778,7 +776,18 @@ export function PriceCalculatorDialog({ isOpen, onClose, part, onSuccess }: Pric
               )}
 
               <div className="space-y-2">
-                <Label>Add material from library</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Add material from library</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addStep1Material()}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Material
+                  </Button>
+                </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -811,7 +820,7 @@ export function PriceCalculatorDialog({ isOpen, onClose, part, onSuccess }: Pric
               <p className="text-sm text-muted-foreground">Select components from the library below. Enter quantity and price per unit for each.</p>
 
               {step2Rows.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No components. Add one from the library below.</div>
+                <div className="text-sm text-muted-foreground">No components. Click &quot;Add Component&quot; below or select from the library.</div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_100px_24px_120px_auto] gap-y-2 gap-x-4 w-full max-w-4xl">
                   <div className="contents">
@@ -849,11 +858,9 @@ export function PriceCalculatorDialog({ isOpen, onClose, part, onSuccess }: Pric
                         className="min-w-0 md:col-span-1"
                       />
                       <div className="flex items-center justify-center w-8 md:col-span-1">
-                        {step2Rows.length > 1 && (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeStep2Component(index)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeStep2Component(index)}>
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -861,7 +868,18 @@ export function PriceCalculatorDialog({ isOpen, onClose, part, onSuccess }: Pric
               )}
 
               <div className="space-y-2">
-                <Label>Add component from library</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Add component from library</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addStep2Component()}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Component
+                  </Button>
+                </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input

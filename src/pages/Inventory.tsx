@@ -550,10 +550,10 @@ export default function Inventory() {
         p_part_number: (currentCategory === "Parts" || currentCategory === "Components") ? (formData.part_number || null) : null,
         p_description: currentCategory === "Materials" && materialData ? (materialData.description || null) : (formData.description || null),
         p_customer_id: currentCategory === "Parts" ? (formData.customer_id || null) : null,
-        p_unit_price: (currentCategory === "Parts" || currentCategory === "Components") ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : 0) : null,
-        p_currency: (currentCategory === "Parts" || currentCategory === "Components") ? formData.currency : null,
+        p_unit_price: currentCategory === "Parts" ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : 0) : null,
+        p_currency: currentCategory === "Parts" ? formData.currency : null,
         p_weight: (currentCategory === "Parts" || currentCategory === "Components") ? (parseFloat(formData.weight) || 0) : null,
-        p_location: formData.location || null,
+        p_location: currentCategory === "Components" ? null : (formData.location || null),
         p_unit: (currentCategory === "Parts" || currentCategory === "Components") ? formData.unit : null,
         p_minimum_stock: (currentCategory === "Parts" || currentCategory === "Components") ? (parseInt(formData.minimum_stock) || 0) : null,
         p_materials_used: currentCategory === "Materials" ? materialsUsedData : null
@@ -606,12 +606,12 @@ export default function Inventory() {
       part_number: formData.part_number,
       name: itemName,
       description: currentCategory === "Materials" && materialData ? (materialData.description || null) : (formData.description || null),
-      quantity: currentCategory === "Materials" ? 0 : (parseInt(formData.quantity) || 0),
-      unit_price: currentCategory === "Materials" ? 0 : (canSeePrices() ? (parseFloat(formData.unit_price) || 0) : 0),
-      currency: formData.currency,
+      quantity: currentCategory === "Materials" || currentCategory === "Components" ? 0 : (parseInt(formData.quantity) || 0),
+      unit_price: currentCategory === "Materials" || currentCategory === "Components" ? 0 : (canSeePrices() ? (parseFloat(formData.unit_price) || 0) : 0),
+      currency: currentCategory === "Components" ? null : formData.currency,
       unit: formData.unit,
       weight: (formData.category === "Parts" || formData.category === "Machines" || formData.category === "Components") ? (parseFloat(formData.weight) || 0) : 0,
-      location: formData.location,
+      location: currentCategory === "Components" ? null : formData.location,
       category: formData.category,
       customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
       supplier: formData.category !== "Parts" && formData.category !== "Components" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
@@ -822,12 +822,12 @@ export default function Inventory() {
         part_number: formData.part_number,
         name: itemName,
         description: editingItem?.category === "Materials" && materialData ? (materialData.description || null) : formData.description,
-        quantity: parseInt(formData.quantity) || 0,
-        unit_price: canSeePrices() ? (parseFloat(formData.unit_price) || 0) : (editingItem?.unit_price || 0),
-        currency: formData.currency,
+        quantity: editingItem?.category === "Components" ? (editingItem?.quantity ?? 0) : (parseInt(formData.quantity) || 0),
+        unit_price: editingItem?.category === "Components" ? (editingItem?.unit_price ?? 0) : (canSeePrices() ? (parseFloat(formData.unit_price) || 0) : (editingItem?.unit_price || 0)),
+        currency: editingItem?.category === "Components" ? (editingItem?.currency ?? null) : formData.currency,
         unit: formData.unit,
         weight: (formData.category === "Parts" || formData.category === "Machines" || formData.category === "Components") ? (parseFloat(formData.weight) || 0) : editingItem.weight || 0,
-        location: formData.location,
+        location: editingItem?.category === "Components" ? (editingItem?.location ?? null) : formData.location,
         category: formData.category,
         customer_id: formData.category === "Parts" ? (formData.customer_id || null) : null,
         supplier: formData.category !== "Parts" && formData.category !== "Components" ? (suppliers.find(s => s.id === formData.supplier_id)?.name || null) : null,
@@ -1002,10 +1002,10 @@ export default function Inventory() {
         p_part_number: (editingItem.category === "Parts" || editingItem.category === "Components") ? (formData.part_number || null) : null,
         p_description: editingItem?.category === "Materials" && materialData ? (materialData.description || null) : formData.description,
         p_customer_id: editingItem.category === "Parts" ? (formData.customer_id || null) : null,
-        p_unit_price: (editingItem.category === "Parts" || editingItem.category === "Components") ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : (editingItem?.unit_price || 0)) : null,
-        p_currency: (editingItem.category === "Parts" || editingItem.category === "Components") ? formData.currency : null,
+        p_unit_price: editingItem.category === "Parts" ? (canSeePrices() ? parseFloat(formData.unit_price) || 0 : (editingItem?.unit_price || 0)) : null,
+        p_currency: editingItem.category === "Parts" ? formData.currency : null,
         p_weight: (editingItem.category === "Parts" || editingItem.category === "Components") ? (parseFloat(formData.weight) || 0) : null,
-        p_location: formData.location || null,
+        p_location: editingItem.category === "Components" ? null : (formData.location || null),
         p_unit: (editingItem.category === "Parts" || editingItem.category === "Components") ? formData.unit : null,
         p_minimum_stock: (editingItem.category === "Parts" || editingItem.category === "Components") ? (parseInt(formData.minimum_stock) || 0) : null,
         p_materials_used: editingItem?.category === "Materials" ? materialsUsedData : null
@@ -2840,57 +2840,33 @@ export default function Inventory() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="supplier">Supplier</Label>
-                      <Select value={formData.supplier_id} onValueChange={value => {
-                        // Find the selected supplier and auto-set currency
-                        const selectedSupplier = suppliers.find(s => s.id === value);
-                        const currency = selectedSupplier?.country ? getCurrencyForCountry(selectedSupplier.country) : 'EUR';
-                        
-                        setFormData(prev => ({
-                          ...prev,
-                          supplier_id: value,
-                          currency: currency
-                        }));
-                      }}>
-                        <SelectTrigger id="supplier">
-                          <SelectValue placeholder="Select a supplier" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {suppliers.map(supplier => <SelectItem key={supplier.id} value={supplier.id}>
-                              {supplier.name}
-                            </SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="unit">Unit</Label>
+                      <UnitSelect
+                        value={formData.unit || "piece"}
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, unit: v }))}
+                      />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="currency">Currency</Label>
-                      <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
-                        ...prev,
-                        currency: value
-                      }))}>
-                        <SelectTrigger id="currency">
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="EUR">EUR (€)</SelectItem>
-                          <SelectItem value="USD">USD ($)</SelectItem>
-                          <SelectItem value="GBP">GBP (£)</SelectItem>
-                          <SelectItem value="JPY">JPY (¥)</SelectItem>
-                          <SelectItem value="CHF">CHF (₣)</SelectItem>
-                          <SelectItem value="CAD">CAD (C$)</SelectItem>
-                          <SelectItem value="AUD">AUD (A$)</SelectItem>
-                          <SelectItem value="CNY">CNY (¥)</SelectItem>
-                          <SelectItem value="INR">INR (₹)</SelectItem>
-                          <SelectItem value="BAM">KM (BAM)</SelectItem>
-                          <SelectItem value="RSD">RSD (РСД)</SelectItem>
-                          <SelectItem value="PLN">PLN (zł)</SelectItem>
-                          <SelectItem value="CZK">CZK (Kč)</SelectItem>
-                          <SelectItem value="SEK">SEK (kr)</SelectItem>
-                          <SelectItem value="NOK">NOK (kr)</SelectItem>
-                          <SelectItem value="DKK">DKK (kr)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="minimum_stock">Min Stock Level</Label>
+                      <NumericInput
+                        id="minimum_stock"
+                        value={formData.minimum_stock || ""}
+                        onChange={(val) => setFormData(prev => ({ ...prev, minimum_stock: val === 0 ? "" : val.toString() }))}
+                        min={0}
+                        placeholder="0"
+                      />
                     </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="weight">Weight/unit</Label>
+                    <NumericInput
+                      id="weight"
+                      value={formData.weight}
+                      onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
+                      min={0}
+                      step={0.01}
+                      placeholder="0.00"
+                    />
                   </div>
                 </>
               ) : currentCategory === "Tools" ? (
@@ -3000,98 +2976,7 @@ export default function Inventory() {
                     />
                   </div>
                 </>
-              ) : currentCategory === "Components" ? (
-                <>
-                  {/* Mobile layout for Components: 2 rows of 2 columns */}
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    {/* Row 1: Quantity, Unit, Min Stock Level */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="quantity">Quantity *</Label>
-                      <NumericInput
-                        id="quantity"
-                        value={formData.quantity}
-                        onChange={(val) => setFormData(prev => ({ ...prev, quantity: val.toString() }))}
-                        min={0}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="unit">Unit</Label>
-                      <UnitSelect
-                        value={formData.unit || "piece"}
-                        onValueChange={(v) => setFormData(prev => ({ ...prev, unit: v }))}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="minimum_stock">Min Stock Level</Label>
-                      <NumericInput
-                        id="minimum_stock"
-                        value={formData.minimum_stock || ""}
-                        onChange={(val) => setFormData(prev => ({ ...prev, minimum_stock: val === 0 ? "" : val.toString() }))}
-                        min={0}
-                        placeholder="0"
-                      />
-                    </div>
-                    {/* Desktop: Unit Price in same row */}
-                    {canSeePrices() && (
-                      <div className="grid gap-2 hidden sm:grid">
-                        <Label htmlFor="unit_price">Unit Price *</Label>
-                        <NumericInput
-                          id="unit_price"
-                          value={formData.unit_price || ""}
-                          onChange={(val) => setFormData(prev => ({ ...prev, unit_price: val === 0 ? "" : val.toString() }))}
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                          increment={0.01}
-                          decrement={0.01}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  {/* Mobile: Row 2 for Components - Unit Price and Weight */}
-                  {canSeePrices() && (
-                    <div className="grid grid-cols-2 gap-4 sm:hidden mt-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="unit_price">Unit Price *</Label>
-                        <NumericInput
-                          id="unit_price"
-                          value={formData.unit_price || ""}
-                          onChange={(val) => setFormData(prev => ({ ...prev, unit_price: val === 0 ? "" : val.toString() }))}
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                          increment={0.01}
-                          decrement={0.01}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="weight">Weight (kg)</Label>
-                        <NumericInput
-                          id="weight"
-                          value={formData.weight}
-                          onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {/* Desktop: Weight in separate row */}
-                  <div className="grid gap-2 hidden sm:grid mt-4">
-                    <Label htmlFor="weight">Weight (kg)</Label>
-                    <NumericInput
-                      id="weight"
-                      value={formData.weight}
-                      onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
-                      min={0}
-                      step={0.01}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </>
-              ) : (
+              ) : currentCategory === "Components" ? null : (
                 /* Other categories (Tools, Machines) - original layout */
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="grid gap-2">
@@ -3179,7 +3064,7 @@ export default function Inventory() {
               )}
             </>
             )}
-            {currentCategory !== "Materials" && (
+            {currentCategory !== "Materials" && currentCategory !== "Components" && (
             <div className="grid gap-2">
               <Label htmlFor="location">Location</Label>
               <Select value={formData.location} onValueChange={value => setFormData(prev => ({
@@ -3377,57 +3262,33 @@ export default function Inventory() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="edit_supplier">Supplier</Label>
-                      <Select value={formData.supplier_id} onValueChange={value => {
-                        // Find the selected supplier and auto-set currency
-                        const selectedSupplier = suppliers.find(s => s.id === value);
-                        const currency = selectedSupplier?.country ? getCurrencyForCountry(selectedSupplier.country) : 'EUR';
-                        
-                        setFormData(prev => ({
-                          ...prev,
-                          supplier_id: value,
-                          currency: currency
-                        }));
-                      }}>
-                        <SelectTrigger id="edit_supplier">
-                          <SelectValue placeholder="Select a supplier" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {suppliers.map(supplier => <SelectItem key={supplier.id} value={supplier.id}>
-                              {supplier.name}
-                            </SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="edit_unit">Unit</Label>
+                      <UnitSelect
+                        value={formData.unit || "piece"}
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, unit: v }))}
+                      />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="edit_currency">Currency</Label>
-                      <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
-                        ...prev,
-                        currency: value
-                      }))}>
-                        <SelectTrigger id="edit_currency">
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="EUR">EUR (€)</SelectItem>
-                          <SelectItem value="USD">USD ($)</SelectItem>
-                          <SelectItem value="GBP">GBP (£)</SelectItem>
-                          <SelectItem value="JPY">JPY (¥)</SelectItem>
-                          <SelectItem value="CHF">CHF (₣)</SelectItem>
-                          <SelectItem value="CAD">CAD (C$)</SelectItem>
-                          <SelectItem value="AUD">AUD (A$)</SelectItem>
-                          <SelectItem value="CNY">CNY (¥)</SelectItem>
-                          <SelectItem value="INR">INR (₹)</SelectItem>
-                          <SelectItem value="BAM">KM (BAM)</SelectItem>
-                          <SelectItem value="RSD">RSD (РСД)</SelectItem>
-                          <SelectItem value="PLN">PLN (zł)</SelectItem>
-                          <SelectItem value="CZK">CZK (Kč)</SelectItem>
-                          <SelectItem value="SEK">SEK (kr)</SelectItem>
-                          <SelectItem value="NOK">NOK (kr)</SelectItem>
-                          <SelectItem value="DKK">DKK (kr)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="edit_minimum_stock">Min Stock Level</Label>
+                      <NumericInput
+                        id="edit_minimum_stock"
+                        value={formData.minimum_stock || 0}
+                        onChange={(val) => setFormData(prev => ({ ...prev, minimum_stock: val.toString() }))}
+                        min={0}
+                        placeholder="0"
+                      />
                     </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit_weight">Weight/unit</Label>
+                    <NumericInput
+                      id="edit_weight"
+                      value={formData.weight}
+                      onChange={(val) => setFormData(prev => ({ ...prev, weight: val.toString() }))}
+                      min={0}
+                      step={0.01}
+                      placeholder="0.00"
+                    />
                   </div>
                 </>
               ) : editingItem?.category === "Tools" ? (
@@ -3444,7 +3305,7 @@ export default function Inventory() {
                   }))} placeholder="Enter item name" />
                 </div>
               )}
-            {editingItem?.category !== "Materials" && (
+            {editingItem?.category !== "Materials" && editingItem?.category !== "Components" && (
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit_quantity">Quantity *</Label>
@@ -3456,7 +3317,7 @@ export default function Inventory() {
                   placeholder="0"
                 />
               </div>
-              {(editingItem?.category === "Parts" || editingItem?.category === "Components") && (
+              {editingItem?.category === "Parts" && (
                 <div className="grid gap-2">
                   <Label htmlFor="edit_unit">Unit</Label>
                   <UnitSelect
@@ -3490,7 +3351,7 @@ export default function Inventory() {
                   />
                 </div>
               )}
-              {editingItem?.category !== "Parts" && editingItem?.category !== "Materials" && (
+              {editingItem?.category !== "Parts" && editingItem?.category !== "Materials" && editingItem?.category !== "Components" && (
               <div className="grid gap-2">
                 <Label htmlFor="edit_currency">Currency</Label>
                 <Select value={formData.currency} onValueChange={value => setFormData(prev => ({
@@ -3536,7 +3397,7 @@ export default function Inventory() {
                 />
               </div>
             )}
-            {editingItem?.category !== "Materials" && (
+            {editingItem?.category !== "Materials" && editingItem?.category !== "Components" && (
             <div className="grid gap-2">
               <Label htmlFor="edit_location">Location</Label>
               <Select value={formData.location} onValueChange={value => setFormData(prev => ({
@@ -3554,7 +3415,7 @@ export default function Inventory() {
               </Select>
             </div>
             )}
-            {editingItem?.category !== "Parts" && editingItem?.category !== "Materials" && (
+            {editingItem?.category !== "Parts" && editingItem?.category !== "Materials" && editingItem?.category !== "Components" && (
               <div className="grid gap-2">
                 <Label htmlFor="edit_supplier">Supplier</Label>
                 <Select value={formData.supplier_id} onValueChange={value => {
